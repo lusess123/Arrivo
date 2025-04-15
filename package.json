@@ -1,0 +1,19 @@
+{
+  "name": "arrivo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "fe-dev": "cd packages/arrivo-fe && npm run dev",
+    "server-dev": "cd packages/arrivo-server && npm run start:dev",
+    "db-build": "cd packages/arrivo-db && npm run db-build",
+    "server-build": "cd packages/arrivo-server && npm run build",
+    "fe-build": "cd packages/arrivo-fe && npm run build",
+    "manage-build": "cd packages/arrivo-manage && npm run build",
+    "db-restart": "cd packages/arrivo-db && npm run db:restart"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

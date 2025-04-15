@@ -1,0 +1,27 @@
+{
+  "name": "arrivo-db",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist",
+  "module": "dist",
+  "typings": "dist",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -p tsconfig.json",
+    "db-build": "npm run db:generate && tsc -p tsconfig.json",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --skip-generate",
+    "db:deploy": "prisma migrate deploy",
+    "db:restart": "npm run db-build && npm run db:migrate && npm run db:deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "prisma": "^6.4.1",
+    "@prisma/client": "^6.4.1"
+  }
+}

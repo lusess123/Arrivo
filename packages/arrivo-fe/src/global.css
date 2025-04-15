@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+  --color:#fff;
+}
+
+/* swiper-custom.css */
+
+.swiper-button-prev,
+.swiper-button-next {
+  opacity: 0.5; /* 默认透明度 */
+  transition: opacity 0.3s;
+  color: #EFC078 !important;
+}
+
+.swiper-button-prev:hover,
+.swiper-button-next:hover {
+  opacity: 0.9; /* 鼠标悬停透明度提高 */
+}
+.swiper-image {
+  img {
+    height: 100%;
+    width: 100%;
+    object-fit: contain; /* 关键属性，让图片自动缩放，始终完整显示 */
+  }
+}
+.userImageShow {
+  img {
+    height: 100%;
+    width: 100%;
+    object-fit: contain; /* 关键属性，让图片自动缩放，始终完整显示 */
+
+  }
+ 
+}

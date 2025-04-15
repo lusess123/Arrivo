@@ -1,0 +1,16 @@
+export enum ModelFieldType {
+  Key = 'Key',
+  Text = 'Text',
+  TextArea = 'TextArea',
+  HTML = 'HTML',
+  Number = 'Number',
+  DateTime = 'DateTime',
+  Boolean = 'Boolean',
+  Single = 'Single',
+  Multi = 'Multi',
+  toOne = 'toOne',
+  toManay = 'toManay',
+  linkOne = 'linkOne',
+  linkManay = 'linkManay',
+  Duration = 'Duration',
+}

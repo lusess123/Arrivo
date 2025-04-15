@@ -1,0 +1,12 @@
+node_modules
+.git
+.gitignore
+*.md
+dist
+packages/arrivo/node_modules
+packages/arrivo/dist
+packages/arrivo-server/node_modules
+packages/arrivo-server/dist
+packages/arrivo-db/node_modules
+packages/arrivo-db/dist
+

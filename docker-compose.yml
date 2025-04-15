@@ -1,0 +1,48 @@
+services:
+  arrivo-server:
+    container_name: arrivo-server
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-Dockerfile} 
+      target: arrivo-server
+      args:
+        - DOCKER_BUILDKIT=1
+    ports:
+      - "3020:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - SERVER_HOST=http://host.docker.internal:3020
+      - GIT_COMMIT_TIME=${GIT_COMMIT_TIME}
+      - GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
+
+  arrivo-h5:
+    container_name: arrivo-fe
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-Dockerfile} 
+      target: arrivo-fe
+      args:
+        - DOCKER_BUILDKIT=1
+    ports:
+      - "3033:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - GIT_COMMIT_TIME=${GIT_COMMIT_TIME}
+        - GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
+  arrivo-manage:
+    build:
+      context: .
+      dockerfile: ${DOCKERFILE:-Dockerfile} 
+      target: arrivo-manage
+      args:
+        - DOCKER_BUILDKIT=1
+    ports:
+      - "8000:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - GIT_COMMIT_TIME=${GIT_COMMIT_TIME}
+      - GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
+

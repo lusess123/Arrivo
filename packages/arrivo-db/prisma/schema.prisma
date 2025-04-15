@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default("") @db.VarChar(50)
+  userName         String
+  nickname         String?
+  email            String?
+  phoneNumber      String?
+  wechatId         String?
+  remarkInfo       String?
+  lastLoginTime    DateTime?
+  lastLogoutTime   DateTime?
+  registrationTime DateTime
+  companyName      String?
+  openId           String?   @default("")
+  headimgurl       String?
+
+  newUser    Boolean?
+  access     String?
+  voice      String?  @db.VarChar(20)
+  speed      Int
+  is_delayed Boolean?
+  is_public  Boolean?
+
+  deletedAt DateTime?
+  createdAt DateTime?
+  updatedAt DateTime?
+  deletedBy String?
+  createdBy String?   @db.VarChar(50)
+  updatedBy String?   @db.VarChar(50)
+  tenantId  String?   @db.VarChar(50)
+  teamId    String?   @db.VarChar(50)
+  env       String?   @db.VarChar(50)
+
+  Articles Articles[]
+}
+
+model Articles {
+  id      String @id @default("") @db.VarChar(50)
+  content String
+  title   String
+
+  deletedAt DateTime?
+  createdAt DateTime?
+  updatedAt DateTime?
+  deletedBy String?
+  createdBy String?   @db.VarChar(50)
+  updatedBy String?   @db.VarChar(50)
+  tenantId  String?   @db.VarChar(50)
+  teamId    String?   @db.VarChar(50)
+  env       String?   @db.VarChar(50)
+
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+
+  Sentences Sentences[]
+}
+
+model Sentences {
+  id      String @id @default("") @db.VarChar(50)
+  content String
+
+  articleId String?
+  article   Articles? @relation(fields: [articleId], references: [id])
+ 
+
+  deletedAt DateTime?
+  createdAt DateTime?
+  updatedAt DateTime?
+  deletedBy String?
+  createdBy String?   @db.VarChar(50)
+  updatedBy String?   @db.VarChar(50)
+  tenantId  String?   @db.VarChar(50)
+  teamId    String?   @db.VarChar(50)
+  env       String?   @db.VarChar(50)
+}
+
+model Config {
+  id          String  @id @default("") @db.VarChar(50)
+  key         String
+  value       String
+  description String?
+  appName     String?
+
+  deletedAt DateTime?
+  createdAt DateTime?
+  updatedAt DateTime?
+  deletedBy String?   @db.VarChar(50)
+  createdBy String?   @db.VarChar(50)
+  updatedBy String?   @db.VarChar(50)
+  tenantId  String?   @db.VarChar(50)
+  teamId    String?   @db.VarChar(50)
+}
+
+model UserPassword {
+  id       String  @id @default("") @db.VarChar(50)
+  password String? // 密码
+
+  deletedAt DateTime? //删除时间
+  createdAt DateTime? // 创建时间
+  updatedAt DateTime? // 更新时间
+  deletedBy String? // 删除人
+  createdBy String? // 创建人
+  updatedBy String? // 更新人
+  tenantId  String? //租户id
+  teamId    String? //团队id
+}
+
+model PhoneCode {
+  id            String    @id @default("") @db.VarChar(50)
+  code          String? // 验证码
+  userId        String? // 用户id
+  expiredTime   DateTime? //过期时间
+  toPhoneNumber String? //手机号
+
+  deletedAt DateTime? //删除时间
+  createdAt DateTime? // 创建时间
+  updatedAt DateTime? // 更新时间
+  deletedBy String? // 删除人
+  createdBy String? // 创建人
+  updatedBy String? // 更新人
+  tenantId  String? //租户id
+  teamId    String? //团队id
+}
+
+model EmailCode {
+  id          String    @id @default("") @db.VarChar(50)
+  code        String? // 验证码
+  userId      String? // 用户id
+  expiredTime DateTime? //过期时间
+  toEmail     String? //邮箱
+
+  deletedAt DateTime? //删除时间
+  createdAt DateTime? // 创建时间
+  updatedAt DateTime? // 更新时间
+  deletedBy String? // 删除人
+  createdBy String? // 创建人
+  updatedBy String? // 更新人
+  tenantId  String? //租户id
+  teamId    String? //团队id
+}
