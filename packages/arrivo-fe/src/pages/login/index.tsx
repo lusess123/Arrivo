@@ -81,7 +81,7 @@ export default function LoginPage() {
     <div className={styles.container}>
       <header className={styles.header}>
         <h1> Arrivo</h1>
-        <p>让语言为你的世界降临</p>
+        <p>突破语言的边界，就是打开世界的边界</p>
       </header>
 
       <main className={styles.form}>
