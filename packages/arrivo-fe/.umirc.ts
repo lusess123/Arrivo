@@ -17,6 +17,14 @@ export default defineConfig({
   // },
   esbuildMinifyIIFE: true,
   routes: [
+    {
+      path: '/',
+      component: 'index',
+    },
+    {
+      path: '/login',
+      component: 'login',
+    }
   ],
   npmClient: 'pnpm',
   // plugins: ['./src/plugins/insertNoscript.ts'],

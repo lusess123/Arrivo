@@ -417,6 +417,7 @@ export class UserService extends PrismaClient {
       data: {
         id,
         userName: mobile,
+        speed: 0,
         // password: credentials.password,
         phoneNumber: mobile,
         nickname: nickName,

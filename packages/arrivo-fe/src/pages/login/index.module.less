@@ -1,0 +1,163 @@
+.container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0 24px;
+  position: relative;
+  overflow: hidden;
+  /* Ghibli-inspired dreamy sky */
+  background: linear-gradient(180deg, #a0d8ef 0%, #cfe9f5 40%, #f5f7fa 100%);
+}
+
+/* Floating clouds */
+.container::before,
+.container::after {
+  content: "";
+  position: absolute;
+  top: -10%;
+  left: -50%;
+  width: 200%;
+  height: 120%;
+  background: url("@/assets/image1.png") repeat-x;
+  opacity: 0.25;
+  animation: cloudMove 60s linear infinite;
+  pointer-events: none;
+}
+
+.container::after {
+  top: -20%;
+  animation-duration: 90s;
+  opacity: 0.15;
+  background: url("@/assets/image2.png") repeat-x;
+}
+
+@keyframes cloudMove {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.header {
+  text-align: center;
+  color: #ffffff;
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS", sans-serif;
+  font-size: 48px;
+  letter-spacing: 2px;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.45);
+  margin: 0;
+}
+
+.header p {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.form {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 32px 24px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+
+  /* Ant Design input overrides */
+  :global {
+    .ant-input,
+    .ant-input-affix-wrapper {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 16px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .ant-input:focus,
+    .ant-input-affix-wrapper-focused {
+      border-color: #a0d8ef;
+      box-shadow: 0 0 0 3px rgba(160, 216, 239, 0.35);
+    }
+
+    .ant-input::placeholder {
+      color: #999;
+      opacity: 1;
+    }
+
+    .ant-btn-primary {
+      background: linear-gradient(135deg, #f0be6b 0%, #f7d7a3 100%);
+      border: none;
+      color: #4a320d;
+      box-shadow: 0 6px 16px rgba(240, 190, 107, 0.45);
+      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+      animation: pulse 2.5s ease-in-out infinite;
+      height: 48px;
+      border-radius: 24px;
+    }
+
+    .ant-btn-primary:hover,
+    .ant-btn-primary:focus {
+      background: linear-gradient(135deg, #f9e0a6 0%, #fff2d8 100%);
+      color: #4f3b12;
+      box-shadow: 0 5px 16px rgba(246, 216, 142, 0.5);
+    }
+
+    .ant-btn-link {
+      color: #f6d88e;
+      font-weight: 500;
+    }
+  } /* end :global */
+} /* end .form */
+
+.getCodeBtn {
+  width: 100%;
+}
+
+.loginBtn {
+  width: 100%;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.footer {
+  color: #ffffff;
+  font-size: 12px;
+  margin-top: 24px;
+  opacity: 0.8;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.footerLogo {
+  width: 120px;
+  height: auto;
+  margin-bottom: 8px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 6px 16px rgba(240, 190, 107, 0.45);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 8px 20px rgba(240, 190, 107, 0.6);
+  }
+} 

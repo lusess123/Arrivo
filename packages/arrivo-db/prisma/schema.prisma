@@ -31,7 +31,7 @@ model User {
   newUser    Boolean?
   access     String?
   voice      String?  @db.VarChar(20)
-  speed      Int
+  speed      Int @default(0)
   is_delayed Boolean?
   is_public  Boolean?
 
@@ -75,6 +75,9 @@ model Sentences {
 
   articleId String?
   article   Articles? @relation(fields: [articleId], references: [id])
+
+  originalContent String?
+  translatedContent String?
  
 
   deletedAt DateTime?

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from 'vphone-db';
+import { PrismaClient } from 'arrivo-db';
 import { AuthService } from 'src/auth/auth.service';
 import {
   IActionParam,

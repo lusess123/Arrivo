@@ -17,12 +17,15 @@
     "antd": "^5.24.6",
     "antd-mobile": "^5.38.1",
     "antd-mobile-icons": "^0.3.0",
+    "arrivo-server": "workspace:*",
     "axios": "^1.7.9",
     "hox": "^2.1.1",
     "immer": "^10.1.1",
+    "mobx": "^6.13.7",
+    "mobx-react": "^9.2.0",
+    "mobx-state-tree": "^7.0.2",
     "react-countdown": "^2.3.6",
-    "tailwindcss": "^4.0.9",
-    "arrivo-server": "workspace:*"
+    "tailwindcss": "^4.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.9",

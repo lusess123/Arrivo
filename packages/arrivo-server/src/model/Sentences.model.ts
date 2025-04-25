@@ -15,6 +15,16 @@ export const SentencesModel: IModel = {
       relationModel: 'Articles',
     },
     {
+      name: 'originalContent',
+      label: '原文',
+      fieldType: ModelFieldType.Text,
+    },
+    {
+      name: 'translatedContent',
+      label: '翻译',
+      fieldType: ModelFieldType.Text,
+    },
+    {
       name: 'deletedAt',
       label: '删除时间',
       fieldType: ModelFieldType.DateTime,

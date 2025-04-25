@@ -7,7 +7,8 @@ import { BusinessError } from './business.error';
 // import { UserDto, UserRole } from './auth.dto';
 
 const excludedPaths = [
- 
+     '/auth',
+     '/order/login',
 ];
 
 // const userPaths = [

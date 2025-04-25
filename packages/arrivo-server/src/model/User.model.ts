@@ -1,5 +1,5 @@
-import { setModel, setDict } from 'src/mdd/model.store';
-import { IModel, IDict, ModelFieldType } from '../api';
+import { setModel } from 'src/mdd/model.store';
+import { IModel, ModelFieldType } from '../api';
 
 export const UserModel: IModel = {
   name: 'User',
