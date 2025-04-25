@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Form, Input, Button, message } from 'antd';
 import { history } from '@umijs/max';
-import styles from './index.module.scss';
+import styles from './index.module.less';
 import axios from 'axios';
 import footerLogo from '../../assets/logo.png';
 
@@ -80,7 +80,7 @@ export default function LoginPage() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1> <img src={footerLogo} className={styles.footerLogo} alt="Arrivo Logo" /></h1>
+        <h1> Arrivo</h1>
         <p>让语言为你的世界降临</p>
       </header>
 
