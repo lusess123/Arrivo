@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { Form, Input, Button, message } from 'antd';
 import { history } from '@umijs/max';
+// @ts-ignore – allow importing Less module without a declared type
 import styles from './index.module.less';
 import axios from 'axios';
-import footerLogo from '../../assets/logo.png';
+// @ts-ignore – allow importing Less module without a declared type
+// import footerLogo from '../../assets/logo.png';
+import { asyncHandle } from '../../lib';
+import { useAuth } from '@/hooks/auth';
+
 
 interface SendCodeResponse {
   success: boolean;
@@ -21,6 +26,7 @@ export default function LoginPage() {
   const [countdown, setCountdown] = useState<number>(0);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
 
   const startCountdown = () => {
     let counter = 59;
@@ -42,12 +48,12 @@ export default function LoginPage() {
         return;
       }
       setSending(true);
-      const res: SendCodeResponse = await axios.post('/api/auth/sendCode', { phone });
-      if (res?.success) {
+      const [error] = await asyncHandle(axios.post('/api/auth/sendSmsCode', { phoneNumber: phone }));
+      if (!error) {
         message.success('验证码已发送');
         startCountdown();
       } else {
-        message.error(res?.message || '发送失败');
+        message.error('发送失败');
       }
     } catch (error: any) {
       message.error(error?.message || '发送失败');
@@ -59,16 +65,18 @@ export default function LoginPage() {
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const res: LoginResponse = await axios.post('/api/auth/login', values);
-      if (res?.success) {
+
+
+      const [error, res] = await login(values.phone, values.code);
+      if (!error) {
         message.success('登录成功');
         // 持久化 token
-        if (res.token) {
-          localStorage.setItem('token', res.token);
-        }
+        // if (res.token) {
+        //   localStorage.setItem('token', res.token);
+        // }
         history.push('/');
       } else {
-        message.error(res?.message || '登录失败');
+        message.error(error?.message || '登录失败');
       }
     } catch (error: any) {
       message.error(error?.message || '登录失败');

@@ -63,9 +63,9 @@ export class AuthService {
 
 
     async phoneNumberLogin(user: PhoneNumberLoginParam) {
-        if(user.phoneNumber && !user.phoneNumber.startsWith('+')) {
-            user.phoneNumber = `+${user.phoneNumber}`;
-        }
+        // if(user.phoneNumber && !user.phoneNumber.startsWith('+')) {
+        //     user.phoneNumber = `+${user.phoneNumber}`;
+        // }
         let userRow = await this.userService.getUserByPhoneNumber(user.phoneNumber);
         const successs = await this.userService.checkPhoneNumberCode(
             user.phoneNumberCode,

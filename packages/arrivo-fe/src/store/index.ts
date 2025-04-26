@@ -8,7 +8,7 @@ export const RootStore = types.model("RootStore", {
     self.userName = name;
   },
   setUserData(data: any) {
-    self.userData.set(data.id, data);
+    self.userData.set("data", data);
   }
 }));
 
