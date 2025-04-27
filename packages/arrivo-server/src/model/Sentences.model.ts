@@ -6,8 +6,6 @@ export const SentencesModel: IModel = {
   label: '句子',
   fields: [
     { name: 'id', label: 'ID', fieldType: ModelFieldType.Key },
-    { name: 'content', label: '内容', fieldType: ModelFieldType.Text },
-    { name: 'articleId', label: '文章ID', fieldType: ModelFieldType.Text },
     {
       name: 'article',
       label: '文章',
@@ -17,12 +15,12 @@ export const SentencesModel: IModel = {
     {
       name: 'originalContent',
       label: '原文',
-      fieldType: ModelFieldType.Text,
+      fieldType: ModelFieldType.TextArea,
     },
     {
       name: 'translatedContent',
       label: '翻译',
-      fieldType: ModelFieldType.Text,
+      fieldType: ModelFieldType.TextArea,
     },
     {
       name: 'deletedAt',

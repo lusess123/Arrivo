@@ -15,6 +15,7 @@ interface IFormContainer {
     parentModalClose?: ()=> void ;
     parentRefersh?: () => void;
     id?: string;
+    where?: any;
 }
 
 function TextArea(props: any) {
@@ -41,7 +42,7 @@ export function FormContainer (props: IFormContainer) : JSX.Element {
         (async function() {
             //------
             if(props.id) {
-            const [{data}] = await post({
+            const [error, res] = await post({
                 url: 'mdd/querysingleaction',
                 data: {
                     id: props.id,
@@ -49,6 +50,11 @@ export function FormContainer (props: IFormContainer) : JSX.Element {
                     fields: props.dataContainer.fields.map(f => f.name)
                 }
             })
+            const data = res?.data;
+            if(error) {
+                message.error(error.message)
+                return;
+            }
             setRow(data)
         }
 
@@ -80,15 +86,21 @@ export function FormContainer (props: IFormContainer) : JSX.Element {
                       //-------
                       const values = await form.validateFields()
                       if(values) {
-                         const [{data}] = await post({
+                         const [err, res] = await post({
                             url:'mdd/newsingleaction',
                             data: {
                                 model: props.dataContainer.name,
                                 row: values,
                                 id: props.id,
-                                fields: props.dataContainer.fields.map(f => f.name)
+                                fields: props.dataContainer.fields.map(f => f.name),
+                                where: props.where
                             }
                          })
+                         if(err) {
+                            message.error(err.message)
+                            return;
+                         }
+                         const data = res?.data;
                          if(data) {
                                message.success((props.id ? '编辑': '新增') + props.dataContainer.name + '成功')
                                if(props.parentModalClose) {

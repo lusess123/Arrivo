@@ -7,6 +7,7 @@ import { ClsModule } from 'nestjs-cls';
 
 import { ConfigModule } from '@nestjs/config';
 import { MddModule } from './mdd/mdd.module';
+import { ArticleModule } from './article/article.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +22,7 @@ import { MddModule } from './mdd/mdd.module';
     }),
     AuthModule,
     MddModule,
+    ArticleModule,
   ],
   controllers: [AppController],
   providers: [AppService, JwtService],

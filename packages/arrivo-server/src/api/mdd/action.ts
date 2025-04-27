@@ -17,4 +17,5 @@ export interface IActionParam {
   id: string;
   row: any;
   fields: string[];
+  where?: any;
 }

@@ -53,10 +53,10 @@ export class MddService {
       throw new BusinessError('权限不足');
     }
     return await Promise.all(
-      names.map(async name => {
+      names.map(async (name) => {
         const dict = await getModel(name);
         return dict;
-      })
+      }),
     );
   }
 
@@ -64,12 +64,22 @@ export class MddService {
     if (this.auth.getUser()?.access !== 'root') {
       throw new BusinessError('权限不足');
     }
+
     const model = getModel(params.model);
+    const tableName = model?.tableName || params.model;
+    const dataRight = model?.dataRight || [];
+    const whereDataRight = {};
+    dataRight.forEach((item) => {
+      if (item === 'user') {
+        whereDataRight['userId'] = this.auth.getUserId();
+      }
+    });
+
     if (model) {
       let data = { id: true };
       // const fieldsMap = getModelMeta(model);
       const fields = params.fields;
-      fields.forEach(field => {
+      fields.forEach((field) => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const fileMeta = model.fieldsObject![field];
         if (fileMeta) {
@@ -109,13 +119,17 @@ export class MddService {
           // })
         }
       });
+      const where = {
+        id: params.id,
+        ...(Object.keys(whereDataRight).length > 0 ? whereDataRight : {}),
+      };
+      console.log('querySingle where: ', where);
       const paramsData: any = {
         select: data,
-        where: { id: params.id },
+        where,
       };
       console.log('查询参数： ', paramsData);
-      const result =
-        await this.prismaClient[params.model].findFirst(paramsData);
+      const result = await this.prismaClient[tableName].findFirst(paramsData);
       return result;
     }
     return {};
@@ -132,7 +146,7 @@ export class MddService {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const fieldsMap = model.fieldsObject!;
       const fields = params.fields;
-      fields.forEach(field => {
+      fields.forEach((field) => {
         const fileMeta = fieldsMap[field];
         const { relationModel } = fileMeta;
         const isLinkField =
@@ -187,7 +201,7 @@ export class MddService {
       // });
       const result: any = {};
       const orResult: any[] = [];
-      Object.keys(params.search || {}).forEach(k => {
+      Object.keys(params.search || {}).forEach((k) => {
         const searchValue = params.search[k];
         const fieldType = model.fieldsObject?.[k].fieldType;
 
@@ -209,7 +223,7 @@ export class MddService {
             break;
           case ModelFieldType.Multi:
             // result[k] = { contains: searchValue };
-            searchValue.forEach(v => {
+            searchValue.forEach((v) => {
               orResult.push({
                 [k]: { contains: v },
               });
@@ -231,30 +245,37 @@ export class MddService {
         }
       });
 
+      const dataRight = model?.dataRight || [];
+      const whereDataRight = {};
+      dataRight.forEach((item) => {
+        if (item === 'user') {
+          whereDataRight['userId'] = this.auth.getUserId();
+        }
+      });
+
       const where = {
         AND: [
           {
             ...result,
             ...(params.where || {}),
+            ...(Object.keys(whereDataRight).length > 0 ? whereDataRight : {}),
           },
           {
             OR: orResult,
           },
         ],
       };
+      console.log('queryList where: ', where);
 
       // this.prismaClient.user.findMany({
       //   orderBy : {
       //     updatedBy: 'desc'
       //   }
       // })
-
-      const pList = this.prismaClient[params.model].findMany({
+      const tableName = model.tableName || params.model;
+      const pList = this.prismaClient[tableName].findMany({
         select: data,
-        where: {
-          ...where,
-          ...(params.where || {}),
-        },
+        where,
         orderBy: {
           updatedAt: 'desc',
         },
@@ -262,13 +283,13 @@ export class MddService {
         take: Number(params.pageSize),
       });
 
-      const pCount = this.prismaClient[params.model].count({
+      const pCount = this.prismaClient[tableName].count({
         where,
       });
       const [list, count] = await Promise.all([pList, pCount]);
       const modelObj: Record<string, Record<string, any>> = {};
-      list.forEach(row => {
-        Object.keys(linkFields).forEach(k => {
+      list.forEach((row) => {
+        Object.keys(linkFields).forEach((k) => {
           const field = linkFields[k];
           if (row[field.name]) {
             const modelName = field.relationModel;
@@ -282,7 +303,7 @@ export class MddService {
         });
       });
       const pQueryAll: any[] = [];
-      Object.keys(modelObj).forEach(m => {
+      Object.keys(modelObj).forEach((m) => {
         const model = modelObj[m];
         const pQuery = this.prismaClient[m].findMany({
           where: {
@@ -312,13 +333,28 @@ export class MddService {
     if (this.auth.getUser()?.access !== 'root') {
       throw new BusinessError('权限不足');
     }
+
+    // const tableName = params.model;
     const model = getModel(params.model);
+    const tableName = model.tableName || params.model;
+    const dataRight = model?.dataRight || [];
+    const whereDataRight = {};
+    dataRight.forEach((item) => {
+      if (item === 'user') {
+        whereDataRight['userId'] = this.auth.getUserId();
+      }
+    });
+    const where = {
+      id: params.id,
+      ...(Object.keys(whereDataRight).length > 0 ? whereDataRight : {}),
+    };
+    console.log('delSingleRecord where: ', where);
+
+    // this.prismaClient.emailCode.delete()
 
     if (model && params.id) {
-      return await this.prismaClient[params.model].delete({
-        where: {
-          id: params.id,
-        },
+      return await this.prismaClient[tableName].delete({
+        where,
       });
     }
   }
@@ -346,6 +382,14 @@ export class MddService {
     //     },
     //   },
     // });
+    const tableName = model?.tableName || params.model;
+    const dataRight = model?.dataRight || [];
+    const whereDataRight = {};
+    dataRight.forEach((item) => {
+      if (item === 'user') {
+        whereDataRight['userId'] = this.auth.getUserId();
+      }
+    });
 
     if (model) {
       let data: any = {
@@ -354,10 +398,12 @@ export class MddService {
         updatedBy: this.auth.getUserId(),
         createdAt: new Date(),
         createdBy: this.auth.getUserId(),
+        ...(Object.keys(whereDataRight).length > 0 ? whereDataRight : {}),
+        ...(params.where || {}),
       };
       const fieldsMap = getModelMeta(model);
       const fields = params.fields;
-      fields.forEach(field => {
+      fields.forEach((field) => {
         const fileMeta = fieldsMap[field];
 
         // if(fieldsMap)
@@ -388,13 +434,13 @@ export class MddService {
       console.log('data: ', data);
       console.log('params.id: ', params.id);
       if (!params.id) {
-        const result = await this.prismaClient[params.model].create({
+        const result = await this.prismaClient[tableName].create({
           data,
         });
         return result;
       } else {
         // this.prismaClient.exam.update
-        const result = await this.prismaClient[params.model].update({
+        const result = await this.prismaClient[tableName].update({
           data: {
             ...data,
             updatedAt: new Date(),
@@ -403,6 +449,7 @@ export class MddService {
           },
           where: {
             id: params.id,
+            ...(Object.keys(whereDataRight).length > 0 ? whereDataRight : {}),
           },
         });
         return result;
@@ -427,7 +474,7 @@ export class MddService {
           models[modelName] = model;
           //字典
           //看一下关联模型
-          model.fields.forEach(field => {
+          model.fields.forEach((field) => {
             if (field.relationModel && !models[field.relationModel]) {
               fetchModel(field.relationModel);
             }
@@ -443,12 +490,12 @@ export class MddService {
     }
 
     if (metaRequest.models && metaRequest.models.length > 0) {
-      metaRequest.models.forEach(modelName => {
+      metaRequest.models.forEach((modelName) => {
         fetchModel(modelName);
       });
     }
     if (metaRequest.dicts && metaRequest.dicts.length > 0) {
-      metaRequest.dicts.forEach(dictName => {
+      metaRequest.dicts.forEach((dictName) => {
         if (!dicts[dictName]) {
           const dict = getDict(dictName);
           if (dict) {
@@ -458,7 +505,7 @@ export class MddService {
       });
     }
     if (metaRequest.views && metaRequest.views.length > 0) {
-      metaRequest.views.forEach(viewName => {
+      metaRequest.views.forEach((viewName) => {
         if (!views[viewName]) {
           views[viewName] = getView(viewName);
         }

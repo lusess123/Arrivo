@@ -6,7 +6,7 @@ import { BooleanDetail } from '@/components/common/detail-component/boolean-deta
 import { ToOneDetail } from '@/components/common/detail-component/toone-detail';
 import { DateTimeDetail } from '@/components/common/detail-component/datetime-detail';
 import { Detail } from '@/components/common/detail-component/detail';
-import { Descriptions } from 'antd';
+import { Descriptions, message } from 'antd';
 import { HTMLDetail } from '@/components/common/detail-component/html';
 import DurationDetail from '@/components/common/detail-component/duration';
 // import dayjs from 'dayjs';
@@ -38,7 +38,7 @@ export function DetailContainer (props: IDetailContainer) : JSX.Element {
         (async function() {
             //------
             if(props.id) {
-            const [{data}] = await post({
+            const [error , res] = await post({
                 url: 'mdd/querysingleaction',
                 data: {
                     id: props.id,
@@ -46,6 +46,11 @@ export function DetailContainer (props: IDetailContainer) : JSX.Element {
                     fields: props.dataContainer.fields.map(f => f.name)
                 }
             })
+            const data = res?.data;
+            if(error) {
+                message.error(error.message)
+                return;
+            }
             setRow(data)
         }
 

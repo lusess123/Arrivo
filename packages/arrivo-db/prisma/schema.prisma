@@ -50,8 +50,8 @@ model User {
 
 model Articles {
   id      String @id @default("") @db.VarChar(50)
-  content String
-  title   String
+  content String?
+  title   String?
 
   deletedAt DateTime?
   createdAt DateTime?

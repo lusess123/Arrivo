@@ -23,10 +23,12 @@ export interface IModelField {
 
 export interface IModel {
   name: string;
+  tableName?: string;
   displayField?: string;
   label?: string;
   fields: IModelField[];
   fieldsObject?: Record<string, IModelField>;
+  dataRight?: string[];
 }
 
 export interface IModelFieldMapperItem {

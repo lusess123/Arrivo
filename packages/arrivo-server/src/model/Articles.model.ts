@@ -4,6 +4,7 @@ import { IModel, ModelFieldType } from '../api';
 export const ArticlesModel: IModel = {
   name: 'Articles',
   label: '文章',
+  displayField: 'title',
   fields: [
     { name: 'id', label: 'ID', fieldType: ModelFieldType.Key },
     { name: 'content', label: '内容', fieldType: ModelFieldType.Text },

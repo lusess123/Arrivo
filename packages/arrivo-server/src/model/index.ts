@@ -7,3 +7,5 @@ import './Sentences.model';
 import './UserModel.model';
 import './UserPassword.model';
 import './User.model';
+import './MyArticles.model';
+import './MySentences.model';

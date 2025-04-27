@@ -1,4 +1,5 @@
 import { post } from '@/utils/util';
+import { message } from 'antd';
 import { IDict, IMetaResponse, IModel, IView } from 'arrivo-server';
 import { createStore } from 'hox';
 import { useState } from 'react';
@@ -58,7 +59,7 @@ export function useMetaContextInternal() {
     const isData =
       modelNames.length > 0 || dictNames.length > 0 || viewNames.length > 0;
     //------------
-    const [res]: [{ data: IMetaResponse }] = isData
+    const [error, res]: [{ data: IMetaResponse }, any] = isData
       ? await post({
           url: 'mdd/meta',
           data: {
@@ -67,7 +68,12 @@ export function useMetaContextInternal() {
             views: viewNames,
           },
         })
-      : [{ data: {} }];
+      : [undefined, { data: {} }];
+
+    if(error) {
+      message.error((error as any).message)
+      return;
+    }
 
     if (res?.data) {
       if (isNotEmptyObject(res.data.models))

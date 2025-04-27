@@ -76,7 +76,7 @@ export function ListContainer(props: IListContainerProps) {
     //-----------
     (async function () {
       setLoading(true)
-      const [{ data }] = await post({
+      const [error, res] = await post({
         url: 'mdd/querylistaction',
         data: {
           pageIndex: page.pageIndex,
@@ -87,6 +87,11 @@ export function ListContainer(props: IListContainerProps) {
           search
         },
       });
+      if(error) {
+        message.error(error.message)
+        return;
+      }
+      const data = res?.data;
       setLoading(false)
       setList(data.list);
       if(data.data) mergeDataSet(data.data)
@@ -166,7 +171,7 @@ export function ListContainer(props: IListContainerProps) {
           confirm: action.type === 'del' ? {
               title: '是否删除呢',
               async onConfirm() {
-                  const [{ data }] = await post({
+                  const [error , res] = await post({
                       url: 'mdd/delsingleaction',
                       data: {
                         id: record.id,
@@ -174,6 +179,11 @@ export function ListContainer(props: IListContainerProps) {
                         fields: props.dataContainer.fields.map((a) => a.name),
                       },
                     });
+                    if(error) {
+                      message.error(error.message)
+                      return;
+                    }
+                    const data = res?.data;
                     if(data) {
                        message.success('删除成功');
                        setUpdate(+new Date())
@@ -236,6 +246,7 @@ export function ListContainer(props: IListContainerProps) {
                 props.openWin({
                   model: dataContainer.name,
                   view: 'newview',
+                  where: props.where,
                 });
               }
             }}

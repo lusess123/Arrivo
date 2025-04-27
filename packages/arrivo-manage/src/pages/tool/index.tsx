@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Button, Select ,Input } from 'antd';
+import { Button, Select ,Input, message } from 'antd';
 
 import { SourceMap } from '../../data'
+import { asyncHandle } from '../../utils/util'
+import axios from 'axios'
 
 // import { HTML } from '../../components/common/detail-component/html'
 
@@ -14,7 +16,7 @@ const Tool: React.FC = () => {
     const [source, setSource] = useState<string>('')
     const [title, setTitle] = useState<string>('')
     const [content, setContent] = useState<string>('')
-    return <div className='flex flex-col gap-2'>
+    return <div className='flex flex-col gap-2 pb-8'>
         <div>
             <Select 
             value={source}
@@ -37,11 +39,11 @@ const Tool: React.FC = () => {
                 return { label: ss[0], value: key }
             })} />
         </div>
-        <div>
+        {/* <div>
             <Button type='primary' onClick={() => {
                 // console.log(text)
             }}>提交</Button>
-        </div>
+        </div> */}
         <div>
             <Input.TextArea rows={1} value={title} onChange={(e) => {
                 setTitle(e.target.value)
@@ -52,9 +54,26 @@ const Tool: React.FC = () => {
                 setContent(e.target.value)
             }} />
         </div>
-        <div>
-            <Button type='primary' onClick={() => {
-                // console.log(text)
+        <div className='fixed bottom-4 w-full justify-center items-center flex'>
+            <Button type='primary' onClick={async () => {
+                if (!title) {
+                    message.error('请输入标题')
+                    return
+                }
+                if (!content) {
+                    message.error('请输入内容')
+                    return
+                }
+                const [err, res] = await asyncHandle(axios.post('api/article/createArticle', {
+                    title,
+                    sentences: JSON.parse(content || '[]')
+                }))
+                if (err) {
+                    message.error(err.message)
+                }
+                if (res) {
+                    message.success('创建成功')
+                }
             }}>提交</Button>
         </div>
     </div>;

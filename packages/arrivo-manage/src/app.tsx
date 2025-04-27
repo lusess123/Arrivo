@@ -64,6 +64,18 @@ export default defineApp({
 
 const menus: MenuDataItem[] = [
   {
+    name: '我的资源',
+    path: '/',
+    // component: '@/pages/index',
+    children: [
+      {
+        name: '我的文章',
+        path: '/view/MyArticles/listview',
+        component: '@/pages/index'
+      }
+    ]
+  },
+  {
     name: '资源管理',
     path: '/',
     children: [

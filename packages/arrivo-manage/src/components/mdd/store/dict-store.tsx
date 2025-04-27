@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { IDict  } from 'arrivo-server'
 import { post } from '@/utils/util'
 import { createStore } from 'hox'
-
+import { message } from 'antd'
 export function useDictContextInternal() {
     const [dicts, setDicts] = useState<Record<string, IDict>>({})
     function getDict(dictName: string) {
@@ -11,12 +11,17 @@ export function useDictContextInternal() {
 
     async function fetchDict(names: string[]) {
         const noNames = names.filter(a => !dicts[a])
-        const [{ data }] = await post({
+        const [error, res] = await post({
             url: 'mdd/meta',
             data: {
                 names: noNames
             }
         })
+        const data = res?.data;
+        if(error) {
+            message.error(error.message)
+            return;
+        }
         setDicts({
             ...dicts,
             ...data

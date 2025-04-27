@@ -90,11 +90,11 @@ export function convertToDateIfString(value: any) {
           message.error(msg)
         }
         const errorRes = error && error.response && error.response.data
-        return [undefined,errorRes] as any;
+        return [errorRes, error] as any;
       }
     
     }else {
-      return [response?.data || response, undefined] as any;
+      return [undefined, response?.data || response, undefined] as any;
     }
   }
 
