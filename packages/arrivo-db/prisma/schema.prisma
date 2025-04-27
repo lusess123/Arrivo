@@ -71,7 +71,7 @@ model Articles {
 
 model Sentences {
   id      String @id @default("") @db.VarChar(50)
-  content String
+  content String?
 
   articleId String?
   article   Articles? @relation(fields: [articleId], references: [id])
