@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Form, Input, Button, message } from 'antd';
-import { history } from '@umijs/max';
+import { history, useSearchParams } from '@umijs/max';
 // @ts-ignore – allow importing Less module without a declared type
 import styles from './index.module.less';
 import axios from 'axios';
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const startCountdown = () => {
     let counter = 59;
@@ -53,16 +54,12 @@ export default function LoginPage() {
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-
-
       const [error, res] = await login(values.phone, values.code);
       if (!error) {
         message.success('登录成功');
-        // 持久化 token
-        // if (res.token) {
-        //   localStorage.setItem('token', res.token);
-        // }
-        history.push('/');
+        // Get redirect URL from query string if it exists
+        const redirectUrl = searchParams.get('redirect');
+        history.push(redirectUrl || '/');
       } else {
         message.error(error?.message || '登录失败');
       }

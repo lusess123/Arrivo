@@ -113,6 +113,8 @@ export class AuthService {
             teamId: userDetail.teamId,
             headimgurl: userDetail.headimgurl,
             access: userDetail.access,
+            lastLoginTime: userDetail.lastLoginTime,
+            createTime: userDetail.createdAt,
             // access: userDetail.access
         };
         await this.userService.loginCommond(payload);
@@ -148,6 +150,8 @@ export class AuthService {
                     tenant: '',
                     tennantname: '',
                     phoneNumber: '',
+                    lastLoginTime: new Date(),
+                    createTime: new Date(),
                 };
                 await this.userService.checkUser(newUserObj);
                 const [newUser] = await this.userService.addUserPromise(newUserObj);
@@ -169,7 +173,9 @@ export class AuthService {
             tennantname: userDetail.tenantId!,
             teamId: userDetail.teamId,
             headimgurl: userDetail.headimgurl,
-            access: userDetail.access
+            access: userDetail.access,
+            lastLoginTime: userDetail.lastLoginTime,
+            createTime: userDetail.createdAt,
         };
         await this.userService.loginCommond(payload);
 

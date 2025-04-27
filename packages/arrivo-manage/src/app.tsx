@@ -26,6 +26,12 @@ export async function getInitialState(): Promise<any> {
     message.error('登录失败')
     location.href = `${process.env.UMI_APP_LOGIN_URL}?redirect=${location.href}`
     return { name: '@umijs/max' };
+   } else {
+      // if(res?.data.)
+      if(!res?.data?.data?.id) {
+        message.error('请先登录')
+        location.href = `${process.env.UMI_APP_LOGIN_URL}?redirect=${location.href}`
+      }
    }
   //  if(res?.data?.data?.access !== 'root') {
   //   message.error('请用有管理员权限的账号先登录,设置权限后需要重新登录才能生效')
@@ -37,9 +43,9 @@ export async function getInitialState(): Promise<any> {
 
 
 
-function App({ children }: { children: React.ReactNode }) {
-  return  <div className='flex w-full h-full justify-center items-center'>{children}</div>
-}
+// function App({ children }: { children: React.ReactNode }) {
+//   return  <div className='flex w-full h-full justify-center items-center'>{children}</div>
+// }
 
 
 
@@ -47,47 +53,65 @@ export default defineApp({
   // rootContainer: (container:any) => {
   //   return  <App>{container}</App> 
   // },
-  layout: () => {
+  layout: (initialState) => {
+    console.log('initialState', initialState)
+    const isRoot = initialState?.initialState?.data?.access === 'root' 
     return {
       logo: <Image src={Logo} height={46} ></Image>,
       menu: {
         locale: false,
       },
    
-      menuDataRender: () => menus,
+      menuDataRender: () => isRoot ? [...personMenu, ...allMenus] : personMenu,
     };
    }
    
   
 });
 
-
-const menus: MenuDataItem[] = [
+const personMenu = [
   {
-    name: '我的资源',
-    path: '/',
+    name: '个人信息',
+    // path: '/',
     // component: '@/pages/index',
     children: [
       {
-        name: '我的文章',
-        path: '/view/MyArticles/listview',
+        name: '我的信息',
+        path: '/',
         component: '@/pages/index'
       }
     ]
   },
+  
+  {
+  name: '我的资源',
+  // path: '/',
+  // component: '@/pages/index',
+  children: [
+    {
+      name: '我的文章',
+      path: '/view/MyArticles/listview',
+      component: '@/pages/View'
+    }
+  ]
+}]
+
+
+const allMenus: MenuDataItem[] = [
+  personMenu,
   {
     name: '资源管理',
-    path: '/',
+    // path: '/',
     children: [
       {
         name: '文章',
         path: '/view/Articles/listview',
-        component: '@/pages/index'
+        component: '@/pages/View'
       },
       {
         name: '句子',
         path: '/view/Sentences/listview',
-        component: '@/pages/index'
+        component: '@/pages/View'
       },
       {
         name: '录入工具',
@@ -98,7 +122,7 @@ const menus: MenuDataItem[] = [
   },
   {
     name: '权限',
-    path: '/',
+    // path: '/',
     children: [
       {
         name: '用户',
@@ -110,7 +134,7 @@ const menus: MenuDataItem[] = [
   },
   {
     name: '验证管理',
-    path: '/',
+    // path: '/',
     children: [
       {
         name: '手机验证码',
@@ -121,7 +145,7 @@ const menus: MenuDataItem[] = [
   },
   {
     name: '设置',
-    path: '/',
+    // path: '/',
     children: [
       {
         name: '配置',

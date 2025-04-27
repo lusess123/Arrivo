@@ -21,6 +21,7 @@ export class UserDto {
   createTime?: Date | null;
   updateFun?: () => void;
   ip?: string | null;
+  lastLoginTime?: Date | null;
 }
 
 export class UserLoginDto extends UserDto {

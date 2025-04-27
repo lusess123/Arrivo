@@ -28,9 +28,9 @@ export class MddService {
   }
 
   async getDicts(names: string[]) {
-    if (this.auth.getUser()?.access !== 'root') {
-      throw new BusinessError('权限不足');
-    }
+    // if (this.auth.getUser()?.access !== 'root') {
+    //   throw new BusinessError('权限不足');
+    // }
     return names.reduce((pre, item) => {
       return {
         ...pre,
@@ -49,9 +49,9 @@ export class MddService {
   }
 
   async getModels(names: string[]) {
-    if (this.auth.getUser()?.access !== 'root') {
-      throw new BusinessError('权限不足');
-    }
+    // if (this.auth.getUser()?.access !== 'root') {
+    //   throw new BusinessError('权限不足');
+    // }
     return await Promise.all(
       names.map(async (name) => {
         const dict = await getModel(name);
@@ -61,9 +61,9 @@ export class MddService {
   }
 
   async querySingle(params: IActionParam) {
-    if (this.auth.getUser()?.access !== 'root') {
-      throw new BusinessError('权限不足');
-    }
+    // if (this.auth.getUser()?.access !== 'root') {
+    //   throw new BusinessError('权限不足');
+    // }
 
     const model = getModel(params.model);
     const tableName = model?.tableName || params.model;
@@ -136,9 +136,9 @@ export class MddService {
   }
 
   async queryList(params: IListActionParam) {
-    if (this.auth.getUser()?.access !== 'root') {
-      throw new BusinessError('权限不足');
-    }
+    // if (this.auth.getUser()?.access !== 'root') {
+    //   throw new BusinessError('权限不足');
+    // }
     const model = getModel(params.model);
     const linkFields: Record<string, IModelField> = {};
     if (model) {
@@ -330,9 +330,9 @@ export class MddService {
   }
 
   async delSingleRecord(params: IActionParam) {
-    if (this.auth.getUser()?.access !== 'root') {
-      throw new BusinessError('权限不足');
-    }
+    // if (this.auth.getUser()?.access !== 'root') {
+    //   throw new BusinessError('权限不足');
+    // }
 
     // const tableName = params.model;
     const model = getModel(params.model);
@@ -459,9 +459,9 @@ export class MddService {
   }
 
   getMeta(metaRequest: IMetaRequest): IMetaResponse {
-    if (this.auth.getUser()?.access !== 'root') {
-      throw new BusinessError('权限不足');
-    }
+    // if (this.auth.getUser()?.access !== 'root') {
+    //   throw new BusinessError('权限不足');
+    // }
 
     const models: Record<string, IModel> = {};
     const dicts: Record<string, IDict> = {};

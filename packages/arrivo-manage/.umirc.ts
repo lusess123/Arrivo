@@ -16,7 +16,7 @@ export default defineConfig({
   initialState: {},
   request: {},
   layout: {
-    title: "Arrivo经营后台",
+    title: "dashboard",
   },
   routes: [
     {
