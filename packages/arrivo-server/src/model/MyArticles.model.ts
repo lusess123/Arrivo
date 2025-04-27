@@ -1,33 +1,30 @@
 import { setModel } from 'src/mdd/model.store';
 import { IModel, ModelFieldType } from '../api';
 
-export const SentencesModel: IModel = {
-  name: 'Sentences',
-  label: '句子',
+export const MyArticlesModel: IModel = {
+  name: 'Articles',
+  label: '文章',
   fields: [
     { name: 'id', label: 'ID', fieldType: ModelFieldType.Key },
     { name: 'content', label: '内容', fieldType: ModelFieldType.Text },
-    { name: 'articleId', label: '文章ID', fieldType: ModelFieldType.Text },
+    { name: 'title', label: '标题', fieldType: ModelFieldType.Text },
     {
-      name: 'article',
-      label: '文章',
+      name: 'user',
+      label: '用户',
       fieldType: ModelFieldType.toOne,
-      relationModel: 'Articles',
-    },
-    {
-      name: 'originalContent',
-      label: '原文',
-      fieldType: ModelFieldType.Text,
-    },
-    {
-      name: 'translatedContent',
-      label: '翻译',
-      fieldType: ModelFieldType.Text,
+      relationModel: 'User',
     },
     {
       name: 'deletedAt',
       label: '删除时间',
       fieldType: ModelFieldType.DateTime,
+    },
+    {
+      name: 'Sentences',
+      label: '句子关联',
+      fieldType: ModelFieldType.toManay,
+      relationModel: 'Sentences',
+      foreignKey: 'articleId',
     },
     {
       name: 'createdAt',
@@ -45,7 +42,8 @@ export const SentencesModel: IModel = {
     { name: 'tenantId', label: '租户ID', fieldType: ModelFieldType.Text },
     { name: 'teamId', label: '团队ID', fieldType: ModelFieldType.Text },
     { name: 'env', label: '环境', fieldType: ModelFieldType.Text },
+    { name: 'userId', label: '用户ID', fieldType: ModelFieldType.Text },
   ],
 };
 
-setModel('Sentences', SentencesModel);
+setModel('MyArticles', MyArticlesModel);

@@ -10,17 +10,30 @@ export default defineConfig({
     cert: path.join(projectRoot, "ssl", "local-manage.zyking.xyz.pem"),
     key: path.join(projectRoot, "ssl", "local-manage.zyking.xyz-key.pem"),
   },
-  // locale: {
-  //   // 默认使用 src/locales/zh-CN.ts 作为多语言文件
-  //   default: 'zh',
-  //   baseSeparator: '-',
-  // },
   esbuildMinifyIIFE: true,
+  access: {},
+  model: {},
+  initialState: {},
+  request: {},
+  layout: {
+    title: "Arrivo经营后台",
+  },
   routes: [
+    {
+      path: "/",
+      component: "index",
+    },
+    {
+      path: "/tool",
+      component: "./tool",
+    },
+    {
+      name: "视图",
+      path: "/view/:model/:view",
+      component: "./View",
+    },
   ],
   npmClient: 'pnpm',
-  // plugins: ['./src/plugins/insertNoscript.ts'],
-  // devtool:  'eval-source-map',
   proxy: {
     "/api": {
       target: "http://localhost:3000",

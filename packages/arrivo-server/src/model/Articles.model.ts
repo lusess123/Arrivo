@@ -9,7 +9,7 @@ export const ArticlesModel: IModel = {
     { name: 'content', label: '内容', fieldType: ModelFieldType.Text },
     { name: 'title', label: '标题', fieldType: ModelFieldType.Text },
     {
-      name: 'User',
+      name: 'user',
       label: '用户',
       fieldType: ModelFieldType.toOne,
       relationModel: 'User',

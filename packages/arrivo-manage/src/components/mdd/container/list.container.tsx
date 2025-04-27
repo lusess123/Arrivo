@@ -226,7 +226,7 @@ export function ListContainer(props: IListContainerProps) {
       <SearchForm Items={items} onValuesChange={(values: any) => {
        setSearch({ ...search , ...values })
       }}></SearchForm>
-      <div className='flex flex-row pb-4 gap-4'>
+      <div className='flex flex-row pb-4 gap-4 pt-4'>
       {dataContainer.actions.map((action) => {
         return (
           <Button
