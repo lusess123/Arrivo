@@ -24,6 +24,10 @@ export default defineConfig({
     {
       path: '/login',
       component: 'login',
+    },
+    {
+      path: '/article/:id',
+      component: 'article',
     }
   ],
   npmClient: 'pnpm',
