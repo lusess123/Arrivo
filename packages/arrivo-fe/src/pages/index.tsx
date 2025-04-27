@@ -1,9 +1,9 @@
-import { useAuth } from "@/hooks/auth";
+import { useApp } from "@/hooks";
 import { formatObject } from "@/lib";
 
 export default function IndexPage() {
-  const { userData } = useAuth();
+  const { auth } = useApp();
   return <div>
-    {formatObject(userData)}
+    {formatObject(auth?.userData)}
   </div>;
 }

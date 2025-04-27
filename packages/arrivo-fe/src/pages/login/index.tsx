@@ -9,18 +9,6 @@ import axios from 'axios';
 import { asyncHandle } from '../../lib';
 import { useAuth } from '@/hooks/auth';
 
-
-interface SendCodeResponse {
-  success: boolean;
-  message?: string;
-}
-
-interface LoginResponse {
-  success: boolean;
-  token?: string;
-  message?: string;
-}
-
 export default function LoginPage() {
   const [form] = Form.useForm();
   const [countdown, setCountdown] = useState<number>(0);

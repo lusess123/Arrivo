@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { useRootStore, RootStoreProvider } from "./store";
 import { createStore } from 'hox'
+import { useAuth } from './auth'
 
 
 function useInternalApp() {
   const store = useRootStore();
-  return store;
+  const auth = useAuth();
+
+
+  return {
+    store,
+    auth,
+  };
 }
 
 export const [useApp, AppProvider] = createStore(useInternalApp);
