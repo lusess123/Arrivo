@@ -97,6 +97,8 @@ RUN pnpm run manage-build
 # 服务端镜像
 FROM server_build AS arrivo-server
 WORKDIR /usr/src/app/packages/arrivo-server
+# Add audio_cache as a volume
+VOLUME /usr/src/app/packages/arrivo-server/audio_cache
 
 # Set proxy environment variables conditionally
 ARG USE_MIRROR=true
