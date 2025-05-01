@@ -1,5 +1,5 @@
 # 基础镜像
-FROM  node:20-bullseye-slim AS base
+FROM node:20-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN apt-get update && apt-get install -y ca-certificates
