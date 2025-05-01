@@ -1,25 +1,21 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useApp } from '@/hooks';
 import { history } from '@umijs/max';
-import { Button, Empty, Spin } from 'antd';
+import { Button, Empty, message, Spin } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import styles from './index.module.less';
 import logo from '@/assets/logo.png';
 import cloud1 from '@/assets/image1.png';
 import cloud2 from '@/assets/image2.png';
 import emptyImage from '@/assets/foot.png';
-import { Article, mockArticles } from '@/mock/articles';
+// import { Article, mockArticles } from '@/mock/articles';
+import axios from 'axios';
+import { asyncHandle } from '@/lib';
 
 export default function IndexPage() {
   const { auth } = useApp();
-  const [articles, setArticles] = useState<Article[]>([]);
+  const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const pageSize = 10;
 
   useEffect(() => {
     // If not logged in, redirect to login page
@@ -28,37 +24,33 @@ export default function IndexPage() {
       return;
     }
     
-    fetchArticles(1, true);
+    fetchArticles();
   }, [auth?.userData]);
 
-  const fetchArticles = async (page: number, isInitialLoad = false) => {
-    if (!hasMore && !isInitialLoad) return;
-    
+  const fetchArticles = async () => {
     try {
       setLoading(true);
       // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Use imported mock data and paginate
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      const paginatedArticles = mockArticles.slice(startIndex, endIndex);
-      
-      if (isInitialLoad) {
-        setArticles(paginatedArticles);
-        setInitialLoading(false);
-      } else {
-        setArticles(prev => [...prev, ...paginatedArticles]);
+      // await new Promise(resolve => setTimeout(resolve, 300));
+      const [err, res] = await  asyncHandle(axios.get('/api/article/getArticleList'));
+      if (err) {
+        if(err.response.data.data === 'nologin') {
+          message.info('请先登录');
+          history.push(`/login`);
+        } else {
+          message.error(err.message);
+        }
       }
-      
-      // Check if we've loaded all articles
-      setHasMore(endIndex < mockArticles.length);
-      
-      if (isInitialLoad) {
-        setCurrentPage(1);
-      } else {
-        setCurrentPage(page);
-      }
+      const list = res?.data?.data || [];
+      const newList = list.map((item: any) => ({
+        ...item,
+        createdAt: item.createdAt ||  new Date(),
+        content: item.Sentences.length > 0 ? 
+        (item.Sentences[0].translatedContent + item.Sentences[0].originalContent) : '',
+      }));
+      setArticles(newList);
+      // Load all articles at once
+      // setArticles(mockArticles);
     } catch (error) {
       console.error('Error fetching articles:', error);
     } finally {
@@ -66,45 +58,27 @@ export default function IndexPage() {
     }
   };
 
-  const loadMoreItems = useCallback(() => {
-    if (!loading && hasMore) {
-      fetchArticles(currentPage + 1);
-    }
-  }, [loading, hasMore, currentPage]);
-
-  useEffect(() => {
-    // Set up intersection observer for infinite scroll
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !loading && hasMore) {
-          loadMoreItems();
+  const handleLogout = async () => {
+    const [err, res] = await asyncHandle(axios.post('/api/auth/signout'));
+        if(err) {
+            // Toast.show('Logout failed');
+            message.error(err.message);
+        } else {
+            // Toast.show('Logout success');
+            // setData(null);
+            history.push(`/login`);
         }
-      },
-      { threshold: 0.1 }
-    );
-    
-    observerRef.current = observer;
-    
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-    
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [loadMoreItems]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('userData');
-    history.push('/login');
+        // return [err, res]
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
+
+  function handleArticleClick(id: number): void {
+    history.push(`/article/${id}`);
+  }
 
   return (
     <div className={styles.container}>
@@ -120,7 +94,7 @@ export default function IndexPage() {
       
       <main className={styles.content}>
         <div className={styles.articleList}>
-          {initialLoading ? (
+          {loading ? (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <Spin size="large" />
             </div>
@@ -132,7 +106,7 @@ export default function IndexPage() {
           ) : (
             <>
               {articles.map(article => (
-                <div key={article.id} className={styles.articleCard}>
+                <div key={article.id} className={styles.articleCard + '  cursor-pointer  hover:text-blue-700 focus:outline-none' } onClick={() => handleArticleClick(article.id)}>
                   <h3 className={styles.articleTitle}>{article.title}</h3>
                   <div className={styles.articleMeta}>
                     <span className={styles.articleDate}>
@@ -142,11 +116,6 @@ export default function IndexPage() {
                   <p className={styles.articleExcerpt}>{article.content}</p>
                 </div>
               ))}
-              
-              <div ref={loadMoreRef} style={{ textAlign: 'center', padding: '20px 0' }}>
-                {loading && <Spin />}
-                {!hasMore && articles.length > 0 && <p style={{ color: '#999' }}>没有更多文章了</p>}
-              </div>
             </>
           )}
         </div>

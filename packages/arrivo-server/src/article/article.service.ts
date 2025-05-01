@@ -21,6 +21,54 @@ export class ArticleService {
   prismaClient: PrismaClient = new PrismaClient();
   constructor(protected readonly auth: AuthService) {}
 
+  async getArticleDetail(id: string) {
+    const article = await this.prismaClient.articles.findFirst({
+      where: {
+        id,
+        userId: this.auth.getUserId(),
+      },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        Sentences: {
+          select: {
+            id: true,
+            originalContent: true,
+            translatedContent: true,
+          },
+        },
+      },
+    });
+    return article;
+  }
+
+  async getArticleList() {
+    const articles = await this.prismaClient.articles.findMany({
+      where: {
+        userId: this.auth.getUserId(),
+      },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        Sentences: {
+          select: {
+            id: true,
+            originalContent: true,
+            translatedContent: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return articles;
+  }
+
   async createArticle(articlePost: IArticlPost) {
     const article = await this.prismaClient.articles.findFirst({
       where: {

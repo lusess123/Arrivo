@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { JwtService } from '@nestjs/jwt';
 import { ClsModule } from 'nestjs-cls';
-
+import { TTSModule } from './tts/tts.module';
 import { ConfigModule } from '@nestjs/config';
 import { MddModule } from './mdd/mdd.module';
 import { ArticleModule } from './article/article.module';
@@ -23,6 +23,7 @@ import { ArticleModule } from './article/article.module';
     AuthModule,
     MddModule,
     ArticleModule,
+    TTSModule,
   ],
   controllers: [AppController],
   providers: [AppService, JwtService],

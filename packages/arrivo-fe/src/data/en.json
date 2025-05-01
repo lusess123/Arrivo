@@ -1,0 +1,238 @@
+[
+    {
+      "name": "en-AU-NatashaNeural",
+      "gender": "Female",
+      "中文": "英语-澳大利亚-娜塔莎-女性"
+    },
+    {
+      "name": "en-AU-WilliamNeural",
+      "gender": "Male",
+      "中文": "英语-澳大利亚-威廉-男性"
+    },
+    {
+      "name": "en-CA-ClaraNeural",
+      "gender": "Female",
+      "中文": "英语-加拿大-克拉拉-女性"
+    },
+    {
+      "name": "en-CA-LiamNeural",
+      "gender": "Male",
+      "中文": "英语-加拿大-利亚姆-男性"
+    },
+    {
+      "name": "en-GB-LibbyNeural",
+      "gender": "Female",
+      "中文": "英语-英国-莉比-女性"
+    },
+    {
+      "name": "en-GB-MaisieNeural",
+      "gender": "Female",
+      "中文": "英语-英国-梅西-女性"
+    },
+    {
+      "name": "en-GB-RyanNeural",
+      "gender": "Male",
+      "中文": "英语-英国-瑞安-男性"
+    },
+    {
+      "name": "en-GB-SoniaNeural",
+      "gender": "Female",
+      "中文": "英语-英国-索尼娅-女性"
+    },
+    {
+      "name": "en-GB-ThomasNeural",
+      "gender": "Male",
+      "中文": "英语-英国-托马斯-男性"
+    },
+    {
+      "name": "en-HK-SamNeural",
+      "gender": "Male",
+      "中文": "英语-香港-山姆-男性"
+    },
+    {
+      "name": "en-HK-YanNeural",
+      "gender": "Female",
+      "中文": "英语-香港-燕-女性"
+    },
+    {
+      "name": "en-IE-ConnorNeural",
+      "gender": "Male",
+      "中文": "英语-爱尔兰-康纳-男性"
+    },
+    {
+      "name": "en-IE-EmilyNeural",
+      "gender": "Female",
+      "中文": "英语-爱尔兰-艾米丽-女性"
+    },
+    {
+      "name": "en-IN-NeerjaExpressiveNeural",
+      "gender": "Female",
+      "中文": "英语-印度-尼尔贾-女性"
+    },
+    {
+      "name": "en-IN-NeerjaNeural",
+      "gender": "Female",
+      "中文": "英语-印度-尼尔贾-女性"
+    },
+    {
+      "name": "en-IN-PrabhatNeural",
+      "gender": "Male",
+      "中文": "英语-印度-普拉巴特-男性"
+    },
+    {
+      "name": "en-KE-AsiliaNeural",
+      "gender": "Female",
+      "中文": "英语-肯尼亚-阿西莉亚-女性"
+    },
+    {
+      "name": "en-KE-ChilembaNeural",
+      "gender": "Male",
+      "中文": "英语-肯尼亚-奇伦巴-男性"
+    },
+    {
+      "name": "en-NG-AbeoNeural",
+      "gender": "Male",
+      "中文": "英语-尼日利亚-阿贝奥-男性"
+    },
+    {
+      "name": "en-NG-EzinneNeural",
+      "gender": "Female",
+      "中文": "英语-尼日利亚-艾辛妮-女性"
+    },
+    {
+      "name": "en-NZ-MitchellNeural",
+      "gender": "Male",
+      "中文": "英语-新西兰-米切尔-男性"
+    },
+    {
+      "name": "en-NZ-MollyNeural",
+      "gender": "Female",
+      "中文": "英语-新西兰-莫莉-女性"
+    },
+    {
+      "name": "en-PH-JamesNeural",
+      "gender": "Male",
+      "中文": "英语-菲律宾-詹姆斯-男性"
+    },
+    {
+      "name": "en-PH-RosaNeural",
+      "gender": "Female",
+      "中文": "英语-菲律宾-罗莎-女性"
+    },
+    {
+      "name": "en-SG-LunaNeural",
+      "gender": "Female",
+      "中文": "英语-新加坡-露娜-女性"
+    },
+    {
+      "name": "en-SG-WayneNeural",
+      "gender": "Male",
+      "中文": "英语-新加坡-韦恩-男性"
+    },
+    {
+      "name": "en-TZ-ElimuNeural",
+      "gender": "Male",
+      "中文": "英语-坦桑尼亚-伊利姆-男性"
+    },
+    {
+      "name": "en-TZ-ImaniNeural",
+      "gender": "Female",
+      "中文": "英语-坦桑尼亚-伊玛尼-女性"
+    },
+    {
+      "name": "en-US-AnaNeural",
+      "gender": "Female",
+      "中文": "英语-美国-安娜-女性"
+    },
+    {
+      "name": "en-US-AndrewMultilingualNeural",
+      "gender": "Male",
+      "中文": "英语-美国-安德鲁-男性"
+    },
+    {
+      "name": "en-US-AndrewNeural",
+      "gender": "Male",
+      "中文": "英语-美国-安德鲁-男性"
+    },
+    {
+      "name": "en-US-AriaNeural",
+      "gender": "Female",
+      "中文": "英语-美国-阿丽亚-女性"
+    },
+    {
+      "name": "en-US-AvaMultilingualNeural",
+      "gender": "Female",
+      "中文": "英语-美国-艾娃-女性"
+    },
+    {
+      "name": "en-US-AvaNeural",
+      "gender": "Female",
+      "中文": "英语-美国-艾娃-女性"
+    },
+    {
+      "name": "en-US-BrianMultilingualNeural",
+      "gender": "Male",
+      "中文": "英语-美国-布莱恩-男性"
+    },
+    {
+      "name": "en-US-BrianNeural",
+      "gender": "Male",
+      "中文": "英语-美国-布莱恩-男性"
+    },
+    {
+      "name": "en-US-ChristopherNeural",
+      "gender": "Male",
+      "中文": "英语-美国-克里斯托弗-男性"
+    },
+    {
+      "name": "en-US-EmmaMultilingualNeural",
+      "gender": "Female",
+      "中文": "英语-美国-艾玛-女性"
+    },
+    {
+      "name": "en-US-EmmaNeural",
+      "gender": "Female",
+      "中文": "英语-美国-艾玛-女性"
+    },
+    {
+      "name": "en-US-EricNeural",
+      "gender": "Male",
+      "中文": "英语-美国-埃里克-男性"
+    },
+    {
+      "name": "en-US-GuyNeural",
+      "gender": "Male",
+      "中文": "英语-美国-盖伊-男性"
+    },
+    {
+      "name": "en-US-JennyNeural",
+      "gender": "Female",
+      "中文": "英语-美国-珍妮-女性"
+    },
+    {
+      "name": "en-US-MichelleNeural",
+      "gender": "Female",
+      "中文": "英语-美国-米歇尔-女性"
+    },
+    {
+      "name": "en-US-RogerNeural",
+      "gender": "Male",
+      "中文": "英语-美国-罗杰-男性"
+    },
+    {
+      "name": "en-US-SteffanNeural",
+      "gender": "Male",
+      "中文": "英语-美国-斯特凡-男性"
+    },
+    {
+      "name": "en-ZA-LeahNeural",
+      "gender": "Female",
+      "中文": "英语-南非-莉亚-女性"
+    },
+    {
+      "name": "en-ZA-LukeNeural",
+      "gender": "Male",
+      "中文": "英语-南非-卢克-男性"
+    }
+  ]
+  

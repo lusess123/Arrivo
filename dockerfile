@@ -52,8 +52,8 @@ RUN rm -rf node_modules
 RUN --mount=type=cache,target=/usr/local/pnpm-store pnpm install 
 
 # 设置环境变量
-ENV SERVER_HOST=http://host.docker.internal:3020
-ENV jwt_secret=secretjwt2025prod1
+ENV SERVER_HOST=http://host.docker.internal:3025
+ENV jwt_secret=secretjwt2025prod
 ENV NODE_ENV=production
 
 FROM dep AS db_build
@@ -64,6 +64,9 @@ RUN pnpm run db-build
 FROM db_build AS server_build
 COPY packages/arrivo-server packages/arrivo-server
 RUN pnpm run server-build
+
+# 替换软件源并安装 python3 和 pip
+
 
 
 FROM server_build AS fe_build
@@ -102,6 +105,17 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     echo "export http_proxy=http://host.docker.internal:7890" >> /etc/profile.d/proxy.sh && \
     echo "export all_proxy=socks5://host.docker.internal:7890" >> /etc/profile.d/proxy.sh; \
     fi
+    
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk update && \
+    apk add --no-cache python3 py3-pip
+
+# 创建和激活虚拟环境，并安装 Python 依赖
+RUN python3 -m venv venv && \
+    ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  pip && \
+    ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  edge-tts 
+# 设置 Python 环境变量
+ENV PYTHON_ENV='cd /app &&  source ./venv/bin/activate &&'
 
 EXPOSE 3000
 CMD [ "pnpm", "start:pm2"]

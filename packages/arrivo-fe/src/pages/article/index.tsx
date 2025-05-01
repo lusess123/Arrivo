@@ -1,10 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from '@umijs/max';
-import { Button, Modal, Select, Spin, Slider } from 'antd';
+import { Button, Modal, Select, Spin, Slider, message } from 'antd';
 import { ArrowLeftOutlined, PlayCircleOutlined, LogoutOutlined, SettingOutlined, SoundOutlined, PauseOutlined } from '@ant-design/icons';
 import styles from './index.module.less';
-import { getArticleById } from '../../mock/articles';
-import { getSentencesByArticleId, Sentence } from '../../mock/sentences';
+// import { getArticleById } from '../../mock/articles';
+// import { getSentencesByArticleId, Sentence } from '../../mock/sentences';
+import { asyncHandle } from '@/lib';
+import axios from 'axios';
+import { history } from '@umijs/max';
+import ens from '@/data/en.json';
+import SentenceItem from './sentence.item';
+
+interface Sentence {
+  id: string;
+  articleId: string;
+  index: number;
+  originalContent: string;
+  translatedContent: string;
+  duration: number;
+}
 
 const ArticlePage: React.FC = () => {
   const router = useNavigate();
@@ -13,19 +27,51 @@ const ArticlePage: React.FC = () => {
   const [sentences, setSentences] = useState<Sentence[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
-  const [voice, setVoice] = useState('female');
+  const [voice, setVoice] = useState(ens[0].name);
   const [speed, setSpeed] = useState(1);
+  const [times, setTimes] = useState(1);
+
+  const handleLogout = async () => {
+    const [err, res] = await asyncHandle(axios.post('/api/auth/signout'));
+        if(err) {
+            // Toast.show('Logout failed');
+            message.error(err.message);
+        } else {
+            // Toast.show('Logout success');
+            // setData(null);
+            history.push(`/login`);
+        }
+        // return [err, res]
+  };
 
   useEffect(() => {
     if (id) {
       // Simulate API call delay
-      setTimeout(() => {
-        const articleData = getArticleById(id as string);
-        const sentencesData = getSentencesByArticleId(id as string);
+        (async function () {
+
+          const [err, res] = await asyncHandle(axios.get(`/api/article/getArticleDetail`, {
+            params: {
+              id
+            }
+          }));
+          if (err) {
+            if(err.response.data.data === 'nologin') {
+              message.info('请先登录');
+              history.push(`/login`);
+            } else {
+              message.error(err.message);
+            }
+            
+          }
+          const articleData = res?.data?.data;
+          const sentencesData = res?.data?.data?.Sentences;
+
+
         setArticle(articleData);
         setSentences(sentencesData);
         setLoading(false);
-      }, 800);
+          
+        })()
     }
   }, [id]);
 
@@ -33,10 +79,10 @@ const ArticlePage: React.FC = () => {
     router('/');
   };
 
-  const handleLogout = () => {
-    // In a real app, this would handle logout functionality
-    router('/login');
-  };
+  // const handleLogout = () => {
+  //   // In a real app, this would handle logout functionality
+  //   router('/login');
+  // };
 
   const handleOpenSettings = () => {
     setIsSettingsModalVisible(true);
@@ -75,7 +121,7 @@ const ArticlePage: React.FC = () => {
             onClick={handleGoBack} 
             className={styles.backButton}
           >
-            Return to List
+             返回
           </Button>
           <Button 
             type="primary" 
@@ -83,7 +129,7 @@ const ArticlePage: React.FC = () => {
             onClick={handlePlayFromBeginning}
             className={styles.playButton}
           >
-            Play All
+            朗读
           </Button>
         </div>
         <h1 className={styles.title}>{article?.title}</h1>
@@ -104,51 +150,51 @@ const ArticlePage: React.FC = () => {
       </div>
 
       <div className={styles.content}>
-        {sentences.map((sentence) => (
-          <div key={sentence.id} className={styles.sentenceItem}>
-            <div className={styles.sentenceIndex}>{sentence.index}</div>
-            <div className={styles.sentenceContent}>
-              <p className={styles.englishText}>{sentence.english}</p>
-              <p className={styles.chineseText}>{sentence.chinese}</p>
-            </div>
-            <div className={styles.sentenceControls}>
-              <Button 
-                type="text" 
-                icon={<PlayCircleOutlined />} 
-                onClick={() => handlePlaySentence(sentence.id)}
-                className={styles.sentencePlayButton}
-              />
-              <span className={styles.duration}>{sentence.duration}s</span>
-            </div>
-          </div>
+        {sentences.map((sentence, index) => (
+          <SentenceItem
+            key={sentence.id}
+            originalContent={sentence.originalContent}
+            translatedContent={sentence.translatedContent}
+            index={index}
+            duration={sentence.duration}
+            id={sentence.id}
+            times={times}
+            v={voice}
+            rate={speed}
+            delay={0}
+            onPlayEnd={() => {}}
+            // onPlayEnd={handlePlaySentence}
+            sound={true}
+          />
         ))}
       </div>
 
       <Modal
-        title="Settings"
+        title="设置"
         open={isSettingsModalVisible}
         onCancel={handleCloseSettings}
-        footer={[
-          <Button key="close" onClick={handleCloseSettings}>
-            Close
-          </Button>,
-        ]}
-        className={styles.settingsModal}
+        // width={'100%'}
+        className={styles.settingsModal + ' max-w-[600px]'}
+        footer={null}
       >
         <div className={styles.settingItem}>
-          <label>Voice:</label>
+          <label>音色:</label>
           <Select
             value={voice}
             onChange={(value) => setVoice(value)}
             style={{ width: '100%' }}
+            options={ens.map((item) => ({
+              label: item["中文"],
+              value: item.name
+            }))}
           >
-            <Select.Option value="female">Female</Select.Option>
+            {/* <Select.Option value="female">Female</Select.Option>
             <Select.Option value="male">Male</Select.Option>
-            <Select.Option value="child">Child</Select.Option>
+            <Select.Option value="child">Child</Select.Option> */}
           </Select>
         </div>
         <div className={styles.settingItem}>
-          <label>Reading Speed:</label>
+          <label>说话速度:</label>
           <Slider
             min={0.5}
             max={2}
@@ -156,10 +202,29 @@ const ArticlePage: React.FC = () => {
             value={speed}
             onChange={(value) => setSpeed(value)}
             marks={{
-              0.5: 'Slow',
-              1: 'Normal',
-              1.5: 'Fast',
-              2: 'Very Fast'
+              0.5: '慢',
+              1: '正常',
+              1.5: '快',
+              2: '非常快'
+            }}
+          />
+        </div>
+        <div className={styles.settingItem}>
+          <label>播放次数:</label>
+          <Slider
+            min={1}
+            max={10}
+            step={1}
+            value={times}
+            onChange={(value) => setTimes(value)}
+            marks={{
+              1: '1次',
+              2: '2次',
+              3: '3次',
+              4: '4次',
+              5: '5次',
+             
+              10: '10次'
             }}
           />
         </div>
