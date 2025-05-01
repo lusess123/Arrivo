@@ -78,7 +78,7 @@ ENV REACT_APP_GIT_COMMIT_MESSAGE=$GIT_COMMIT_MESSAGE
 
 
 COPY packages/arrivo-fe packages/arrivo-fe
-RUN pnpm run fe_build
+RUN pnpm run fe-build
 
 FROM server_build AS manage_build
 ARG GIT_COMMIT_TIME=true
