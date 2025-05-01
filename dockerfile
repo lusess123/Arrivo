@@ -1,5 +1,5 @@
 # 基础镜像
-FROM node:20  AS base
+FROM  node:20-bullseye-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN apt-get update && apt-get install -y ca-certificates
@@ -7,21 +7,6 @@ RUN apt-get update && apt-get install -y ca-certificates
 # 创建一个目录用于存放pnpm store并设置缓存挂载点
 RUN mkdir -p /usr/local/pnpm-store
 VOLUME /usr/local/pnpm-store
-
-# 替换软件源并安装 python3 和 pip
-# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-#     apk update && \
-#     apk add --no-cache python3 py3-pip
-
-RUN sed -i 's|http://deb.debian.org|https://mirrors.aliyun.com|g' /etc/apt/sources.list \
- && apt-get update \
- && apt-get install -y --no-install-recommends python3 python3-pip ca-certificates \
- && rm -rf /var/lib/apt/lists/*
-
-# 创建和激活虚拟环境，并安装 Python 依赖
-RUN python3 -m venv venv && \
-    ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  pip && \
-    ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  edge-tts
 
 
 ENV PM_STORE_DIR=/usr/local/pnpm-store
@@ -121,16 +106,19 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     echo "export all_proxy=socks5://host.docker.internal:7890" >> /etc/profile.d/proxy.sh; \
     fi
 
-# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-#     apk update && \
-#     apk add --no-cache python3 py3-pip
+# 安装Python和虚拟环境相关工具
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip python3-venv && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# # 创建和激活虚拟环境，并安装 Python 依赖
-# RUN python3 -m venv venv && \
-#     ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  pip && \
-#     ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  edge-tts 
+# 创建Python虚拟环境并安装依赖
+RUN python3 -m venv venv && \
+    ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple pip && \
+    ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple edge-tts
+
 # 设置 Python 环境变量
-ENV PYTHON_ENV='cd /app &&  source ./venv/bin/activate &&'
+ENV PYTHON_ENV='cd /usr/src/app/packages/arrivo-server && source ./venv/bin/activate &&'
 
 EXPOSE 3000
 CMD [ "pnpm", "start:pm2"]
