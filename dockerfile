@@ -8,15 +8,7 @@ RUN apt-get update && apt-get install -y ca-certificates
 RUN mkdir -p /usr/local/pnpm-store
 VOLUME /usr/local/pnpm-store
 
-# 替换软件源并安装 python3 和 pip
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-    apk update && \
-    apk add --no-cache python3 py3-pip
 
-# 创建和激活虚拟环境，并安装 Python 依赖
-RUN python3 -m venv venv && \
-    ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  pip && \
-    ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  edge-tts
 
 
 ENV PM_STORE_DIR=/usr/local/pnpm-store
@@ -116,14 +108,14 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     echo "export all_proxy=socks5://host.docker.internal:7890" >> /etc/profile.d/proxy.sh; \
     fi
 
-# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-#     apk update && \
-#     apk add --no-cache python3 py3-pip
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk update && \
+    apk add --no-cache python3 py3-pip
 
-# # 创建和激活虚拟环境，并安装 Python 依赖
-# RUN python3 -m venv venv && \
-#     ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  pip && \
-#     ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  edge-tts 
+# 创建和激活虚拟环境，并安装 Python 依赖
+RUN python3 -m venv venv && \
+    ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  pip && \
+    ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple  edge-tts 
 # 设置 Python 环境变量
 ENV PYTHON_ENV='cd /app &&  source ./venv/bin/activate &&'
 
