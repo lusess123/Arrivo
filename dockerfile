@@ -38,7 +38,7 @@ RUN rm -rf node_modules && pnpm store prune && pnpm install
 # 依赖安装阶段
 FROM base AS dep
 VOLUME /usr/src/app/node_modules
-COPY packages/arrivo-h5/package.json packages/arrivo-h5/package.json
+COPY packages/arrivo-fe/package.json packages/arrivo-fe/package.json
 COPY packages/arrivo-server/package.json packages/arrivo-server/package.json
 COPY packages/arrivo-db/package.json packages/arrivo-db/package.json
 COPY packages/arrivo-manage/package.json packages/arrivo-manage/package.json
@@ -105,7 +105,7 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     echo "export http_proxy=http://host.docker.internal:7890" >> /etc/profile.d/proxy.sh && \
     echo "export all_proxy=socks5://host.docker.internal:7890" >> /etc/profile.d/proxy.sh; \
     fi
-    
+
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
     apk update && \
     apk add --no-cache python3 py3-pip
