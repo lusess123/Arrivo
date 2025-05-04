@@ -2,32 +2,25 @@
 FROM  node:20-bullseye-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN apt-get update && apt-get install -y ca-certificates
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
+    apt-get update && apt-get install -y ca-certificates
 
 # 创建一个目录用于存放pnpm store并设置缓存挂载点
 RUN mkdir -p /usr/local/pnpm-store
 VOLUME /usr/local/pnpm-store
 
-
 ENV PM_STORE_DIR=/usr/local/pnpm-store
 ENV PM_STORE_DIR=/usr/local/pnpm-store
 
-ARG USE_MIRROR=false
-
-RUN if [ "$USE_MIRROR" = "true" ]; then \
-      npm config set registry https://registry.npmmirror.com/ && \
-      npm install -g pnpm && \
-      pnpm config set registry https://registry.npmmirror.com/ && \
-      echo "disturl=https://npmmirror.com/mirrors/node" >> /etc/environment && \
-      echo "PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma" >> /etc/environment && \
-      echo "bcrypt_lib_binary_host_mirror=https://registry.npmmirror.com/" >> /etc/environment && \
-      echo "node_bcrypt_binary_host_mirror=https://ghproxy.com/https://github.com/kelektiv/node.bcrypt.js/releases/download/" >> /etc/environment && \
-      echo "NODE_PRE_GYP_MIRROR=https://registry.npmmirror.com/binary.html?path=node-pre-gyp/" >> /etc/environment; \
-    else \
-      npm install -g pnpm; \
-    fi
-
-RUN npm install -g pnpm
+# 使用国内镜像源
+RUN npm config set registry https://registry.npmmirror.com/ && \
+    npm install -g pnpm && \
+    pnpm config set registry https://registry.npmmirror.com/ && \
+    echo "disturl=https://npmmirror.com/mirrors/node" >> /etc/environment && \
+    echo "PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma" >> /etc/environment && \
+    echo "bcrypt_lib_binary_host_mirror=https://registry.npmmirror.com/" >> /etc/environment && \
+    echo "node_bcrypt_binary_host_mirror=https://ghproxy.com/https://github.com/kelektiv/node.bcrypt.js/releases/download/" >> /etc/environment && \
+    echo "NODE_PRE_GYP_MIRROR=https://registry.npmmirror.com/binary.html?path=node-pre-gyp/" >> /etc/environment
 
 WORKDIR /usr/src/app
 COPY package.json package.json
@@ -67,15 +60,11 @@ RUN pnpm run server-build
 
 # 替换软件源并安装 python3 和 pip
 
-
-
 FROM server_build AS fe_build
 ARG GIT_COMMIT_TIME=true
 ARG GIT_COMMIT_MESSAGE=true
 ENV REACT_APP_GIT_COMMIT_TIME=$GIT_COMMIT_TIME
 ENV REACT_APP_GIT_COMMIT_MESSAGE=$GIT_COMMIT_MESSAGE
-
-
 
 COPY packages/arrivo-fe packages/arrivo-fe
 RUN pnpm run fe-build
@@ -86,13 +75,8 @@ ARG GIT_COMMIT_MESSAGE=true
 ENV REACT_APP_GIT_COMMIT_TIME=$GIT_COMMIT_TIME
 ENV REACT_APP_GIT_COMMIT_MESSAGE=$GIT_COMMIT_MESSAGE
 
-
-
 COPY packages/arrivo-manage packages/arrivo-manage
 RUN pnpm run manage-build
-
-
-
 
 # 服务端镜像
 FROM server_build AS arrivo-server
@@ -100,18 +84,13 @@ WORKDIR /usr/src/app/packages/arrivo-server
 # Add audio_cache as a volume
 VOLUME /usr/src/app/packages/arrivo-server/audio_cache
 
-# Set proxy environment variables conditionally
-ARG USE_MIRROR=true
-RUN if [ "$USE_MIRROR" = "true" ]; then \
-    echo "export https_proxy=http://host.docker.internal:7890" >> /etc/profile.d/proxy.sh && \
+# 设置代理环境变量
+RUN echo "export https_proxy=http://host.docker.internal:7890" >> /etc/profile.d/proxy.sh && \
     echo "export http_proxy=http://host.docker.internal:7890" >> /etc/profile.d/proxy.sh && \
-    echo "export all_proxy=socks5://host.docker.internal:7890" >> /etc/profile.d/proxy.sh; \
-    fi
+    echo "export all_proxy=socks5://host.docker.internal:7890" >> /etc/profile.d/proxy.sh
 
 # 安装Python和虚拟环境相关工具
-RUN if [ "$USE_MIRROR" = "true" ]; then \
-    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list; \
-    fi && \
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y python3 python3-pip python3-venv && \
     apt-get clean && \
@@ -128,20 +107,12 @@ ENV PYTHON_ENV='cd /usr/src/app/packages/arrivo-server && source ./venv/bin/acti
 EXPOSE 3000
 CMD [ "pnpm", "start:pm2"]
 
-
-# 代理镜像
-# FROM agent_build AS vvvo-agent
-# WORKDIR /usr/src/app/packages/vvvo-agent
-# EXPOSE 8001
-# CMD [ "pnpm", "start:pm2"]
-
 # 前端镜像和 Nginx 集成
 FROM nginx:alpine AS arrivo-fe
 COPY --from=fe_build /usr/src/app/packages/arrivo-fe/dist /usr/share/nginx/html
 COPY --from=fe_build /usr/src/app/packages/arrivo-fe/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
-
 
 FROM nginx:alpine AS arrivo-manage
 COPY --from=manage_build /usr/src/app/packages/arrivo-manage/dist /usr/share/nginx/html
