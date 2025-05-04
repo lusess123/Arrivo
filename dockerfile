@@ -101,6 +101,15 @@ RUN python3 -m venv venv && \
     ./venv/bin/pip install --upgrade --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple pip && \
     ./venv/bin/pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple edge-tts
 
+
+RUN apt-get update && apt-get install -y --no-install-recommends bash \
+ && ln -sf /bin/bash /usr/bin/bash
+
+# 如果经常要 bash – 改默认 SHELL
+SHELL ["/bin/bash", "-c"]
+
+
+
 # 设置 Python 环境变量
 ENV PYTHON_ENV='cd /usr/src/app/packages/arrivo-server && source ./venv/bin/activate &&'
 
