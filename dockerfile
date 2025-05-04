@@ -109,7 +109,10 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     fi
 
 # 安装Python和虚拟环境相关工具
-RUN apt-get update && \
+RUN if [ "$USE_MIRROR" = "true" ]; then \
+    sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list; \
+    fi && \
+    apt-get update && \
     apt-get install -y python3 python3-pip python3-venv && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
