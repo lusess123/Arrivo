@@ -111,7 +111,7 @@ SHELL ["/bin/bash", "-c"]
 
 
 # 设置 Python 环境变量
-ENV PYTHON_ENV='cd /usr/src/app/packages/arrivo-server && source ./venv/bin/activate &&'
+ENV PYTHON_ENV='cd /usr/src/app/packages/arrivo-server && . ./venv/bin/activate &&'
 
 EXPOSE 3000
 CMD [ "pnpm", "start:pm2"]
