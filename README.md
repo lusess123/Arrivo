@@ -16,3 +16,71 @@ Arrivo 是一款以电影《降临》（Arrival）为灵感而诞生的语言学
 加入Arrivo，突破语言的界限，拓展思维的深度与广度，与你的世界进行一次全新的连接。
 
 Arrivo，让语言为你的世界降临。
+
+```puml
+@startuml
+left to right direction
+
+' 演员（Actors）
+actor "普通用户" as User
+actor "管理员" as Admin
+
+' 系统边界
+rectangle "Arrio" {
+
+  ' 主要用例
+  usecase "使用 Arrio"      as UC1
+  usecase "个人管理"        as UC2
+  usecase "经营后台管理"    as UC3
+
+  ' 次级用例
+  usecase "AI跟读"         as UC4
+  usecase "文章管理"       as UC5
+  usecase "用户管理"       as UC6
+  usecase "素材管理"       as UC7
+
+  ' <<include>> 关系（虚线箭头指向被包含用例）
+  UC1 --> UC4 : <<include>>
+  UC2 --> UC5 : <<include>>
+  UC3 --> UC6 : <<include>>
+  UC3 --> UC7 : <<include>>
+}
+
+' 演员与用例之间的关联
+User  --> UC1
+User  --> UC2
+Admin --> UC3
+
+@enduml
+```
+
+
+
+```puml
+@startuml
+' 布局从上到下
+left to right direction
+
+' ---- 节点定义 ----
+rectangle "arrivo-H5"  as H5
+rectangle "arrivo-fe"  as FE
+rectangle "arrivo-server" as Server
+
+database "数据库"       as DB
+rectangle "TTS Server" as TTS
+rectangle "OSS Server" as OSS
+rectangle "SMS Server" as SMS
+
+' ---- 连接关系 ----
+H5  --> Server
+FE  --> Server
+
+Server --> DB
+Server --> TTS
+Server --> OSS
+Server --> SMS
+@enduml
+```
+
+
+![](https://cdn.nlark.com/yuque/__puml/3eaca7abea2d571af72f1c535fabeb4c.svg)
