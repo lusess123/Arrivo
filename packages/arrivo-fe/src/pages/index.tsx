@@ -80,10 +80,20 @@ export default function IndexPage() {
     history.push(`/article/${id}`);
   }
 
+  function handleArticleManage(): void {
+    history.push(`${process.env.UMI_APP_DASHBOARD}/view/MyArticles/listview`);
+  }
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <img src={logo} alt="Arrivo Logo" className={styles.logo} />
+        <Button 
+          className={styles.logoutBtn} 
+          onClick={handleArticleManage}
+        >
+          文章管理
+        </Button>
         <Button 
           className={styles.logoutBtn} 
           onClick={handleLogout}

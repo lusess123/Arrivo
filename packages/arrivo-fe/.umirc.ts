@@ -6,6 +6,11 @@ export default defineConfig({
   mfsu: false, // 明确关闭 mfsu
   hash: true,
   antd: {},
+  define: {
+    "process.env": {
+      UMI_APP_DASHBOARD: process.env.UMI_APP_DASHBOARD,
+    },
+  },
   https: {
     cert: path.join(projectRoot, "ssl", "local.zyking.xyz.pem"),
     key: path.join(projectRoot, "ssl", "local.zyking.xyz-key.pem"),
