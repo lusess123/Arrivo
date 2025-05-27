@@ -1,10 +1,10 @@
 services:
-  arrivo-server:
-    container_name: arrivo-server
+  "{{projectName}}-server":
+    container_name: "{{projectName}}-server"
     build:
       context: .
       dockerfile: ${DOCKERFILE:-Dockerfile} 
-      target: arrivo-server
+      target: "{{projectName}}-server"
       args:
         - DOCKER_BUILDKIT=1
     ports:
@@ -16,12 +16,12 @@ services:
       - GIT_COMMIT_TIME=${GIT_COMMIT_TIME}
       - GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
 
-  arrivo-h5:
-    container_name: arrivo-fe
+  "{{projectName}}-h5":
+    container_name: "{{projectName}}-fe"
     build:
       context: .
       dockerfile: ${DOCKERFILE:-Dockerfile} 
-      target: arrivo-fe
+      target: "{{projectName}}-fe"
       args:
         - DOCKER_BUILDKIT=1
     ports:
@@ -30,12 +30,13 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - GIT_COMMIT_TIME=${GIT_COMMIT_TIME}
-        - GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
-  arrivo-manage:
+      - GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
+
+  "{{projectName}}-manage":
     build:
       context: .
       dockerfile: ${DOCKERFILE:-Dockerfile} 
-      target: arrivo-manage
+      target: "{{projectName}}-manage"
       args:
         - DOCKER_BUILDKIT=1
     ports:
