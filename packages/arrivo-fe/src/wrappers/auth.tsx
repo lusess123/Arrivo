@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { Outlet } from '@umijs/max';
 import { Spin } from 'antd';
 import { useApp } from '@/hooks';
 import { isAuthenticatedUser, redirectToLogin } from '@/lib/auth-redirect';
 
-export default function AuthWrapper({ children }: { children: ReactNode }) {
+export default function AuthWrapper() {
   const { auth } = useApp();
   const [checking, setChecking] = useState(true);
 
@@ -24,7 +25,7 @@ export default function AuthWrapper({ children }: { children: ReactNode }) {
     };
   }, [auth.loadCurrentUser]);
 
-  if (!checking) return children;
+  if (!checking) return <Outlet />;
 
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
