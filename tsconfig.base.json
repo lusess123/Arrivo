@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@arrivo/application": ["packages/arrivo/application/src/index.ts"],
+      "@arrivo/application/*": ["packages/arrivo/application/src/*"],
+      "@arrivo/contracts": ["packages/arrivo/contracts/src/index.ts"],
+      "@arrivo/contracts/*": ["packages/arrivo/contracts/src/*"],
+      "@arrivo/db": ["packages/arrivo/db/src/index.ts"],
+      "@arrivo/db/*": ["packages/arrivo/db/src/*"],
+      "@arrivo/infra": ["packages/arrivo/infra/src/index.ts"],
+      "@arrivo/infra/*": ["packages/arrivo/infra/src/*"],
+      "@arrivo/runtime": ["packages/arrivo/runtime/src/index.ts"],
+      "@arrivo/runtime/*": ["packages/arrivo/runtime/src/*"],
+      "@open-kit/infra": ["packages/shared/infra/src/index.ts"],
+      "@open-kit/infra/*": ["packages/shared/infra/src/*"],
+      "@open-kit/ui": ["packages/shared/ui/src/index.ts"],
+      "@open-kit/ui/*": ["packages/shared/ui/src/*"]
+    }
+  }
+}

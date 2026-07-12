@@ -2,13 +2,23 @@ import { defineConfig } from "@umijs/max";
 const projectRoot = process.cwd();
 import path from "path";
 
+const isProduction = process.env.NODE_ENV === "production";
+const dashboardUrl = isProduction ? "https://manage-arrivo.zyking.xyz" : process.env.UMI_APP_DASHBOARD;
+const apiBaseUrl = isProduction ? "https://api-arrivo.zyking.xyz" : process.env.UMI_APP_API_BASE_URL;
+
 export default defineConfig({
   mfsu: false, // 明确关闭 mfsu
   hash: true,
+  title: "Arrivo - 让语言为你的世界降临",
+  links: [
+    { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+    { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
+  ],
   antd: {},
   define: {
     "process.env": {
-      UMI_APP_DASHBOARD: process.env.UMI_APP_DASHBOARD,
+      UMI_APP_DASHBOARD: dashboardUrl,
+      UMI_APP_API_BASE_URL: apiBaseUrl,
     },
   },
   https: {
@@ -25,6 +35,7 @@ export default defineConfig({
     {
       path: '/',
       component: 'index',
+      wrappers: ['@/wrappers/auth'],
     },
     {
       path: '/login',
@@ -33,6 +44,7 @@ export default defineConfig({
     {
       path: '/article/:id',
       component: 'article',
+      wrappers: ['@/wrappers/auth'],
     }
   ],
   npmClient: 'pnpm',
@@ -40,7 +52,7 @@ export default defineConfig({
   // devtool:  'eval-source-map',
   proxy: {
     "/api": {
-      target: "http://localhost:3000",
+      target: process.env.UMI_APP_API_PROXY_TARGET || "http://localhost:3000",
       changeOrigin: true,
       secure: false,  // 禁用 SSL 证书验证
       pathRewrite: { "^/api": "" }, // 去掉 /server 前缀

@@ -1,17 +1,31 @@
 {
   "name": "arrivo",
   "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.4",
+  "workspaces": [
+    "apps/*",
+    "packages/arrivo-fe",
+    "packages/arrivo-manage",
+    "packages/arrivo/*",
+    "packages/shared/*"
+  ],
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "api-dev": "cd apps/api && bun run dev",
+    "api-build": "cd apps/api && bun run build",
+    "api-typecheck": "cd apps/api && bun run typecheck",
+    "api-deploy": "cd apps/api && bun run deploy",
+    "shared-typecheck": "cd packages/shared/infra && bun run typecheck && cd ../ui && bun run typecheck",
+    "cloudflare-typecheck": "bun run shared-typecheck && cd packages/arrivo/contracts && bun run typecheck && cd ../db && bun run typecheck && cd ../infra && bun run typecheck && cd ../runtime && bun run typecheck && cd ../application && bun run typecheck && cd ../../../apps/api && bun run typecheck",
     "fe-dev": "cd packages/arrivo-fe && npm run dev",
-    "server-dev": "cd packages/arrivo-server && npm run start:dev",
-    "db-build": "cd packages/arrivo-db && npm run db-build",
-    "server-build": "cd packages/arrivo-server && npm run build",
     "fe-build": "cd packages/arrivo-fe && npm run build",
     "manage-build": "cd packages/arrivo-manage && npm run build",
-    "db-restart": "cd packages/arrivo-db && npm run db:restart"
+    "fe-deploy": "cd packages/arrivo-fe && bunx wrangler deploy",
+    "manage-deploy": "cd packages/arrivo-manage && bunx wrangler deploy"
   },
   "keywords": [],
   "author": "",

@@ -1,74 +1,110 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Form, Input, Button, message } from 'antd';
-import { history, useSearchParams } from '@umijs/max';
+import { useSearchParams } from '@umijs/max';
 // @ts-ignore – allow importing Less module without a declared type
 import styles from './index.module.less';
-import axios from 'axios';
-// @ts-ignore – allow importing Less module without a declared type
-// import footerLogo from '../../assets/logo.png';
-import { asyncHandle } from '../../lib';
 import { useAuth } from '@/hooks/auth';
+import { resolvePostLoginPath } from '@/lib/auth-redirect';
+
+type AuthMode = 'login' | 'forgot' | 'reset';
+
+function getErrorMessage(error: any, fallback: string) {
+  return error?.response?.data?.message || error?.message || fallback;
+}
 
 export default function LoginPage() {
   const [form] = Form.useForm();
-  const [countdown, setCountdown] = useState<number>(0);
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [sendingLink, setSendingLink] = useState(false);
+  const {
+    loadCurrentUser,
+    login,
+    resetPassword,
+    sendEmailLoginLink,
+    sendPasswordResetEmail,
+  } = useAuth();
   const [searchParams] = useSearchParams();
+  const resetToken = searchParams.get('resetToken') || '';
+  const [mode, setMode] = useState<AuthMode>(resetToken ? 'reset' : 'login');
 
-  const startCountdown = () => {
-    let counter = 59;
-    setCountdown(counter);
-    const timer = setInterval(() => {
-      counter -= 1;
-      setCountdown(counter);
-      if (counter <= 0) {
-        clearInterval(timer);
-      }
-    }, 1000);
+  const redirectAfterLogin = () => {
+    window.location.assign(resolvePostLoginPath(searchParams.get('redirect'), window.location.origin));
   };
 
-  const sendCode = async () => {
+  useEffect(() => {
+    if (searchParams.get('emailLink') !== '1') return;
+    setLoading(true);
+    loadCurrentUser()
+      .then(([error]) => {
+        if (error) {
+          message.error(getErrorMessage(error, '邮箱链接登录失败'));
+          return;
+        }
+        message.success('登录成功');
+        redirectAfterLogin();
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const switchMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    form.resetFields(['password', 'confirmPassword']);
+  };
+
+  const sendMagicLink = async () => {
     try {
-      const phone = form.getFieldValue('phone');
-      if (!phone) {
-        message.warning('请输入手机号');
+      const { email } = await form.validateFields(['email']);
+      setSendingLink(true);
+      const [error] = await sendEmailLoginLink(email, searchParams.get('redirect'));
+      if (error) {
+        message.error(getErrorMessage(error, '发送失败'));
         return;
       }
-      setSending(true);
-      const [error] = await asyncHandle(axios.post('/api/auth/sendSmsCode', { phoneNumber: phone }));
-      if (!error) {
-        message.success('验证码已发送');
-        startCountdown();
-      } else {
-        message.error('发送失败');
-      }
-    } catch (error: any) {
-      message.error(error?.message || '发送失败');
+      message.success('登录链接已发送');
     } finally {
-      setSending(false);
+      setSendingLink(false);
     }
   };
 
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
-      const [error, res] = await login(values.phone, values.code);
-      if (!error) {
-        message.success('登录成功');
-        // Get redirect URL from query string if it exists
-        const redirectUrl = searchParams.get('redirect');
-        history.push(redirectUrl || '/');
-      } else {
-        message.error(error?.message || '登录失败');
+      if (mode === 'forgot') {
+        const [error] = await sendPasswordResetEmail(values.email);
+        if (error) {
+          message.error(getErrorMessage(error, '发送失败'));
+          return;
+        }
+        message.success('找回密码邮件已发送');
+        switchMode('login');
+        return;
       }
-    } catch (error: any) {
-      message.error(error?.message || '登录失败');
+
+      if (mode === 'reset') {
+        const [error] = await resetPassword(resetToken, values.password);
+        if (error) {
+          message.error(getErrorMessage(error, '重置密码失败'));
+          return;
+        }
+        message.success('密码已更新');
+        redirectAfterLogin();
+        return;
+      }
+
+      const [error] = await login(values.email, values.password);
+      if (error) {
+        message.error(getErrorMessage(error, '登录失败'));
+        return;
+      }
+      message.success('登录成功');
+      redirectAfterLogin();
     } finally {
       setLoading(false);
     }
   };
+
+  const title = mode === 'forgot' ? '找回密码' : mode === 'reset' ? '设置新密码' : '邮箱登录';
+  const submitText = mode === 'forgot' ? '发送找回邮件' : mode === 'reset' ? '更新密码' : '登录 / 自动注册';
 
   return (
     <div className={styles.container}>
@@ -78,48 +114,69 @@ export default function LoginPage() {
       </header>
 
       <main className={styles.form}>
+        <h2 className={styles.formTitle}>{title}</h2>
+        {mode === 'login' && (
+          <p className={styles.modeHint}>首次登录会自动创建账号，之后用同一邮箱和密码登录。</p>
+        )}
         <Form
           form={form}
           onFinish={onFinish}
           layout="vertical"
           requiredMark={false}
         >
-          <Form.Item
-            name="phone"
-            rules={[
-              { required: true, message: '请输入手机号' },
-              { pattern: /^1\d{10}$/, message: '手机号格式错误' },
-            ]}
-          >
-            <Input
-              size="large"
-              placeholder="请输入手机号"
-              maxLength={11}
-              autoComplete="tel"
-            />
-          </Form.Item>
+          {mode !== 'reset' && (
+            <Form.Item
+              name="email"
+              rules={[
+                { required: true, message: '请输入邮箱' },
+                { type: 'email', message: '邮箱格式错误' },
+              ]}
+            >
+              <Input
+                size="large"
+                placeholder="邮箱"
+                autoComplete="email"
+              />
+            </Form.Item>
+          )}
 
-          <Form.Item
-            name="code"
-            rules={[{ required: true, message: '请输入验证码' }]}
-          >
-            <Input
-              size="large"
-              placeholder="输入验证码"
-              maxLength={6}
-              addonAfter={
-                <Button
-                  type="link"
-                  className={styles.getCodeBtn}
-                  disabled={countdown > 0}
-                  loading={sending}
-                  onClick={sendCode}
-                >
-                  {countdown > 0 ? `${countdown}s` : '获取验证码'}
-                </Button>
-              }
-            />
-          </Form.Item>
+          {mode !== 'forgot' && (
+            <Form.Item
+              name="password"
+              rules={[
+                { required: true, message: '请输入密码' },
+                { min: 6, message: '密码至少 6 位' },
+              ]}
+            >
+              <Input.Password
+                size="large"
+                placeholder="密码"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
+            </Form.Item>
+          )}
+
+          {mode === 'reset' && (
+            <Form.Item
+              name="confirmPassword"
+              dependencies={['password']}
+              rules={[
+                { required: true, message: '请再次输入密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) return Promise.resolve();
+                    return Promise.reject(new Error('两次密码不一致'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password
+                size="large"
+                placeholder="再次输入密码"
+                autoComplete="new-password"
+              />
+            </Form.Item>
+          )}
 
           <Form.Item>
             <Button
@@ -129,14 +186,38 @@ export default function LoginPage() {
               className={styles.loginBtn}
               loading={loading}
             >
-              登录 / 注册
+              {submitText}
             </Button>
           </Form.Item>
         </Form>
+
+        {mode === 'login' && (
+          <Button
+            block
+            className={styles.secondaryBtn}
+            loading={sendingLink}
+            onClick={sendMagicLink}
+          >
+            发送邮箱登录链接
+          </Button>
+        )}
+
+        <div className={styles.linkRow}>
+          {mode === 'login' && (
+            <>
+              <Button type="link" onClick={() => switchMode('forgot')}>忘记密码</Button>
+            </>
+          )}
+          {mode === 'forgot' && (
+            <Button type="link" onClick={() => switchMode('login')}>返回登录</Button>
+          )}
+          {mode === 'reset' && (
+            <Button type="link" onClick={() => switchMode('login')}>返回登录</Button>
+          )}
+        </div>
       </main>
 
       <footer className={styles.footer}>
-       
         © {new Date().getFullYear()} Arrivo
       </footer>
     </div>

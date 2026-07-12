@@ -1,2 +1,6 @@
 packages:
-  - 'packages/*'
+  - 'apps/*'
+  - 'packages/arrivo-fe'
+  - 'packages/arrivo-manage'
+  - 'packages/arrivo/*'
+  - 'packages/shared/*'

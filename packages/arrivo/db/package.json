@@ -1,0 +1,27 @@
+{
+  "name": "@arrivo/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "db:generate": "bunx prisma generate --schema prisma/schema.prisma && bun scripts/patch-prisma-worker-runtime.ts",
+    "db:migrate": "bunx prisma migrate dev --schema prisma/schema.prisma",
+    "db:deploy": "bunx prisma migrate deploy --schema prisma/schema.prisma",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --pass-with-no-tests"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "6.19.3",
+    "@prisma/client": "6.19.3",
+    "pg": "8.21.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260707.1",
+    "@types/pg": "8.20.0",
+    "prisma": "6.19.3",
+    "typescript": "6.0.3"
+  }
+}

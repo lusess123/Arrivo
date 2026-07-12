@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { IDict  } from 'arrivo-server'
+import { IDict } from '@arrivo/contracts'
 import { post } from '@/utils/util'
 import { createStore } from 'hox'
 import { message } from 'antd'

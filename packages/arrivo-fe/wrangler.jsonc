@@ -1,0 +1,24 @@
+{
+  "name": "arrivo-web",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-06-24",
+  "account_id": "f04aaf2faa3d0eef049f6fdbc0af0c37",
+  "routes": [
+    {
+      "pattern": "arrivo.zyking.xyz",
+      "custom_domain": true
+    },
+    {
+      "pattern": "app-arrivo.zyking.xyz",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

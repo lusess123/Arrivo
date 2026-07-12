@@ -1,0 +1,37 @@
+{
+  "name": "arrivo-api",
+  "main": "./src/main/api.worker.ts",
+  "compatibility_date": "2026-06-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "f04aaf2faa3d0eef049f6fdbc0af0c37",
+  "routes": [
+    {
+      "pattern": "api-arrivo.zyking.xyz",
+      "custom_domain": true
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "AUDIO_BUCKET",
+      "bucket_name": "arrivo-audio-cache"
+    }
+  ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "eb159950fe53418fb43d07d45dd9f8bb"
+    }
+  ],
+  "vars": {
+    "WEB_ORIGIN": "https://arrivo.zyking.xyz",
+    "MANAGE_ORIGIN": "https://manage-arrivo.zyking.xyz",
+    "API_BASE_URL": "https://api-arrivo.zyking.xyz",
+    "COOKIE_DOMAIN": ".zyking.xyz",
+    "JWT_EXPIRES_SECONDS": "604800",
+    "DEFAULT_TENANT_ID": "helloworld",
+    "TTS_DEFAULT_VOICE": "en-US-AndrewNeural"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

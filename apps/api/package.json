@@ -1,0 +1,26 @@
+{
+  "name": "@arrivo/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev -c wrangler.jsonc",
+    "build": "wrangler deploy -c wrangler.jsonc --dry-run --outdir dist",
+    "deploy": "wrangler deploy -c wrangler.jsonc",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --pass-with-no-tests"
+  },
+  "dependencies": {
+    "@arrivo/application": "workspace:*",
+    "@arrivo/contracts": "workspace:*",
+    "@arrivo/db": "workspace:*",
+    "@arrivo/infra": "workspace:*",
+    "@arrivo/runtime": "workspace:*",
+    "@hono/zod-validator": "0.8.0",
+    "hono": "4.12.25"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260707.1",
+    "typescript": "6.0.3",
+    "wrangler": "4.103.0"
+  }
+}

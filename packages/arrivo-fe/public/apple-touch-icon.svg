@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Arrivo">
+  <rect width="180" height="180" rx="40" fill="#071a22"/>
+  <path d="M47 137L90 38l43 99" fill="none" stroke="#a0d8ef" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M71 110h39" fill="none" stroke="#f6e58d" stroke-width="14" stroke-linecap="round"/>
+  <path d="M112 66c14 9 22 22 22 35s-8 26-22 35" fill="none" stroke="#f6e58d" stroke-width="10" stroke-linecap="round"/>
+  <path d="M130 50c20 15 31 31 31 51s-11 36-31 51" fill="none" stroke="#a0d8ef" stroke-width="7" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="90" cy="38" r="10" fill="#f6e58d"/>
+</svg>

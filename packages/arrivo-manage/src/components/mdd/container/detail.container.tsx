@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { IDetailDataContainer, IRenderType, ModelFieldMapper } from 'arrivo-server';
+import { IDetailDataContainer, IRenderType, ModelFieldMapper } from '@arrivo/contracts';
 import { post } from '@/utils/util';
 import { useMetaContext } from '../store';
 import { BooleanDetail } from '@/components/common/detail-component/boolean-detail';
@@ -78,4 +78,3 @@ export function DetailContainer (props: IDetailContainer) : JSX.Element {
         </Descriptions>}
     </div>
 };
-

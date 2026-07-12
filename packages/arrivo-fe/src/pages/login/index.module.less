@@ -126,6 +126,22 @@
   } /* end :global */
 } /* end .form */
 
+.formTitle {
+  margin: 0 0 10px;
+  color: #35596b;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.modeHint {
+  margin: 0 0 20px;
+  color: #5f7f8d;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
 .getCodeBtn {
   width: 100%;
   // border-left: 1px solid rgb(217, 217, 217);
@@ -137,6 +153,37 @@
   border-radius: 24px;
   font-size: 16px;
   font-weight: bold;
+}
+
+.secondaryBtn {
+  height: 42px;
+  border-radius: 21px;
+  border-color: rgba(160, 216, 239, 0.8);
+  color: #39738c;
+  background: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+
+  &:hover {
+    border-color: #86cce8 !important;
+    color: #216984 !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+  }
+}
+
+.linkRow {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+
+  :global {
+    .ant-btn-link {
+      padding: 0 4px;
+      color: #4f8da5;
+      font-weight: 600;
+    }
+  }
 }
 
 .footer {
@@ -165,4 +212,4 @@
     transform: scale(1.04);
     box-shadow: 0 8px 20px rgba(240, 190, 107, 0.6);
   }
-} 
+}

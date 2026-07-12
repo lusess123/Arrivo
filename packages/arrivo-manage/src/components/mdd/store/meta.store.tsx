@@ -1,6 +1,6 @@
 import { post } from '@/utils/util';
 import { message } from 'antd';
-import { IDict, IMetaResponse, IModel, IView } from 'arrivo-server';
+import { IDict, IMetaResponse, IModel, IView } from '@arrivo/contracts';
 import { createStore } from 'hox';
 import { useState } from 'react';
 

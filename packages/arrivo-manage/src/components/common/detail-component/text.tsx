@@ -1,6 +1,6 @@
 import React from 'react'
 import { Input, InputNumber } from 'antd'
-import { ModelFieldType } from 'arrivo-server';
+import { ModelFieldType } from '@arrivo/contracts';
 
 export function Text(props: any) {
     const { fieldType } = props

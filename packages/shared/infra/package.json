@@ -1,0 +1,23 @@
+{
+  "name": "@open-kit/infra",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --pass-with-no-tests"
+  },
+  "dependencies": {
+    "@ai-sdk/deepseek": "2.0.38",
+    "ai": "6.0.204"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "6.0.3"
+  }
+}

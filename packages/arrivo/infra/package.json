@@ -1,0 +1,20 @@
+{
+  "name": "@arrivo/infra",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --pass-with-no-tests"
+  },
+  "dependencies": {
+    "@arrivo/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260707.1",
+    "typescript": "6.0.3"
+  }
+}

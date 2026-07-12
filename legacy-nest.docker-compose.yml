@@ -3,7 +3,7 @@ services:
     container_name: arrivo-server
     build:
       context: .
-      dockerfile: ${DOCKERFILE:-Dockerfile} 
+      dockerfile: ${DOCKERFILE:-legacy-nest.dockerfile}
       target: arrivo-server
       args:
         - DOCKER_BUILDKIT=1
@@ -20,7 +20,7 @@ services:
     container_name: arrivo-fe
     build:
       context: .
-      dockerfile: ${DOCKERFILE:-Dockerfile} 
+      dockerfile: ${DOCKERFILE:-legacy-nest.dockerfile}
       target: arrivo-fe
       args:
         - DOCKER_BUILDKIT=1
@@ -34,7 +34,7 @@ services:
   arrivo-manage:
     build:
       context: .
-      dockerfile: ${DOCKERFILE:-Dockerfile} 
+      dockerfile: ${DOCKERFILE:-legacy-nest.dockerfile}
       target: arrivo-manage
       args:
         - DOCKER_BUILDKIT=1
@@ -45,4 +45,3 @@ services:
     environment:
       - GIT_COMMIT_TIME=${GIT_COMMIT_TIME}
       - GIT_COMMIT_MESSAGE=${GIT_COMMIT_MESSAGE}
-

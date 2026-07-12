@@ -1,0 +1,176 @@
+generator clientWorker {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma-worker"
+  moduleFormat = "esm"
+  runtime      = "cloudflare"
+  engineType   = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String     @id @default(uuid(7)) @db.Uuid
+  userName         String
+  nickname         String?
+  email            String?
+  phoneNumber      String?
+  wechatId         String?
+  remarkInfo       String?
+  lastLoginTime    DateTime?
+  lastLogoutTime   DateTime?
+  registrationTime DateTime
+  companyName      String?
+  openId           String?    @default("")
+  headimgurl       String?
+  newUser          Boolean?
+  access           String?
+  voice            String?    @db.VarChar(20)
+  speed            Int        @default(0)
+  is_delayed       Boolean?
+  is_public        Boolean?
+  deletedAt        DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedBy        String?    @db.Uuid
+  createdBy        String?    @db.Uuid
+  updatedBy        String?    @db.Uuid
+  tenantId         String     @default("helloworld") @db.VarChar(50)
+  teamId           String?    @db.Uuid
+  env              String?    @db.VarChar(50)
+  Articles         Articles[]
+
+  @@unique([tenantId, phoneNumber])
+  @@index([tenantId, email])
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, updatedAt])
+}
+
+model Articles {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  content   String?
+  title     String?
+  deletedAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  deletedBy String?     @db.Uuid
+  createdBy String?     @db.Uuid
+  updatedBy String?     @db.Uuid
+  tenantId  String      @default("helloworld") @db.VarChar(50)
+  teamId    String?     @db.Uuid
+  env       String?     @db.VarChar(50)
+  userId    String?     @db.Uuid
+  isPublic  Boolean     @default(false)
+  user      User?       @relation(fields: [userId], references: [id])
+  Sentences Sentences[]
+
+  @@unique([tenantId, userId, title])
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, isPublic, createdAt])
+  @@index([tenantId, deletedAt])
+}
+
+model Sentences {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  content           String?
+  articleId         String?   @db.Uuid
+  article           Articles? @relation(fields: [articleId], references: [id])
+  originalContent   String?
+  translatedContent String?
+  sortOrder         Int       @default(0)
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedBy         String?   @db.Uuid
+  createdBy         String?   @db.Uuid
+  updatedBy         String?   @db.Uuid
+  tenantId          String    @default("helloworld") @db.VarChar(50)
+  teamId            String?   @db.Uuid
+  env               String?   @db.VarChar(50)
+
+  @@index([tenantId, articleId, createdAt])
+  @@index([tenantId, articleId, sortOrder])
+  @@index([tenantId, deletedAt])
+}
+
+model Config {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  key         String
+  value       String
+  description String?
+  appName     String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedBy   String?   @db.Uuid
+  createdBy   String?   @db.Uuid
+  updatedBy   String?   @db.Uuid
+  tenantId    String    @default("helloworld") @db.VarChar(50)
+  teamId      String?   @db.Uuid
+  env         String?   @db.VarChar(50)
+
+  @@unique([tenantId, key])
+  @@index([tenantId, deletedAt])
+}
+
+model UserPassword {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  password  String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedBy String?   @db.Uuid
+  createdBy String?   @db.Uuid
+  updatedBy String?   @db.Uuid
+  tenantId  String    @default("helloworld") @db.VarChar(50)
+  teamId    String?   @db.Uuid
+  env       String?   @db.VarChar(50)
+
+  @@index([tenantId, deletedAt])
+}
+
+model PhoneCode {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  code          String?
+  userId        String?   @db.Uuid
+  expiredTime   DateTime?
+  toPhoneNumber String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedBy     String?   @db.Uuid
+  createdBy     String?   @db.Uuid
+  updatedBy     String?   @db.Uuid
+  tenantId      String    @default("helloworld") @db.VarChar(50)
+  teamId        String?   @db.Uuid
+  env           String?   @db.VarChar(50)
+
+  @@index([tenantId, toPhoneNumber, createdAt])
+  @@index([tenantId, deletedAt])
+}
+
+model EmailCode {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  code        String?
+  purpose     String?   @db.VarChar(40)
+  userId      String?   @db.Uuid
+  expiredTime DateTime?
+  toEmail     String?
+  usedAt      DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedBy   String?   @db.Uuid
+  createdBy   String?   @db.Uuid
+  updatedBy   String?   @db.Uuid
+  tenantId    String    @default("helloworld") @db.VarChar(50)
+  teamId      String?   @db.Uuid
+  env         String?   @db.VarChar(50)
+
+  @@index([tenantId, code, purpose])
+  @@index([tenantId, toEmail, purpose, createdAt])
+  @@index([tenantId, toEmail, createdAt])
+  @@index([tenantId, deletedAt])
+}

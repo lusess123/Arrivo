@@ -51,12 +51,12 @@ ENV NODE_ENV=production
 
 FROM dep AS db_build
 COPY packages/arrivo-db packages/arrivo-db
-RUN pnpm run db-build
+RUN cd packages/arrivo-db && npm run db-build
 
 # 构建阶段
 FROM db_build AS server_build
 COPY packages/arrivo-server packages/arrivo-server
-RUN pnpm run server-build
+RUN cd packages/arrivo-server && npm run build
 
 # 替换软件源并安装 python3 和 pip
 

@@ -1,0 +1,17 @@
+export type ArrivoWorkerEnv = {
+  AUDIO_BUCKET: R2Bucket;
+  HYPERDRIVE?: Hyperdrive;
+  DATABASE_URL?: string;
+  DATABASE_SCHEMA?: string;
+  WEB_ORIGIN: string;
+  MANAGE_ORIGIN?: string;
+  API_BASE_URL: string;
+  COOKIE_DOMAIN?: string;
+  JWT_SECRET: string;
+  JWT_EXPIRES_SECONDS?: string;
+  DEFAULT_TENANT_ID?: string;
+  TTS_DEFAULT_VOICE?: string;
+  FIXED_SMS_CODE?: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+};

@@ -1,4 +1,4 @@
-import { IView } from 'arrivo-server';
+import { IView } from '@arrivo/contracts';
 import { Card } from 'antd';
 import { ContainerRenderComponents } from '../container';
 import { IViewProps } from '../container/type';

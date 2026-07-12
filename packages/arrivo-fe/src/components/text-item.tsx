@@ -1,6 +1,7 @@
 import { Button, Card, Typography } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { AudioOutlined, SoundOutlined } from '@ant-design/icons';
+import { apiUrl } from '@/lib/api';
 const { Text } = Typography;
 
 export default function Item({
@@ -29,7 +30,7 @@ export default function Item({
 
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.src = `/api/text?s=${s}&v=${v}`; // 改变音频源
+      audioRef.current.src = apiUrl(`/api/tts/audio?s=${encodeURIComponent(s)}&v=${encodeURIComponent(v)}`); // 改变音频源
       audioRef.current.load(); // 重新载入音频文件
       audioRef.current.playbackRate = rate;
     }

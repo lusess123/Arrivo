@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Form, Input, message,Switch } from 'antd';
-import { IFormDataContainer, IRenderType, ModelFieldMapper } from 'arrivo-server';
+import { IFormDataContainer, IRenderType, ModelFieldMapper, ModelFieldType } from '@arrivo/contracts';
 import { post } from '@/utils/util';
 import { DateTime } from '@/components/common/detail-component/datetime';
 import { HTML } from '@/components/common/detail-component/html';
@@ -72,7 +72,12 @@ export function FormContainer (props: IFormContainer) : JSX.Element {
                 props.dataContainer.fields.map(field => {
                     const modelField = model.fieldsObject![field.name]
                     const Component = RenderTypeToComponentMapObj[field.renderType || ModelFieldMapper[modelField.fieldType]!.formRenderType!] ?? Text;
-                    return <Form.Item  key={field.name} label={field.label || modelField.label}  name={field.name}>
+                    return <Form.Item
+                      key={field.name}
+                      label={field.label || modelField.label}
+                      name={field.name}
+                      valuePropName={modelField.fieldType === ModelFieldType.Boolean ? 'checked' : 'value'}
+                    >
                     <Component {...field} {...modelField}></Component>
                     </Form.Item>
                 })
@@ -117,4 +122,3 @@ export function FormContainer (props: IFormContainer) : JSX.Element {
         </div>
     </div>
 };
-

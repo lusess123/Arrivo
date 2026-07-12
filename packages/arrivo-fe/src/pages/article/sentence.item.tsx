@@ -1,7 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { TtsWordBoundaryDto } from '@arrivo/contracts';
 import styles from './index.module.less'
 import { Button } from 'antd';
-import { AudioOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
+import { AudioOutlined, PauseCircleOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
+import { apiUrl } from '@/lib/api';
+import { buildWordTextSegments, findActiveWordIndex } from './word-highlight';
+
+const AUDIO_CACHE_VERSION = '20260712-words-v1';
 
 interface ISentenceItem {
     originalContent: string ,
@@ -14,141 +19,433 @@ interface ISentenceItem {
     v: string,
     rate: number,
     delay: number,
+    playing: boolean,
+    hasNext: boolean,
+    playbackKey: number,
+    onPlayStart: (index: number) => void,
+    onPlayStop: (index: number) => void,
     onPlayEnd: (index: number) => void,
     sound: boolean,
+    actions?: React.ReactNode,
 }
 
 export default function SentenceItem(sentence: ISentenceItem) {
-
- 
-  const audioRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const itemRef = useRef<HTMLDivElement | null>(null);
+  const repeatTimerRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
+  const startedAtRef = useRef(0);
+  const playbackElapsedMsRef = useRef(0);
+  const countdownEndAtRef = useRef(0);
+  const countdownRemainingMsRef = useRef(0);
+  const countdownCompleteRef = useRef<(() => void) | null>(null);
+  const highlightFrameRef = useRef<number | null>(null);
+  const wordBoundariesRef = useRef<TtsWordBoundaryDto[]>([]);
+  const activeWordIndexRef = useRef(-1);
+  const playCountRef = useRef(0);
   const [playCount, setPlayCount] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isWaite, setIsWaite] = useState(false);
-  const settimeRef = useRef<any>(null);
-  const myRef = useRef<any>(null);
-  const maxCount = sentence.times;
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseRemaining, setPauseRemaining] = useState(0);
+  const [wordBoundaries, setWordBoundaries] = useState<TtsWordBoundaryDto[]>([]);
+  const [activeWordIndex, setActiveWordIndex] = useState(-1);
+  const maxCount = Math.max(1, sentence.times || 1);
+  const wordSegments = useMemo(
+    () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
+    [sentence.originalContent, wordBoundaries],
+  );
 
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.src = `/api/tts/audio?s=${sentence.originalContent}&v=${sentence.v}`; // 改变音频源
-      audioRef.current.load(); // 重新载入音频文件
-      audioRef.current.playbackRate = sentence.rate;
+  const stopHighlightTracking = useCallback(() => {
+    if (highlightFrameRef.current !== null) {
+      window.cancelAnimationFrame(highlightFrameRef.current);
+      highlightFrameRef.current = null;
     }
-  }, [sentence.translatedContent, sentence.v, sentence.rate]);
+  }, []);
+
+  const setHighlightedWord = useCallback((index: number) => {
+    if (activeWordIndexRef.current === index) return;
+    activeWordIndexRef.current = index;
+    setActiveWordIndex(index);
+  }, []);
+
+  const startHighlightTracking = useCallback(() => {
+    stopHighlightTracking();
+    const update = () => {
+      const audio = audioRef.current;
+      if (!audio || audio.paused || audio.ended) {
+        highlightFrameRef.current = null;
+        return;
+      }
+      setHighlightedWord(findActiveWordIndex(
+        wordBoundariesRef.current,
+        audio.currentTime * 1000,
+      ));
+      highlightFrameRef.current = window.requestAnimationFrame(update);
+    };
+    update();
+  }, [setHighlightedWord, stopHighlightTracking]);
+
+  const clearRepeatTimer = useCallback(() => {
+    if (repeatTimerRef.current !== null) {
+      window.clearTimeout(repeatTimerRef.current);
+      repeatTimerRef.current = null;
+    }
+
+    if (countdownTimerRef.current !== null) {
+      window.clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+  }, []);
+
+  const resetPlaybackState = useCallback(() => {
+    clearRepeatTimer();
+    stopHighlightTracking();
+    countdownCompleteRef.current = null;
+    countdownEndAtRef.current = 0;
+    countdownRemainingMsRef.current = 0;
+    playbackElapsedMsRef.current = 0;
+    playCountRef.current = 0;
+    startedAtRef.current = 0;
+    setPlayCount(0);
+    setPauseRemaining(0);
+    setIsWaite(false);
+    setIsPaused(false);
+    setHighlightedWord(-1);
+  }, [clearRepeatTimer, setHighlightedWord, stopHighlightTracking]);
+
+  const waitBeforeContinue = useCallback((seconds: number, onComplete: () => void) => {
+    const waitMs = Math.max(0, Math.round(seconds * 1000));
+
+    if (!waitMs) {
+      onComplete();
+      return;
+    }
+
+    const updateRemaining = () => {
+      const nextRemainingMs = Math.max(0, countdownEndAtRef.current - Date.now());
+      countdownRemainingMsRef.current = nextRemainingMs;
+      const nextRemaining = nextRemainingMs / 1000;
+      setPauseRemaining(Number(nextRemaining.toFixed(1)));
+    };
+
+    clearRepeatTimer();
+    countdownCompleteRef.current = onComplete;
+    countdownEndAtRef.current = Date.now() + waitMs;
+    countdownRemainingMsRef.current = waitMs;
+    setIsWaite(true);
+    setIsPaused(false);
+    updateRemaining();
+    countdownTimerRef.current = window.setInterval(updateRemaining, 100);
+    repeatTimerRef.current = window.setTimeout(() => {
+      const complete = countdownCompleteRef.current;
+      clearRepeatTimer();
+      countdownCompleteRef.current = null;
+      countdownEndAtRef.current = 0;
+      countdownRemainingMsRef.current = 0;
+      setPauseRemaining(0);
+      setIsWaite(false);
+      setIsPaused(false);
+      complete?.();
+    }, waitMs);
+  }, [clearRepeatTimer]);
+
+  const pauseCountdown = useCallback(() => {
+    const remainingMs = Math.max(0, countdownEndAtRef.current - Date.now());
+
+    if (remainingMs <= 0) {
+      const complete = countdownCompleteRef.current;
+      clearRepeatTimer();
+      countdownCompleteRef.current = null;
+      countdownEndAtRef.current = 0;
+      countdownRemainingMsRef.current = 0;
+      setPauseRemaining(0);
+      setIsWaite(false);
+      setIsPaused(false);
+      complete?.();
+      return;
+    }
+
+    countdownRemainingMsRef.current = remainingMs;
+    clearRepeatTimer();
+    setPauseRemaining(Number((remainingMs / 1000).toFixed(1)));
+    setIsWaite(true);
+    setIsPaused(true);
+  }, [clearRepeatTimer]);
+
+  const resumeCountdown = useCallback(() => {
+    const complete = countdownCompleteRef.current;
+    const remainingSeconds = countdownRemainingMsRef.current / 1000;
+
+    if (!complete) {
+      return;
+    }
+
+    if (remainingSeconds <= 0) {
+      clearRepeatTimer();
+      countdownCompleteRef.current = null;
+      countdownEndAtRef.current = 0;
+      countdownRemainingMsRef.current = 0;
+      setPauseRemaining(0);
+      setIsWaite(false);
+      setIsPaused(false);
+      complete();
+      return;
+    }
+
+    waitBeforeContinue(remainingSeconds, complete);
+  }, [waitBeforeContinue]);
+
+  const stopAudio = useCallback(() => {
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.pause();
+      try {
+        audio.currentTime = 0;
+      } catch {
+        // currentTime can throw before metadata is available in a few browsers.
+      }
+    }
+
+    resetPlaybackState();
+  }, [resetPlaybackState]);
+
+  const playOnce = useCallback(async (nextCount: number) => {
+    const audio = audioRef.current;
+
+    if (!audio || !sentence.originalContent.trim()) {
+      sentence.onPlayEnd(sentence.index);
+      return;
+    }
+
+    clearRepeatTimer();
+    countdownCompleteRef.current = null;
+    countdownEndAtRef.current = 0;
+    countdownRemainingMsRef.current = 0;
+    playbackElapsedMsRef.current = 0;
+    playCountRef.current = nextCount;
+    setPlayCount(nextCount);
+    setPauseRemaining(0);
+    setIsWaite(false);
+    setIsPaused(false);
+
+    if (itemRef.current) {
+      itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    audio.volume = sentence.sound ? 1 : 0;
+    audio.playbackRate = sentence.rate;
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // Ignore seek errors while the browser is still loading metadata.
+    }
+
+    startedAtRef.current = Date.now();
+
+    try {
+      await audio.play();
+      startHighlightTracking();
+    } catch (error) {
+      console.error('Audio play failed', error);
+      resetPlaybackState();
+      sentence.onPlayStop(sentence.index);
+    }
+  }, [
+    clearRepeatTimer,
+    resetPlaybackState,
+    sentence.index,
+    sentence.onPlayEnd,
+    sentence.onPlayStop,
+    sentence.originalContent,
+    sentence.rate,
+    sentence.sound,
+    startHighlightTracking,
+  ]);
+
+  const pauseAudioPlayback = useCallback(() => {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    if (startedAtRef.current) {
+      playbackElapsedMsRef.current += Date.now() - startedAtRef.current;
+      startedAtRef.current = 0;
+    }
+
+    audio.pause();
+    stopHighlightTracking();
+    setIsPaused(true);
+  }, [stopHighlightTracking]);
+
+  const resumeAudioPlayback = useCallback(async () => {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    audio.volume = sentence.sound ? 1 : 0;
+    audio.playbackRate = sentence.rate;
+    startedAtRef.current = Date.now();
+    setIsPaused(false);
+
+    try {
+      await audio.play();
+      startHighlightTracking();
+    } catch (error) {
+      console.error('Audio resume failed', error);
+      resetPlaybackState();
+      sentence.onPlayStop(sentence.index);
+    }
+  }, [
+    resetPlaybackState,
+    sentence.index,
+    sentence.onPlayStop,
+    sentence.rate,
+    sentence.sound,
+    startHighlightTracking,
+  ]);
 
   useEffect(() => {
-    if (!audioRef.current.currentTime && isPlaying) {
-      audioRef.current.load();
-      audioRef.current.playbackRate = sentence.rate;
-      audioRef.current.addEventListener(
-        'loadeddata',
-        function () {
-          console.log('Audio data loaded');
-          // 你可以在这里执行任何需要的回调操作
-          playAudio(); // 示例：自动播放新的音频
-        },
-        { once: true },
-      ); // 使用 once: true 保证回调只执行一次
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    clearRepeatTimer();
+    audio.pause();
+    resetPlaybackState();
+    setDuration(0);
+    wordBoundariesRef.current = [];
+    setWordBoundaries([]);
+    if (!sentence.originalContent.trim()) {
+      audio.removeAttribute('src');
+      audio.load();
+      return;
+    }
+    const params = new URLSearchParams({
+      s: sentence.originalContent,
+      v: sentence.v,
+      cv: AUDIO_CACHE_VERSION,
+    });
+    audio.src = apiUrl(`/api/tts/audio?${params.toString()}`);
+    audio.load();
+    audio.playbackRate = sentence.rate;
+
+    const controller = new AbortController();
+    void fetch(apiUrl(`/api/tts/words?${params.toString()}`), {
+      credentials: 'include',
+      signal: controller.signal,
+    }).then(async response => {
+      if (!response.ok) throw new Error(`Word timeline failed: ${response.status}`);
+      const body = await response.json() as {
+        data?: { words?: TtsWordBoundaryDto[] };
+      };
+      if (controller.signal.aborted) return;
+      const words = Array.isArray(body.data?.words) ? body.data.words : [];
+      wordBoundariesRef.current = words;
+      setWordBoundaries(words);
+    }).catch(error => {
+      if (controller.signal.aborted) return;
+      console.warn('Word timeline unavailable', error);
+    });
+
+    return () => controller.abort();
+  }, [clearRepeatTimer, resetPlaybackState, sentence.originalContent, sentence.rate, sentence.v]);
+
+  useEffect(() => {
+    if (sentence.playing) {
+      void playOnce(1);
     } else {
-      if (!isPlaying) {
-        audioRef.current.load();
-        timeRef.current = 0;
-        audioRef.current.playbackRate = sentence.rate;
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        setIsPlaying(false);
-        setIsWaite(false);
-        setPlayCount(0);
-      }
+      stopAudio();
     }
-  }, [isPlaying]);
 
-  const timeRef = useRef<number>(0);
-  const playAudio = () => {
-    if (audioRef.current) {
-      if (!sentence.sound) audioRef.current.volume = 0.0;
-      if (myRef.current) {
-        myRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-      timeRef.current = new Date().getTime();
-      if (isPlaying) {
-        if (settimeRef.current) {
-          clearTimeout(settimeRef.current);
+    return () => {
+      clearRepeatTimer();
+      stopHighlightTracking();
+    };
+  }, [clearRepeatTimer, playOnce, sentence.playbackKey, sentence.playing, stopAudio, stopHighlightTracking]);
+
+  const handleTogglePlay = () => {
+    if (sentence.playing) {
+      if (isWaite) {
+        if (isPaused) {
+          resumeCountdown();
+        } else {
+          pauseCountdown();
         }
-        setIsPlaying(false);
-        setPlayCount(0);
-        audioRef.current.playbackRate = sentence.rate;
-        audioRef.current.currentTime = 0;
-        setIsWaite(false);
-        audioRef.current.pause();
-      } else {
-        setPlayCount(playCount + 1);
-        setIsPlaying(true);
-        audioRef.current.currentTime = playCount + 1;
-        audioRef.current.playbackRate = sentence.rate;
-        audioRef.current.play();
+        return;
       }
 
-      // playWithDelay(playCount);
+      if (isPaused) {
+        void resumeAudioPlayback();
+      } else {
+        pauseAudioPlayback();
+      }
+      return;
     }
+
+    sentence.onPlayStart(sentence.index);
   };
 
-  // const playWithDelay = (_playCount: number) => {
-  //   if (audioRef.current && _playCount < 3) {
-  //     audioRef.current.play();
-  //     audioRef.current.addEventListener('ended', handleEnded);
-  //   }
-  // };
-
-  function handleEnded() {
-    const time = new Date().getTime() - timeRef.current;
-    setDuration(time / 1000);
-    // alert(playCount)
-    // if (playCount < 3) {
-    setIsWaite(true);
-    settimeRef.current = setTimeout(
-      () => {
-        if (playCount < maxCount) {
-          setIsWaite(false);
-          timeRef.current = new Date().getTime();
-          setPlayCount(playCount + 1);
-          audioRef.current.play();
-          audioRef.current.playbackRate = sentence.rate;
-        } else {
-          timeRef.current = 0;
-          setIsPlaying(false);
-          setIsWaite(false);
-          setPlayCount(0);
-          audioRef.current.playbackRate = sentence.rate;
-          if (sentence.onPlayEnd) sentence.onPlayEnd(sentence.index);
-        }
-      },
-      (!sentence.delay
-        ? maxCount * time
-        : maxCount
-          ? maxCount * (time + ((sentence.delay || 0) * 1000 + 2000))
-          : (sentence.delay || 0) * 1000 + 2000) / sentence.rate,
+  const handleEnded = () => {
+    stopHighlightTracking();
+    setHighlightedWord(-1);
+    const audio = audioRef.current;
+    const elapsedMs = playbackElapsedMsRef.current + (
+      startedAtRef.current ? Date.now() - startedAtRef.current : 0
     );
-    // }
-    // else {
-    //   timeRef.current = 0 ;
-    //   setIsPlaying(false);
-    //   setIsWaite(false)
-    //   setPlayCount(0)
-    //   if(onPlayEnd) onPlayEnd(index)
+    const elapsedSeconds = elapsedMs / 1000;
+    const metadataSeconds = audio && Number.isFinite(audio.duration) && audio.duration > 0
+      ? audio.duration / Math.max(0.1, sentence.rate || 1)
+      : 0;
+    const playbackSeconds = metadataSeconds || (
+      Number.isFinite(elapsedSeconds) && elapsedSeconds > 0 ? elapsedSeconds : 0
+    );
+    const pauseSeconds = playbackSeconds + Math.max(0, sentence.delay || 0);
+    const currentCount = playCountRef.current;
 
-    // }
-  }
+    startedAtRef.current = 0;
+    playbackElapsedMsRef.current = 0;
+
+    if (playbackSeconds > 0) {
+      setDuration(Number(playbackSeconds.toFixed(1)));
+    }
+
+    if (currentCount < maxCount) {
+      waitBeforeContinue(pauseSeconds, () => {
+        void playOnce(currentCount + 1);
+      });
+      return;
+    }
+
+    if (sentence.hasNext) {
+      waitBeforeContinue(pauseSeconds, () => {
+        resetPlaybackState();
+        sentence.onPlayEnd(sentence.index);
+      });
+      return;
+    }
+
+    resetPlaybackState();
+    sentence.onPlayEnd(sentence.index);
+  };
 
   const handleLoadedMetadata = () => {
-    setDuration(audioRef.current.duration);
+    const audio = audioRef.current;
+
+    if (audio && Number.isFinite(audio.duration)) {
+      const playbackSeconds = audio.duration / Math.max(0.1, sentence.rate || 1);
+      setDuration(Number(playbackSeconds.toFixed(1)));
+    }
   };
 
+  const playButtonLabel = !sentence.playing
+    ? '播放句子'
+    : isPaused
+      ? '继续播放'
+      : '暂停播放';
 
-
-  return  <div key={sentence.id} className={styles.sentenceItem}>
+  return  <div key={sentence.id} className={styles.sentenceItem} ref={itemRef}>
     <audio
         onEnded={handleEnded}
         onLoadedMetadata={handleLoadedMetadata}
@@ -156,27 +453,41 @@ export default function SentenceItem(sentence: ISentenceItem) {
       />
   <div className={styles.sentenceIndex}>{sentence.index+ 1}</div>
   <div className={styles.sentenceContent}>
-    <p className={styles.englishText}>{sentence.originalContent}</p>
+    <p className={styles.englishText}>
+      {wordSegments.map((segment, segmentIndex) => segment.wordIndex === undefined ? (
+        <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>
+      ) : (
+        <span
+          className={segment.wordIndex === activeWordIndex ? styles.activeWord : styles.word}
+          key={`word-${segment.wordIndex}`}
+        >
+          {segment.text}
+        </span>
+      ))}
+    </p>
     <p className={styles.chineseText}>{sentence.translatedContent}</p>
+    {sentence.actions}
   </div>
   <div className={styles.sentenceControls}>
     <Button 
       type="text" 
-      icon={<PlayCircleOutlined />} 
-      onClick={() => playAudio()}
+      icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+      onClick={handleTogglePlay}
       className={styles.sentencePlayButton}
+      aria-label={playButtonLabel}
     />
-    {isWaite ? '已经' : '正在'}
-        {isPlaying ? `播放第${playCount}/${maxCount}次` : ''}{' '}
-        {isPlaying &&
+        {sentence.playing ? <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span> : null}{' '}
+        {sentence.playing &&
           (isWaite ? (
-            <span>
-              <AudioOutlined></AudioOutlined>跟读
+            <span className={styles.pauseCountdown}>
+              <AudioOutlined />{isPaused ? '已暂停' : '停顿'} {pauseRemaining.toFixed(1)}秒
             </span>
+          ) : isPaused ? (
+            <span className={styles.pauseCountdown}>已暂停</span>
           ) : (
             <SoundOutlined />
           ))}
-        {!!duration && duration + '秒'}
+        {!!duration && <span className={styles.duration}>{duration}秒</span>}
   </div>
 </div>
 }

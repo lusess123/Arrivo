@@ -3,7 +3,7 @@ import SearchForm, {
   ISearchFormItemType,
 } from '@/components/common/search.form';
 import { post } from '@/utils/util';
-import { IListDataContainer, IRenderType, ModelFieldMapper } from 'arrivo-server';
+import { IListDataContainer, IRenderType, ModelFieldMapper } from '@arrivo/contracts';
 import { Button, Card, message, Pagination, Table } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
