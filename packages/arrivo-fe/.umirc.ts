@@ -5,6 +5,7 @@ import path from "path";
 const isProduction = process.env.NODE_ENV === "production";
 const dashboardUrl = isProduction ? "https://manage-arrivo.zyking.xyz" : process.env.UMI_APP_DASHBOARD;
 const apiBaseUrl = isProduction ? "https://api-arrivo.zyking.xyz" : process.env.UMI_APP_API_BASE_URL;
+const clarityProjectId = isProduction ? "xl7w8qhw2t" : process.env.UMI_APP_CLARITY_PROJECT_ID;
 
 export default defineConfig({
   mfsu: false, // 明确关闭 mfsu
@@ -19,6 +20,7 @@ export default defineConfig({
     "process.env": {
       UMI_APP_DASHBOARD: dashboardUrl,
       UMI_APP_API_BASE_URL: apiBaseUrl,
+      UMI_APP_CLARITY_PROJECT_ID: clarityProjectId,
     },
   },
   https: {

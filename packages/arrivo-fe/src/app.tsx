@@ -2,8 +2,10 @@ import { defineApp, useLocation, useNavigate } from '@umijs/max';
 import './global.css'
 import { AppProviderParent } from './hooks';
 import { configureHttpClient } from './lib/api';
+import { initializeClarity } from './lib/clarity';
 
 configureHttpClient();
+initializeClarity(process.env.UMI_APP_CLARITY_PROJECT_ID);
 
 export default defineApp({
     rootContainer: (oldContainer) => {
