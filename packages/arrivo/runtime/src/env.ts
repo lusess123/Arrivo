@@ -4,6 +4,7 @@ export type ArrivoWorkerEnv = {
   DATABASE_URL?: string;
   DATABASE_SCHEMA?: string;
   WEB_ORIGIN: string;
+  LEGACY_WEB_ORIGIN?: string;
   MANAGE_ORIGIN?: string;
   API_BASE_URL: string;
   COOKIE_DOMAIN?: string;

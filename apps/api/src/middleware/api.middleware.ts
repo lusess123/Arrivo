@@ -8,7 +8,7 @@ import type { AppEnv } from "../context";
 import { requestContextMiddleware } from "./request-context.middleware";
 
 function getOrigins(env: AppEnv["Bindings"]) {
-  return [env.WEB_ORIGIN, env.MANAGE_ORIGIN].filter(Boolean) as string[];
+  return [env.WEB_ORIGIN, env.LEGACY_WEB_ORIGIN, env.MANAGE_ORIGIN].filter(Boolean) as string[];
 }
 
 function isHealthPath(pathname: string) {

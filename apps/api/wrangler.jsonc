@@ -24,6 +24,7 @@
   ],
   "vars": {
     "WEB_ORIGIN": "https://arrivo.zyking.xyz",
+    "LEGACY_WEB_ORIGIN": "https://app-arrivo.zyking.xyz",
     "MANAGE_ORIGIN": "https://manage-arrivo.zyking.xyz",
     "API_BASE_URL": "https://api-arrivo.zyking.xyz",
     "COOKIE_DOMAIN": ".zyking.xyz",
