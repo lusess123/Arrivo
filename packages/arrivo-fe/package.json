@@ -4,7 +4,7 @@
   "author": "lusess123 <zyk2003xxx@163.com>",
   "scripts": {
     "dev": "max dev",
-    "build": " max build",
+    "build": "max build && bun ./scripts/build-pwa.ts",
     "format": "prettier --cache --write .",
     "postinstall": "max setup",
     "setup": "max setup",

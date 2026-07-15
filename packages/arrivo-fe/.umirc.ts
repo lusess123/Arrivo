@@ -13,7 +13,14 @@ export default defineConfig({
   title: "Arrivo - 让语言为你的世界降临",
   links: [
     { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-    { rel: "apple-touch-icon", href: "/apple-touch-icon.svg" },
+    { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png", sizes: "180x180" },
+    { rel: "manifest", href: "/manifest.webmanifest" },
+  ],
+  metas: [
+    { name: "theme-color", content: "#071a22" },
+    { name: "mobile-web-app-capable", content: "yes" },
+    { name: "apple-mobile-web-app-capable", content: "yes" },
+    { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
   ],
   antd: {},
   define: {
@@ -21,6 +28,7 @@ export default defineConfig({
       UMI_APP_DASHBOARD: dashboardUrl,
       UMI_APP_API_BASE_URL: apiBaseUrl,
       UMI_APP_CLARITY_PROJECT_ID: clarityProjectId,
+      UMI_APP_PWA_ENABLED: isProduction ? "true" : "false",
     },
   },
   https: {
