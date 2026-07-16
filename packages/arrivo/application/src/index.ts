@@ -5,3 +5,4 @@ export * from "./mdd/mdd.case";
 export * from "./runtime/db";
 export * from "./runtime/tts";
 export * from "./tts/tts.case";
+export * from "./user/playback-settings.case";

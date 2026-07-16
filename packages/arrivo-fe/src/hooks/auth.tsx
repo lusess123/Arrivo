@@ -3,6 +3,7 @@ import { useRootStore } from "./store";
 import { useMemoizedFn, useLocalStorageState } from 'ahooks'
 import axios from "axios";
 import { useEffect } from "react";
+import { clearPwaUserScope, setPwaUserScope } from "@/lib/pwa";
 
 
 export const useAuth = () => {
@@ -25,7 +26,9 @@ export const useAuth = () => {
             password,
         }));
         if (!error) {
-            syncUserData(res?.data?.data?.payload);
+            const user = res?.data?.data?.payload;
+            syncUserData(user);
+            if (user?.id) await setPwaUserScope(String(user.id));
         }
         return [error, res];
     });
@@ -36,7 +39,9 @@ export const useAuth = () => {
             password,
         }));
         if (!error) {
-            syncUserData(res?.data?.data?.payload);
+            const user = res?.data?.data?.payload;
+            syncUserData(user);
+            if (user?.id) await setPwaUserScope(String(user.id));
         }
         return [error, res];
     });
@@ -47,7 +52,9 @@ export const useAuth = () => {
             password,
         }));
         if (!error) {
-            syncUserData(res?.data?.data?.payload);
+            const user = res?.data?.data?.payload;
+            syncUserData(user);
+            if (user?.id) await setPwaUserScope(String(user.id));
         }
         return [error, res];
     });
@@ -71,12 +78,16 @@ export const useAuth = () => {
         const user = res?.data?.data;
         if (!error && user?.id) {
             syncUserData(user);
+            await setPwaUserScope(String(user.id));
+        } else if (error && !error.response && (userData as any)?.id) {
+            await setPwaUserScope(String((userData as any).id));
         }
         return [error, res];
     });
 
-    const clearUser = useMemoizedFn(() => {
+    const clearUser = useMemoizedFn(async () => {
         syncUserData({});
+        await clearPwaUserScope();
     });
 
     return {

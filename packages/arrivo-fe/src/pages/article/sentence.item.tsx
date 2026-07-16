@@ -445,49 +445,58 @@ export default function SentenceItem(sentence: ISentenceItem) {
       ? '继续播放'
       : '暂停播放';
 
-  return  <div key={sentence.id} className={styles.sentenceItem} ref={itemRef}>
-    <audio
+  return (
+    <div key={sentence.id} className={styles.sentenceItem} ref={itemRef}>
+      <audio
         onEnded={handleEnded}
         onLoadedMetadata={handleLoadedMetadata}
         ref={audioRef}
       />
-  <div className={styles.sentenceIndex}>{sentence.index+ 1}</div>
-  <div className={styles.sentenceContent}>
-    <p className={styles.englishText}>
-      {wordSegments.map((segment, segmentIndex) => segment.wordIndex === undefined ? (
-        <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>
-      ) : (
-        <span
-          className={segment.wordIndex === activeWordIndex ? styles.activeWord : styles.word}
-          key={`word-${segment.wordIndex}`}
-        >
-          {segment.text}
-        </span>
-      ))}
-    </p>
-    <p className={styles.chineseText}>{sentence.translatedContent}</p>
-    {sentence.actions}
-  </div>
-  <div className={styles.sentenceControls}>
-    <Button 
-      type="text" 
-      icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-      onClick={handleTogglePlay}
-      className={styles.sentencePlayButton}
-      aria-label={playButtonLabel}
-    />
-        {sentence.playing ? <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span> : null}{' '}
-        {sentence.playing &&
-          (isWaite ? (
-            <span className={styles.pauseCountdown}>
-              <AudioOutlined />{isPaused ? '已暂停' : '停顿'} {pauseRemaining.toFixed(1)}秒
-            </span>
-          ) : isPaused ? (
-            <span className={styles.pauseCountdown}>已暂停</span>
+      <div className={styles.sentenceIndex}>{sentence.index + 1}</div>
+      <div className={styles.sentenceContent}>
+        <p className={styles.englishText}>
+          {wordSegments.map((segment, segmentIndex) => segment.wordIndex === undefined ? (
+            <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>
           ) : (
-            <SoundOutlined />
+            <span
+              className={segment.wordIndex === activeWordIndex ? styles.activeWord : styles.word}
+              key={`word-${segment.wordIndex}`}
+            >
+              {segment.text}
+            </span>
           ))}
+        </p>
+        <p className={styles.chineseText}>{sentence.translatedContent}</p>
+        {sentence.actions}
+      </div>
+      <div className={styles.sentenceControls}>
+        <Button
+          type="text"
+          icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+          onClick={handleTogglePlay}
+          className={styles.sentencePlayButton}
+          aria-label={playButtonLabel}
+        />
+        {sentence.playing ? (
+          <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
+        ) : null}
+        {sentence.playing && !isWaite ? (
+          isPaused ? <span className={styles.playbackPaused}>已暂停</span> : <SoundOutlined />
+        ) : null}
         {!!duration && <span className={styles.duration}>{duration}秒</span>}
-  </div>
-</div>
+      </div>
+      {sentence.playing && isWaite ? (
+        <div
+          className={styles.countdownRow}
+          aria-label={`停顿倒计时 ${pauseRemaining.toFixed(1)} 秒${isPaused ? '，已暂停' : ''}`}
+        >
+          <AudioOutlined className={styles.countdownIcon} />
+          <span className={styles.countdownLabel}>停顿倒计时</span>
+          <strong className={styles.countdownValue}>{pauseRemaining.toFixed(1)}</strong>
+          <span className={styles.countdownUnit}>秒</span>
+          <span className={styles.countdownState}>{isPaused ? '暂停中' : '进行中'}</span>
+        </div>
+      ) : null}
+    </div>
+  );
 }

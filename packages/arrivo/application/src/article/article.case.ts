@@ -1,4 +1,5 @@
 import type {
+  ArticleDetailDto,
   ArticleDto,
   CreateArticleInput,
   CreateSentenceInput,
@@ -22,6 +23,7 @@ type ArticleCaseDeps = { userId: string; tenantId?: string | null };
 
 const SENTENCE_ORDER_STEP = 1000;
 const sentenceOrderBy = [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }, { id: "asc" as const }];
+const articleOrderBy = [{ createdAt: "desc" as const }, { id: "desc" as const }];
 
 function getArticleSelect(tenantId: string) {
   return {
@@ -204,9 +206,7 @@ export async function getArticleList({ userId, tenantId: inputTenantId }: Articl
   return db.articles.findMany({
     where: ownOrPublicArticleWhere({ userId, tenantId }),
     select: getArticleSelect(tenantId),
-    orderBy: {
-      createdAt: "desc"
-    }
+    orderBy: articleOrderBy
   });
 }
 
@@ -214,15 +214,41 @@ export async function getArticleDetail({
   userId,
   tenantId: inputTenantId,
   id
-}: ArticleCaseDeps & { id: string }): Promise<ArticleDto | null> {
+}: ArticleCaseDeps & { id: string }): Promise<ArticleDetailDto | null> {
   const tenantId = normalizeTenantId(inputTenantId);
-  return db.articles.findFirst({
+  const article = await db.articles.findFirst({
     where: {
       id,
       ...ownOrPublicArticleWhere({ userId, tenantId })
     },
     select: getArticleSelect(tenantId)
   });
+
+  if (!article) return null;
+
+  const nextArticle = await db.articles.findFirst({
+    where: {
+      ...activeRecordWhere(tenantId),
+      AND: [
+        { OR: [{ userId }, { isPublic: true }] },
+        {
+          OR: [
+            { createdAt: { lt: article.createdAt } },
+            { createdAt: article.createdAt, id: { lt: article.id } }
+          ]
+        }
+      ]
+    },
+    select: {
+      id: true
+    },
+    orderBy: articleOrderBy
+  });
+
+  return {
+    ...article,
+    nextArticleId: nextArticle?.id ?? null
+  };
 }
 
 export async function createArticle({

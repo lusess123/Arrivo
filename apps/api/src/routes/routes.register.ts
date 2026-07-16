@@ -6,6 +6,7 @@ import { registerAuthRoutes } from "./auth.route";
 import { registerArticleRoutes } from "./article.route";
 import { registerMddRoutes } from "./mdd.route";
 import { registerTtsRoutes } from "./tts.route";
+import { registerUserRoutes } from "./user.route";
 
 export function registerRoutes(app: Hono<AppEnv>) {
   app.get("/", (c) => ok(c, { name: "arrivo-api", ok: true }));
@@ -23,5 +24,6 @@ export function registerRoutes(app: Hono<AppEnv>) {
     registerArticleRoutes(app, prefix);
     registerMddRoutes(app, prefix);
     registerTtsRoutes(app, prefix);
+    registerUserRoutes(app, prefix);
   }
 }

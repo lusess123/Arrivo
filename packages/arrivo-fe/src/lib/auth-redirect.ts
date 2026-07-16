@@ -1,4 +1,5 @@
 const LOGIN_PATH = '/login';
+let redirectPromise: Promise<void> | null = null;
 
 export function isLoginPath(path: string) {
   try {
@@ -30,11 +31,22 @@ export function isAuthenticatedUser(user: unknown): user is { id: string } {
 }
 
 export function redirectToLogin() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return Promise.resolve();
 
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  if (isLoginPath(currentPath)) return;
+  if (isLoginPath(currentPath)) return Promise.resolve();
+  if (redirectPromise) return redirectPromise;
 
   window.localStorage.removeItem('userData');
-  window.location.replace(buildLoginUrl(currentPath));
+  redirectPromise = import('./pwa')
+    .then(({ clearPwaUserScope }) => Promise.race([
+      clearPwaUserScope(),
+      new Promise<false>((resolve) => window.setTimeout(() => resolve(false), 2_000)),
+    ]))
+    .catch(() => false)
+    .then(() => {
+      window.location.replace(buildLoginUrl(currentPath));
+    });
+
+  return redirectPromise;
 }

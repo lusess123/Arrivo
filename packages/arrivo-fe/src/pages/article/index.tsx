@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { history, useNavigate, useParams } from '@umijs/max';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { history, useLocation, useNavigate, useParams } from '@umijs/max';
 import { Button, Form, Input, message, Modal, Popconfirm, Select, Slider, Spin, Tag } from 'antd';
 import {
   ArrowDownOutlined,
@@ -18,6 +18,14 @@ import axios from 'axios';
 import ens from '@/data/en.json';
 import SentenceItem from './sentence.item';
 import { useApp } from '@/hooks';
+import {
+  DEFAULT_PLAYBACK_SETTINGS,
+  normalizePlaybackSettings,
+  readCachedPlaybackSettings,
+  resolvePlaybackCompletion,
+  writeCachedPlaybackSettings,
+  type PlaybackSettings,
+} from './playback';
 
 interface Sentence {
   id: string;
@@ -28,8 +36,13 @@ interface Sentence {
   duration?: number;
 }
 
+interface ArticleNavigationState {
+  autoPlay?: boolean;
+}
+
 const ArticlePage: React.FC = () => {
   const router = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const { auth } = useApp();
   const [sentenceForm] = Form.useForm();
@@ -41,17 +54,57 @@ const ArticlePage: React.FC = () => {
   const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
   const [sentenceInsertIndex, setSentenceInsertIndex] = useState<number | null>(null);
   const [savingSentence, setSavingSentence] = useState(false);
-  const [voice, setVoice] = useState(ens[0].name);
-  const [speed, setSpeed] = useState(1);
-  const [times, setTimes] = useState(1);
-  const [extraPause, setExtraPause] = useState(0);
+  const [playbackSettings, setPlaybackSettings] = useState<PlaybackSettings>(() => ({
+    ...DEFAULT_PLAYBACK_SETTINGS,
+    voice: ens[0].name,
+  }));
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(null);
   const [playbackSession, setPlaybackSession] = useState(0);
+  const [continuousPlayback, setContinuousPlayback] = useState(false);
+  const playbackSettingsRef = useRef(playbackSettings);
+  const settingsTouchedRef = useRef(false);
+  const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const currentUserId = (auth?.userData as any)?.id;
   const canEdit = useMemo(
     () => Boolean(article && article.userId === currentUserId && !article.isPublic),
     [article, currentUserId],
   );
+
+  const updatePlaybackSettings = useCallback((patch: Partial<PlaybackSettings>) => {
+    const nextSettings = normalizePlaybackSettings(
+      { ...playbackSettingsRef.current, ...patch },
+      ens[0].name,
+    );
+    settingsTouchedRef.current = true;
+    playbackSettingsRef.current = nextSettings;
+    setPlaybackSettings(nextSettings);
+    return nextSettings;
+  }, []);
+
+  const applyLoadedPlaybackSettings = useCallback((settings: PlaybackSettings) => {
+    if (settingsTouchedRef.current) return;
+    playbackSettingsRef.current = settings;
+    setPlaybackSettings(settings);
+  }, []);
+
+  const persistPlaybackSettings = useCallback((settings: PlaybackSettings) => {
+    if (currentUserId === undefined || currentUserId === null) return;
+
+    const userId = currentUserId;
+    settingsSaveQueueRef.current = settingsSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const [err] = await asyncHandle(axios.put('/api/user/playback-settings', settings));
+        if (err) {
+          if (err.response?.status !== 401) {
+            message.error(err.response?.data?.message || '播放设置保存失败');
+          }
+          return;
+        }
+
+        writeCachedPlaybackSettings(userId, settings);
+      });
+  }, [currentUserId]);
 
   const applyArticleData = useCallback((articleData: any) => {
     setArticle(articleData);
@@ -92,15 +145,48 @@ const ArticlePage: React.FC = () => {
     if (err) {
       message.error(err.message);
     } else {
-      auth.clearUser?.();
+      await auth.clearUser?.();
       history.replace(`/login`);
     }
   };
 
   useEffect(() => {
     setActiveSentenceIndex(null);
+    setContinuousPlayback(false);
     void fetchArticle();
   }, [fetchArticle]);
+
+  useEffect(() => {
+    if (currentUserId === undefined || currentUserId === null) return;
+
+    settingsTouchedRef.current = false;
+    const cachedSettings = readCachedPlaybackSettings(currentUserId, ens[0].name);
+    if (cachedSettings) {
+      applyLoadedPlaybackSettings(cachedSettings);
+    }
+
+    const controller = new AbortController();
+    void (async () => {
+      const [err, res] = await asyncHandle(axios.get('/api/user/playback-settings', {
+        signal: controller.signal,
+      }));
+      if (controller.signal.aborted) return;
+
+      if (err) {
+        if (!cachedSettings && err.response?.status !== 401) {
+          message.warning('播放设置暂时无法同步，已使用默认设置');
+        }
+        return;
+      }
+
+      if (settingsTouchedRef.current) return;
+      const serverSettings = normalizePlaybackSettings(res?.data?.data, ens[0].name);
+      writeCachedPlaybackSettings(currentUserId, serverSettings);
+      applyLoadedPlaybackSettings(serverSettings);
+    })();
+
+    return () => controller.abort();
+  }, [applyLoadedPlaybackSettings, currentUserId]);
 
   const handleGoBack = () => {
     router('/');
@@ -115,21 +201,44 @@ const ArticlePage: React.FC = () => {
   };
 
   const handleSentencePlayStart = useCallback((index: number) => {
+    setContinuousPlayback(false);
     setActiveSentenceIndex(index);
   }, []);
 
   const handleSentencePlayStop = useCallback((index: number) => {
+    setContinuousPlayback(false);
     setActiveSentenceIndex((currentIndex) => currentIndex === index ? null : currentIndex);
   }, []);
 
   const handleSentencePlayEnd = useCallback((index: number) => {
-    setActiveSentenceIndex((currentIndex) => {
-      if (currentIndex !== index) return currentIndex;
+    if (activeSentenceIndex !== index) return;
 
-      const nextIndex = index + 1;
-      return nextIndex < sentences.length ? nextIndex : null;
+    const completion = resolvePlaybackCompletion({
+      sentenceIndex: index,
+      sentenceCount: sentences.length,
+      nextArticleId: article?.nextArticleId,
+      continuous: continuousPlayback,
     });
-  }, [sentences.length]);
+
+    if (completion.type === 'next-sentence') {
+      setActiveSentenceIndex(completion.sentenceIndex);
+      return;
+    }
+
+    setActiveSentenceIndex(null);
+    setContinuousPlayback(false);
+
+    if (completion.type === 'next-article') {
+      router(`/article/${encodeURIComponent(completion.articleId)}`, {
+        state: { autoPlay: true } satisfies ArticleNavigationState,
+      });
+      return;
+    }
+
+    if (completion.type === 'all-complete') {
+      message.success('已播放完全部文章');
+    }
+  }, [activeSentenceIndex, article?.nextArticleId, continuousPlayback, router, sentences.length]);
 
   const handlePlayFromBeginning = useCallback(() => {
     if (!sentences.length) {
@@ -138,8 +247,35 @@ const ArticlePage: React.FC = () => {
     }
 
     setPlaybackSession((session) => session + 1);
+    setContinuousPlayback(true);
     setActiveSentenceIndex(0);
   }, [sentences.length]);
+
+  useEffect(() => {
+    const navigationState = location.state as ArticleNavigationState | null;
+    if (
+      loading
+      || !navigationState?.autoPlay
+      || !article
+      || String(article.id) !== String(id)
+    ) {
+      return;
+    }
+
+    router(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: null,
+    });
+
+    if (!sentences.length) {
+      message.info('下一篇暂无可朗读内容');
+      return;
+    }
+
+    setPlaybackSession((session) => session + 1);
+    setContinuousPlayback(true);
+    setActiveSentenceIndex(0);
+  }, [article, id, loading, location.hash, location.pathname, location.search, location.state, router, sentences.length]);
 
   const openCreateSentence = (insertIndex: number) => {
     if (!canEdit) return;
@@ -343,12 +479,15 @@ const ArticlePage: React.FC = () => {
             index={index}
             duration={sentence.duration || 0}
             id={sentence.id}
-            times={times}
-            v={voice}
-            rate={speed}
-            delay={extraPause}
+            times={playbackSettings.repeatCount}
+            v={playbackSettings.voice}
+            rate={playbackSettings.playbackRate}
+            delay={playbackSettings.extraPauseSeconds}
             playing={activeSentenceIndex === index}
-            hasNext={index < sentences.length - 1}
+            hasNext={
+              index < sentences.length - 1
+              || Boolean(continuousPlayback && article?.nextArticleId)
+            }
             playbackKey={playbackSession}
             onPlayStart={handleSentencePlayStart}
             onPlayStop={handleSentencePlayStop}
@@ -369,8 +508,11 @@ const ArticlePage: React.FC = () => {
         <div className={styles.settingItem}>
           <label>音色:</label>
           <Select
-            value={voice}
-            onChange={(value) => setVoice(value)}
+            value={playbackSettings.voice}
+            onChange={(value) => {
+              const nextSettings = updatePlaybackSettings({ voice: value });
+              persistPlaybackSettings(nextSettings);
+            }}
             style={{ width: '100%' }}
             options={ens.map((item) => ({
               label: item["中文"],
@@ -384,8 +526,9 @@ const ArticlePage: React.FC = () => {
             min={0.5}
             max={2}
             step={0.1}
-            value={speed}
-            onChange={(value) => setSpeed(value)}
+            value={playbackSettings.playbackRate}
+            onChange={(value) => updatePlaybackSettings({ playbackRate: value })}
+            onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
               0.5: '慢',
               1: '正常',
@@ -400,8 +543,9 @@ const ArticlePage: React.FC = () => {
             min={1}
             max={10}
             step={1}
-            value={times}
-            onChange={(value) => setTimes(value)}
+            value={playbackSettings.repeatCount}
+            onChange={(value) => updatePlaybackSettings({ repeatCount: value })}
+            onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
               1: '1次',
               2: '2次',
@@ -413,13 +557,14 @@ const ArticlePage: React.FC = () => {
           />
         </div>
         <div className={styles.settingItem}>
-          <label>额外停顿: {extraPause}秒</label>
+          <label>额外停顿: {playbackSettings.extraPauseSeconds}秒</label>
           <Slider
             min={0}
             max={10}
             step={0.5}
-            value={extraPause}
-            onChange={(value) => setExtraPause(value)}
+            value={playbackSettings.extraPauseSeconds}
+            onChange={(value) => updatePlaybackSettings({ extraPauseSeconds: value })}
+            onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
               0: '0秒',
               5: '5秒',

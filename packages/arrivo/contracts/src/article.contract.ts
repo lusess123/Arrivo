@@ -79,3 +79,7 @@ export type ArticleDto = {
   updatedAt: Date | string | null;
   Sentences: ArticleSentenceDto[];
 };
+
+export type ArticleDetailDto = ArticleDto & {
+  nextArticleId: string | null;
+};

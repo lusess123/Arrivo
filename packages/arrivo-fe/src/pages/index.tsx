@@ -72,7 +72,7 @@ export default function IndexPage() {
         } else {
             // Toast.show('Logout success');
             // setData(null);
-            auth.clearUser?.();
+            await auth.clearUser?.();
             history.replace(`/login`);
         }
         // return [err, res]
