@@ -5,6 +5,7 @@ import { Button } from 'antd';
 import { AudioOutlined, PauseCircleOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
 import { apiUrl } from '@/lib/api';
 import { buildWordTextSegments, findActiveWordIndex } from './word-highlight';
+import { articleSentenceElementId } from './article-progress';
 
 const AUDIO_CACHE_VERSION = '20260712-words-v1';
 
@@ -14,6 +15,7 @@ interface ISentenceItem {
     index : number,
     duration: number,
     id: string,
+    resumePoint?: boolean,
     times: number,
     // s: string,
     v: string,
@@ -446,7 +448,12 @@ export default function SentenceItem(sentence: ISentenceItem) {
       : '暂停播放';
 
   return (
-    <div key={sentence.id} className={styles.sentenceItem} ref={itemRef}>
+    <div
+      id={articleSentenceElementId(sentence.id)}
+      key={sentence.id}
+      className={`${styles.sentenceItem} ${sentence.resumePoint ? styles.resumePoint : ''}`}
+      ref={itemRef}
+    >
       <audio
         onEnded={handleEnded}
         onLoadedMetadata={handleLoadedMetadata}
@@ -454,6 +461,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       />
       <div className={styles.sentenceIndex}>{sentence.index + 1}</div>
       <div className={styles.sentenceContent}>
+        {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
         <p className={styles.englishText}>
           {wordSegments.map((segment, segmentIndex) => segment.wordIndex === undefined ? (
             <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>

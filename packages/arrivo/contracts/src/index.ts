@@ -1,4 +1,5 @@
 export * from "./api-response.contract";
+export * from "./article-progress.contract";
 export * from "./article.contract";
 export * from "./auth.contract";
 export * from "./mdd.contract";

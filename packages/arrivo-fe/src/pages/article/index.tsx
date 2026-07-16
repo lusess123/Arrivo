@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { history, useLocation, useNavigate, useParams } from '@umijs/max';
 import { Button, Form, Input, message, Modal, Popconfirm, Select, Slider, Spin, Tag } from 'antd';
 import {
@@ -26,6 +26,8 @@ import {
   writeCachedPlaybackSettings,
   type PlaybackSettings,
 } from './playback';
+import { articleSentenceElementId } from './article-progress';
+import { useArticleProgress } from './use-article-progress';
 
 interface Sentence {
   id: string;
@@ -64,7 +66,15 @@ const ArticlePage: React.FC = () => {
   const playbackSettingsRef = useRef(playbackSettings);
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const restoredArticleRef = useRef<string | null>(null);
   const currentUserId = (auth?.userData as any)?.id;
+  const sentenceIds = useMemo(() => sentences.map((sentence) => sentence.id), [sentences]);
+  const {
+    loaded: progressLoaded,
+    resumeIndex,
+    save: saveArticleProgress,
+    clear: clearArticleProgress,
+  } = useArticleProgress({ articleId: id, userId: currentUserId, sentenceIds });
   const canEdit = useMemo(
     () => Boolean(article && article.userId === currentUserId && !article.isPublic),
     [article, currentUserId],
@@ -153,8 +163,36 @@ const ArticlePage: React.FC = () => {
   useEffect(() => {
     setActiveSentenceIndex(null);
     setContinuousPlayback(false);
+    restoredArticleRef.current = null;
     void fetchArticle();
   }, [fetchArticle]);
+
+  useLayoutEffect(() => {
+    if (
+      !id
+      || loading
+      || !progressLoaded
+      || restoredArticleRef.current === id
+    ) {
+      return;
+    }
+
+    if (resumeIndex === null) return;
+    const sentence = sentences[resumeIndex];
+    if (!sentence) return;
+    restoredArticleRef.current = id;
+
+    document.getElementById(articleSentenceElementId(sentence.id))?.scrollIntoView({
+      behavior: 'auto',
+      block: 'center',
+    });
+  }, [id, loading, progressLoaded, resumeIndex, sentences]);
+
+  useEffect(() => {
+    if (activeSentenceIndex === null) return;
+    const sentence = sentences[activeSentenceIndex];
+    if (sentence) saveArticleProgress(sentence.id);
+  }, [activeSentenceIndex, saveArticleProgress, sentences]);
 
   useEffect(() => {
     if (currentUserId === undefined || currentUserId === null) return;
@@ -229,6 +267,7 @@ const ArticlePage: React.FC = () => {
     setContinuousPlayback(false);
 
     if (completion.type === 'next-article') {
+      clearArticleProgress();
       router(`/article/${encodeURIComponent(completion.articleId)}`, {
         state: { autoPlay: true } satisfies ArticleNavigationState,
       });
@@ -236,11 +275,12 @@ const ArticlePage: React.FC = () => {
     }
 
     if (completion.type === 'all-complete') {
+      clearArticleProgress();
       message.success('已播放完全部文章');
     }
-  }, [activeSentenceIndex, article?.nextArticleId, continuousPlayback, router, sentences.length]);
+  }, [activeSentenceIndex, article?.nextArticleId, clearArticleProgress, continuousPlayback, router, sentences.length]);
 
-  const handlePlayFromBeginning = useCallback(() => {
+  const startContinuousPlayback = useCallback((sentenceIndex: number) => {
     if (!sentences.length) {
       message.info('暂无可朗读内容');
       return;
@@ -248,13 +288,22 @@ const ArticlePage: React.FC = () => {
 
     setPlaybackSession((session) => session + 1);
     setContinuousPlayback(true);
-    setActiveSentenceIndex(0);
+    setActiveSentenceIndex(sentenceIndex);
   }, [sentences.length]);
+
+  const handleContinuePlayback = useCallback(() => {
+    startContinuousPlayback(resumeIndex ?? 0);
+  }, [resumeIndex, startContinuousPlayback]);
+
+  const handlePlayFromBeginning = useCallback(() => {
+    startContinuousPlayback(0);
+  }, [startContinuousPlayback]);
 
   useEffect(() => {
     const navigationState = location.state as ArticleNavigationState | null;
     if (
       loading
+      || !progressLoaded
       || !navigationState?.autoPlay
       || !article
       || String(article.id) !== String(id)
@@ -274,8 +323,8 @@ const ArticlePage: React.FC = () => {
 
     setPlaybackSession((session) => session + 1);
     setContinuousPlayback(true);
-    setActiveSentenceIndex(0);
-  }, [article, id, loading, location.hash, location.pathname, location.search, location.state, router, sentences.length]);
+    setActiveSentenceIndex(resumeIndex ?? 0);
+  }, [article, id, loading, location.hash, location.pathname, location.search, location.state, progressLoaded, resumeIndex, router, sentences.length]);
 
   const openCreateSentence = (insertIndex: number) => {
     if (!canEdit) return;
@@ -425,10 +474,11 @@ const ArticlePage: React.FC = () => {
           <Button 
             type="primary" 
             icon={<PlayCircleOutlined />} 
-            onClick={handlePlayFromBeginning}
+            onClick={handleContinuePlayback}
+            disabled={!progressLoaded}
             className={styles.playButton}
           >
-            朗读
+            {resumeIndex === null ? '朗读' : '继续'}
           </Button>
           {canEdit && (
             <Button
@@ -461,6 +511,15 @@ const ArticlePage: React.FC = () => {
       </div>
 
       <div className={styles.content}>
+        {resumeIndex !== null && activeSentenceIndex === null && (
+          <div className={styles.resumeNotice} role="status">
+            <span>上次停在第 {resumeIndex + 1} 句</span>
+            <Button type="link" onClick={handleContinuePlayback}>从这里继续</Button>
+            {resumeIndex > 0 && (
+              <Button type="link" onClick={handlePlayFromBeginning}>从头播放</Button>
+            )}
+          </div>
+        )}
         {sentences.length === 0 && (
           <div className={styles.emptySentence}>
             <p>暂无句子</p>
@@ -479,6 +538,7 @@ const ArticlePage: React.FC = () => {
             index={index}
             duration={sentence.duration || 0}
             id={sentence.id}
+            resumePoint={activeSentenceIndex === null && resumeIndex === index}
             times={playbackSettings.repeatCount}
             v={playbackSettings.voice}
             rate={playbackSettings.playbackRate}
