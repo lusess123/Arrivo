@@ -1,0 +1,14 @@
+{
+  "name": "arrivo-db-migrate",
+  "main": "./src/main/migration.worker.ts",
+  "compatibility_date": "2026-06-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "f04aaf2faa3d0eef049f6fdbc0af0c37",
+  "workers_dev": true,
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "eb159950fe53418fb43d07d45dd9f8bb"
+    }
+  ]
+}

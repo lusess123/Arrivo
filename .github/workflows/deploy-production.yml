@@ -59,18 +59,33 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      MIGRATION_TOKEN: ${{ secrets.MIGRATION_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - name: Check database credentials
-        run: test -n "$DATABASE_URL"
-      - name: Apply database migrations
-        working-directory: packages/arrivo/db
-        run: bun run db:deploy
+      - name: Check migration credentials
+        run: test -n "$CLOUDFLARE_API_TOKEN" && test -n "$MIGRATION_TOKEN"
+      - name: Deploy temporary migration Worker
+        working-directory: apps/api
+        run: bunx wrangler deploy -c wrangler.migration.jsonc --var MIGRATION_TOKEN:"$MIGRATION_TOKEN"
+      - name: Apply database migration through Hyperdrive
+        run: |
+          subdomain=$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/f04aaf2faa3d0eef049f6fdbc0af0c37/workers/subdomain" \
+            | jq -r '.result.subdomain')
+          test -n "$subdomain" && test "$subdomain" != "null"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $MIGRATION_TOKEN" \
+            "https://arrivo-db-migrate.$subdomain.workers.dev"
+      - name: Delete temporary migration Worker
+        if: always()
+        working-directory: apps/api
+        run: bunx wrangler delete --name arrivo-db-migrate --force
 
   deploy-frontend:
     name: Deploy user frontend
