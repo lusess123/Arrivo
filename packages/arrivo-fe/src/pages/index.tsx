@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { useApp } from '@/hooks';
-import { history } from '@umijs/max';
+import { history, useSearchParams } from '@umijs/max';
 import { Button, Form, Input, message, Modal, Popconfirm, Spin, Tabs, Tag } from 'antd';
 import { ClockCircleOutlined, DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import styles from './index.module.less';
@@ -10,10 +10,11 @@ import emptyImage from '@/assets/foot.png';
 // import { Article, mockArticles } from '@/mock/articles';
 import axios from 'axios';
 import { asyncHandle } from '@/lib';
-import { sortPublicArticles } from './article-list';
+import { resolveArticleTab, sortPublicArticles, withArticleTab } from './article-list';
 
 export default function IndexPage() {
   const { auth } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [articleForm] = Form.useForm();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,7 @@ export default function IndexPage() {
   const [editingArticle, setEditingArticle] = useState<any>(null);
   const [savingArticle, setSavingArticle] = useState(false);
   const currentUserId = (auth?.userData as any)?.id;
+  const activeTab = resolveArticleTab(searchParams);
 
   const myArticles = useMemo(
     () => articles.filter(article => article.userId === currentUserId && !article.isPublic),
@@ -35,6 +37,12 @@ export default function IndexPage() {
   useEffect(() => {
     void fetchArticles();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('tab') !== activeTab) {
+      setSearchParams(withArticleTab(searchParams, activeTab), { replace: true });
+    }
+  }, [activeTab, searchParams, setSearchParams]);
 
   const fetchArticles = async () => {
     try {
@@ -243,6 +251,8 @@ export default function IndexPage() {
           ) : (
             <Tabs
               className={styles.articleTabs}
+              activeKey={activeTab}
+              onChange={(tab) => setSearchParams(withArticleTab(searchParams, tab as 'mine' | 'public'), { replace: true })}
               items={[
                 {
                   key: 'mine',
