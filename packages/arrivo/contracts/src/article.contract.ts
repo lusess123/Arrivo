@@ -18,6 +18,10 @@ export const articleDetailQuerySchema = z.object({
   id: z.string().min(1)
 });
 
+export const incrementArticlePlayCountInputSchema = z.object({
+  id: z.string().min(1)
+});
+
 export const updateArticleInputSchema = z.object({
   id: z.string().min(1),
   title: z.string().trim().min(1)
@@ -56,6 +60,7 @@ export const moveSentenceInputSchema = z.object({
 export type SentenceInput = z.infer<typeof sentenceInputSchema>;
 export type CreateArticleInput = z.infer<typeof createArticleInputSchema>;
 export type ArticleDetailQuery = z.infer<typeof articleDetailQuerySchema>;
+export type IncrementArticlePlayCountInput = z.infer<typeof incrementArticlePlayCountInputSchema>;
 export type UpdateArticleInput = z.infer<typeof updateArticleInputSchema>;
 export type DeleteArticleInput = z.infer<typeof deleteArticleInputSchema>;
 export type CreateSentenceInput = z.infer<typeof createSentenceInputSchema>;
@@ -75,6 +80,7 @@ export type ArticleDto = {
   title: string | null;
   userId: string | null;
   isPublic: boolean;
+  playCount: number;
   createdAt: Date | string | null;
   updatedAt: Date | string | null;
   Sentences: ArticleSentenceDto[];

@@ -31,6 +31,7 @@ function getArticleSelect(tenantId: string) {
     title: true,
     userId: true,
     isPublic: true,
+    playCount: true,
     createdAt: true,
     updatedAt: true,
     Sentences: {
@@ -249,6 +250,31 @@ export async function getArticleDetail({
     ...article,
     nextArticleId: nextArticle?.id ?? null
   };
+}
+
+export async function incrementArticlePlayCount({
+  userId,
+  tenantId: inputTenantId,
+  id
+}: ArticleCaseDeps & { id: string }): Promise<{ playCount: number }> {
+  const tenantId = normalizeTenantId(inputTenantId);
+  const article = await db.articles.findFirst({
+    where: {
+      id,
+      ...ownOrPublicArticleWhere({ userId, tenantId })
+    },
+    select: { id: true }
+  });
+
+  if (!article) throw httpError.notFound("文章不存在");
+
+  return db.articles.update({
+    where: { id: article.id },
+    data: {
+      playCount: { increment: 1 }
+    },
+    select: { playCount: true }
+  });
 }
 
 export async function createArticle({

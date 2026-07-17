@@ -7,6 +7,7 @@ import {
   deleteArticleInputSchema,
   deleteSentenceInputSchema,
   moveSentenceInputSchema,
+  incrementArticlePlayCountInputSchema,
   updateArticleInputSchema,
   updateSentenceInputSchema
 } from "@arrivo/contracts";
@@ -17,6 +18,7 @@ import {
   deleteSentence,
   getArticleDetail,
   getArticleList,
+  incrementArticlePlayCount,
   moveSentence,
   updateArticle,
   updateSentence
@@ -48,6 +50,18 @@ export function registerArticleRoutes(app: Hono<AppEnv>, prefix = "") {
       const article = await getArticleDetail({ userId: user.id, tenantId: user.tenant, id: input.id });
       if (!article) throw httpError.notFound("文章不存在");
       return ok(c, article);
+    }
+  );
+
+  app.post(
+    route(prefix, "/article/incrementPlayCount"),
+    requireUser,
+    zValidator("json", incrementArticlePlayCountInputSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      const input = c.req.valid("json");
+      return ok(c, await incrementArticlePlayCount({ userId: user.id, tenantId: user.tenant, id: input.id }));
     }
   );
 

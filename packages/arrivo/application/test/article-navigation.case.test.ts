@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ArrivoDb } from "@arrivo/db";
-import { getArticleDetail, getArticleList, runWithDbClientFactory } from "../src";
+import { getArticleDetail, getArticleList, incrementArticlePlayCount, runWithDbClientFactory } from "../src";
 
 function withDb<T>(mockDb: Partial<ArrivoDb>, run: () => T) {
   return runWithDbClientFactory({
@@ -21,6 +21,43 @@ const article = {
 };
 
 describe("article navigation", () => {
+  test("increments an accessible article play count atomically", async () => {
+    let updateArgs: any;
+    const articles = {
+      findFirst: async () => ({ id: article.id }),
+      update: async (args: any) => {
+        updateArgs = args;
+        return { playCount: 8 };
+      }
+    };
+
+    const result = await withDb({ articles } as Partial<ArrivoDb>, () =>
+      incrementArticlePlayCount({ userId: "user-a", tenantId: "tenant-a", id: article.id })
+    );
+
+    expect(result).toEqual({ playCount: 8 });
+    expect(updateArgs).toEqual({
+      where: { id: article.id },
+      data: { playCount: { increment: 1 } },
+      select: { playCount: true }
+    });
+  });
+
+  test("does not increment an inaccessible article", async () => {
+    let writes = 0;
+    const articles = {
+      findFirst: async () => null,
+      update: async () => {
+        writes += 1;
+      }
+    };
+
+    await expect(withDb({ articles } as Partial<ArrivoDb>, () =>
+      incrementArticlePlayCount({ userId: "user-a", tenantId: "tenant-a", id: "private" })
+    )).rejects.toMatchObject({ status: 404 });
+    expect(writes).toBe(0);
+  });
+
   test("uses a stable createdAt/id order for the article list", async () => {
     let args: any;
     const articles = {

@@ -147,6 +147,7 @@ const ArticlePage: React.FC = () => {
     }
 
     applyArticleData(res?.data?.data);
+    void asyncHandle(axios.post('/api/article/incrementPlayCount', { id }));
     setLoading(false);
   }, [applyArticleData, id]);
 

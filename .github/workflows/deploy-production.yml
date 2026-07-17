@@ -35,7 +35,7 @@ jobs:
 
   deploy-api:
     name: Deploy API Worker
-    needs: validate
+    needs: [validate, migrate-database]
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -52,6 +52,25 @@ jobs:
         run: bun run api-deploy
       - name: Verify API
         run: curl --fail --retry 5 --retry-delay 5 https://api-arrivo.zyking.xyz/api/health
+
+  migrate-database:
+    name: Migrate production database
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: Check database credentials
+        run: test -n "$DATABASE_URL"
+      - name: Apply database migrations
+        working-directory: packages/arrivo/db
+        run: bun run db:deploy
 
   deploy-frontend:
     name: Deploy user frontend

@@ -3,13 +3,14 @@ import type { MouseEvent } from 'react';
 import { useApp } from '@/hooks';
 import { history } from '@umijs/max';
 import { Button, Form, Input, message, Modal, Popconfirm, Spin, Tabs, Tag } from 'antd';
-import { ClockCircleOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import styles from './index.module.less';
 import logo from '@/assets/logo.png';
 import emptyImage from '@/assets/foot.png';
 // import { Article, mockArticles } from '@/mock/articles';
 import axios from 'axios';
 import { asyncHandle } from '@/lib';
+import { sortPublicArticles } from './article-list';
 
 export default function IndexPage() {
   const { auth } = useApp();
@@ -27,7 +28,7 @@ export default function IndexPage() {
   );
 
   const publicArticles = useMemo(
-    () => articles.filter(article => article.isPublic),
+    () => sortPublicArticles(articles.filter(article => article.isPublic)),
     [articles],
   );
 
@@ -181,6 +182,11 @@ export default function IndexPage() {
           <span className={styles.articleDate}>
             <ClockCircleOutlined /> {formatDate(article.createdAt)}
           </span>
+          {article.isPublic && (
+            <span className={styles.articleDate}>
+              <PlayCircleOutlined /> 播放 {article.playCount || 0}
+            </span>
+          )}
         </div>
         <p className={styles.articleExcerpt}>{article.content}</p>
         {!readonly && (

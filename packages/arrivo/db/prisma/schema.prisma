@@ -63,6 +63,7 @@ model Articles {
   env       String?     @db.VarChar(50)
   userId    String?     @db.Uuid
   isPublic  Boolean     @default(false)
+  playCount Int         @default(0)
   user      User?       @relation(fields: [userId], references: [id])
   Sentences Sentences[]
 

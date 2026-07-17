@@ -122,7 +122,8 @@ export const ArticlesScalarFieldEnum = {
   teamId: 'teamId',
   env: 'env',
   userId: 'userId',
-  isPublic: 'isPublic'
+  isPublic: 'isPublic',
+  playCount: 'playCount'
 } as const
 
 export type ArticlesScalarFieldEnum = (typeof ArticlesScalarFieldEnum)[keyof typeof ArticlesScalarFieldEnum]
