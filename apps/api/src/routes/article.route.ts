@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
 import {
   articleDetailQuerySchema,
@@ -7,6 +8,8 @@ import {
   deleteArticleInputSchema,
   deleteSentenceInputSchema,
   moveSentenceInputSchema,
+  sentenceSplitBatchInputSchema,
+  sentenceSplitParamSchema,
   incrementArticlePlayCountInputSchema,
   updateArticleInputSchema,
   updateSentenceInputSchema
@@ -20,9 +23,12 @@ import {
   getArticleList,
   incrementArticlePlayCount,
   moveSentence,
+  analyzeSentenceBatch,
+  streamSentenceSplit,
   updateArticle,
   updateSentence
 } from "@arrivo/application";
+import { createAiGatewayTextClient } from "@arrivo/infra";
 import { httpError } from "@arrivo/runtime";
 import type { AppEnv } from "../context";
 import { ok } from "../http";
@@ -32,7 +38,61 @@ function route(prefix: string, path: string) {
   return `${prefix}${path}`;
 }
 
+function getSentenceSplitAi(c: { env: AppEnv["Bindings"] }) {
+  const apiKey = c.env.AI_GATEWAY_API_KEY?.trim();
+  const baseUrl = c.env.AI_GATEWAY_BASE_URL?.trim();
+  const model = c.env.SENTENCE_SPLIT_MODEL?.trim() || "deepseek/deepseek-v4-pro";
+  if (!apiKey || !baseUrl) throw httpError.internal("句子切分 AI 尚未配置");
+  return { model, ai: createAiGatewayTextClient({ apiKey, baseUrl, model }) };
+}
+
 export function registerArticleRoutes(app: Hono<AppEnv>, prefix = "") {
+  app.post(
+    route(prefix, "/articles/:articleId/sentences/:sentenceId/split-stream"),
+    requireUser,
+    zValidator("param", sentenceSplitParamSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      const { articleId, sentenceId } = c.req.valid("param");
+      const { model, ai } = getSentenceSplitAi(c);
+      return streamSSE(c, async (stream) => {
+        for await (const event of streamSentenceSplit({
+          userId: user.id,
+          tenantId: user.tenant,
+          articleId,
+          sentenceId,
+          model,
+          ai
+        })) {
+          await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+        }
+      });
+    }
+  );
+
+  app.post(
+    route(prefix, "/articles/sentence-split/analyze-batch"),
+    requireUser,
+    zValidator("json", sentenceSplitBatchInputSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      if (!c.env.AI_BATCH_SECRET || c.req.header("x-ai-batch-secret") !== c.env.AI_BATCH_SECRET) {
+        throw httpError.forbidden("批量分析凭证无效");
+      }
+      const input = c.req.valid("json");
+      const { model, ai } = getSentenceSplitAi(c);
+      return ok(c, await analyzeSentenceBatch({
+        tenantId: user.tenant,
+        limit: input.limit,
+        retryFailed: input.retryFailed,
+        model,
+        ai
+      }));
+    }
+  );
+
   app.get(route(prefix, "/article/getArticleList"), requireUser, async (c) => {
     const user = c.get("user");
     if (!user) throw httpError.unauthorized();

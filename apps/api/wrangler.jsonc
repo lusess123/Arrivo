@@ -30,7 +30,8 @@
     "COOKIE_DOMAIN": ".zyking.xyz",
     "JWT_EXPIRES_SECONDS": "604800",
     "DEFAULT_TENANT_ID": "helloworld",
-    "TTS_DEFAULT_VOICE": "en-US-AndrewNeural"
+    "TTS_DEFAULT_VOICE": "en-US-AndrewNeural",
+    "SENTENCE_SPLIT_MODEL": "deepseek/deepseek-v4-pro"
   },
   "observability": {
     "enabled": true

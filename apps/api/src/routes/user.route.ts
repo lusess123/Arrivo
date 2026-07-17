@@ -3,13 +3,17 @@ import {
   clearArticleProgress,
   getArticleProgress,
   getPlaybackSettings,
+  getSentenceExpansion,
   saveArticleProgress,
-  updatePlaybackSettings
+  updatePlaybackSettings,
+  updateSentenceExpansion
 } from "@arrivo/application";
 import {
   articleProgressArticleParamSchema,
   articleProgressSentenceInputSchema,
-  playbackSettingsInputSchema
+  playbackSettingsInputSchema,
+  sentenceExpansionArticleParamSchema,
+  sentenceExpansionInputSchema
 } from "@arrivo/contracts";
 import { httpError } from "@arrivo/runtime";
 import type { Hono } from "hono";
@@ -22,6 +26,36 @@ function route(prefix: string, path: string) {
 }
 
 export function registerUserRoutes(app: Hono<AppEnv>, prefix = "") {
+  app.get(
+    route(prefix, "/user/articles/:articleId/sentence-expansion"),
+    requireUser,
+    zValidator("param", sentenceExpansionArticleParamSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      const { articleId } = c.req.valid("param");
+      return ok(c, await getSentenceExpansion({ userId: user.id, tenantId: user.tenant, articleId }));
+    }
+  );
+
+  app.patch(
+    route(prefix, "/user/articles/:articleId/sentence-expansion"),
+    requireUser,
+    zValidator("param", sentenceExpansionArticleParamSchema),
+    zValidator("json", sentenceExpansionInputSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      const { articleId } = c.req.valid("param");
+      return ok(c, await updateSentenceExpansion({
+        userId: user.id,
+        tenantId: user.tenant,
+        articleId,
+        input: c.req.valid("json")
+      }));
+    }
+  );
+
   app.get(
     route(prefix, "/user/article-progress/:articleId"),
     requireUser,

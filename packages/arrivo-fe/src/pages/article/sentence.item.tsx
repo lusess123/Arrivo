@@ -29,6 +29,10 @@ interface ISentenceItem {
     onPlayEnd: (index: number) => void,
     sound: boolean,
     actions?: React.ReactNode,
+    depth?: number,
+    playable?: boolean,
+    auxiliaryControl?: React.ReactNode,
+    transientContent?: React.ReactNode,
 }
 
 export default function SentenceItem(sentence: ISentenceItem) {
@@ -451,8 +455,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
     <div
       id={articleSentenceElementId(sentence.id)}
       key={sentence.id}
-      className={`${styles.sentenceItem} ${sentence.resumePoint ? styles.resumePoint : ''}`}
+      className={`${styles.sentenceItem} ${sentence.resumePoint ? styles.resumePoint : ''} ${sentence.depth ? styles.nestedSentence : ''}`}
       ref={itemRef}
+      style={{ marginLeft: `${Math.min(sentence.depth || 0, 6) * 24}px` }}
     >
       <audio
         onEnded={handleEnded}
@@ -475,16 +480,20 @@ export default function SentenceItem(sentence: ISentenceItem) {
           ))}
         </p>
         <p className={styles.chineseText}>{sentence.translatedContent}</p>
+        {sentence.transientContent}
         {sentence.actions}
       </div>
       <div className={styles.sentenceControls}>
-        <Button
-          type="text"
-          icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-          onClick={handleTogglePlay}
-          className={styles.sentencePlayButton}
-          aria-label={playButtonLabel}
-        />
+        {sentence.playable !== false && (
+          <Button
+            type="text"
+            icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+            onClick={handleTogglePlay}
+            className={styles.sentencePlayButton}
+            aria-label={playButtonLabel}
+          />
+        )}
+        {sentence.auxiliaryControl}
         {sentence.playing ? (
           <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
         ) : null}

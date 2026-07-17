@@ -41,6 +41,11 @@ export type SentencesMinAggregateOutputType = {
   originalContent: string | null
   translatedContent: string | null
   sortOrder: number | null
+  parentSentenceId: string | null
+  splitStatus: string | null
+  splitAnalyzedAt: Date | null
+  splitModel: string | null
+  splitVersion: string | null
   deletedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -59,6 +64,11 @@ export type SentencesMaxAggregateOutputType = {
   originalContent: string | null
   translatedContent: string | null
   sortOrder: number | null
+  parentSentenceId: string | null
+  splitStatus: string | null
+  splitAnalyzedAt: Date | null
+  splitModel: string | null
+  splitVersion: string | null
   deletedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -77,6 +87,11 @@ export type SentencesCountAggregateOutputType = {
   originalContent: number
   translatedContent: number
   sortOrder: number
+  parentSentenceId: number
+  splitStatus: number
+  splitAnalyzedAt: number
+  splitModel: number
+  splitVersion: number
   deletedAt: number
   createdAt: number
   updatedAt: number
@@ -105,6 +120,11 @@ export type SentencesMinAggregateInputType = {
   originalContent?: true
   translatedContent?: true
   sortOrder?: true
+  parentSentenceId?: true
+  splitStatus?: true
+  splitAnalyzedAt?: true
+  splitModel?: true
+  splitVersion?: true
   deletedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -123,6 +143,11 @@ export type SentencesMaxAggregateInputType = {
   originalContent?: true
   translatedContent?: true
   sortOrder?: true
+  parentSentenceId?: true
+  splitStatus?: true
+  splitAnalyzedAt?: true
+  splitModel?: true
+  splitVersion?: true
   deletedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -141,6 +166,11 @@ export type SentencesCountAggregateInputType = {
   originalContent?: true
   translatedContent?: true
   sortOrder?: true
+  parentSentenceId?: true
+  splitStatus?: true
+  splitAnalyzedAt?: true
+  splitModel?: true
+  splitVersion?: true
   deletedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -246,6 +276,11 @@ export type SentencesGroupByOutputType = {
   originalContent: string | null
   translatedContent: string | null
   sortOrder: number
+  parentSentenceId: string | null
+  splitStatus: string
+  splitAnalyzedAt: Date | null
+  splitModel: string | null
+  splitVersion: string | null
   deletedAt: Date | null
   createdAt: Date
   updatedAt: Date
@@ -287,6 +322,11 @@ export type SentencesWhereInput = {
   originalContent?: Prisma.StringNullableFilter<"Sentences"> | string | null
   translatedContent?: Prisma.StringNullableFilter<"Sentences"> | string | null
   sortOrder?: Prisma.IntFilter<"Sentences"> | number
+  parentSentenceId?: Prisma.UuidNullableFilter<"Sentences"> | string | null
+  splitStatus?: Prisma.StringFilter<"Sentences"> | string
+  splitAnalyzedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
+  splitModel?: Prisma.StringNullableFilter<"Sentences"> | string | null
+  splitVersion?: Prisma.StringNullableFilter<"Sentences"> | string | null
   deletedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
@@ -297,6 +337,8 @@ export type SentencesWhereInput = {
   teamId?: Prisma.UuidNullableFilter<"Sentences"> | string | null
   env?: Prisma.StringNullableFilter<"Sentences"> | string | null
   article?: Prisma.XOR<Prisma.ArticlesNullableScalarRelationFilter, Prisma.ArticlesWhereInput> | null
+  parentSentence?: Prisma.XOR<Prisma.SentencesNullableScalarRelationFilter, Prisma.SentencesWhereInput> | null
+  children?: Prisma.SentencesListRelationFilter
 }
 
 export type SentencesOrderByWithRelationInput = {
@@ -306,6 +348,11 @@ export type SentencesOrderByWithRelationInput = {
   originalContent?: Prisma.SortOrderInput | Prisma.SortOrder
   translatedContent?: Prisma.SortOrderInput | Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  parentSentenceId?: Prisma.SortOrderInput | Prisma.SortOrder
+  splitStatus?: Prisma.SortOrder
+  splitAnalyzedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  splitModel?: Prisma.SortOrderInput | Prisma.SortOrder
+  splitVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -316,6 +363,8 @@ export type SentencesOrderByWithRelationInput = {
   teamId?: Prisma.SortOrderInput | Prisma.SortOrder
   env?: Prisma.SortOrderInput | Prisma.SortOrder
   article?: Prisma.ArticlesOrderByWithRelationInput
+  parentSentence?: Prisma.SentencesOrderByWithRelationInput
+  children?: Prisma.SentencesOrderByRelationAggregateInput
 }
 
 export type SentencesWhereUniqueInput = Prisma.AtLeast<{
@@ -328,6 +377,11 @@ export type SentencesWhereUniqueInput = Prisma.AtLeast<{
   originalContent?: Prisma.StringNullableFilter<"Sentences"> | string | null
   translatedContent?: Prisma.StringNullableFilter<"Sentences"> | string | null
   sortOrder?: Prisma.IntFilter<"Sentences"> | number
+  parentSentenceId?: Prisma.UuidNullableFilter<"Sentences"> | string | null
+  splitStatus?: Prisma.StringFilter<"Sentences"> | string
+  splitAnalyzedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
+  splitModel?: Prisma.StringNullableFilter<"Sentences"> | string | null
+  splitVersion?: Prisma.StringNullableFilter<"Sentences"> | string | null
   deletedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
@@ -338,6 +392,8 @@ export type SentencesWhereUniqueInput = Prisma.AtLeast<{
   teamId?: Prisma.UuidNullableFilter<"Sentences"> | string | null
   env?: Prisma.StringNullableFilter<"Sentences"> | string | null
   article?: Prisma.XOR<Prisma.ArticlesNullableScalarRelationFilter, Prisma.ArticlesWhereInput> | null
+  parentSentence?: Prisma.XOR<Prisma.SentencesNullableScalarRelationFilter, Prisma.SentencesWhereInput> | null
+  children?: Prisma.SentencesListRelationFilter
 }, "id">
 
 export type SentencesOrderByWithAggregationInput = {
@@ -347,6 +403,11 @@ export type SentencesOrderByWithAggregationInput = {
   originalContent?: Prisma.SortOrderInput | Prisma.SortOrder
   translatedContent?: Prisma.SortOrderInput | Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  parentSentenceId?: Prisma.SortOrderInput | Prisma.SortOrder
+  splitStatus?: Prisma.SortOrder
+  splitAnalyzedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  splitModel?: Prisma.SortOrderInput | Prisma.SortOrder
+  splitVersion?: Prisma.SortOrderInput | Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -373,6 +434,11 @@ export type SentencesScalarWhereWithAggregatesInput = {
   originalContent?: Prisma.StringNullableWithAggregatesFilter<"Sentences"> | string | null
   translatedContent?: Prisma.StringNullableWithAggregatesFilter<"Sentences"> | string | null
   sortOrder?: Prisma.IntWithAggregatesFilter<"Sentences"> | number
+  parentSentenceId?: Prisma.UuidNullableWithAggregatesFilter<"Sentences"> | string | null
+  splitStatus?: Prisma.StringWithAggregatesFilter<"Sentences"> | string
+  splitAnalyzedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Sentences"> | Date | string | null
+  splitModel?: Prisma.StringNullableWithAggregatesFilter<"Sentences"> | string | null
+  splitVersion?: Prisma.StringNullableWithAggregatesFilter<"Sentences"> | string | null
   deletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Sentences"> | Date | string
@@ -390,6 +456,10 @@ export type SentencesCreateInput = {
   originalContent?: string | null
   translatedContent?: string | null
   sortOrder?: number
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -400,6 +470,8 @@ export type SentencesCreateInput = {
   teamId?: string | null
   env?: string | null
   article?: Prisma.ArticlesCreateNestedOneWithoutSentencesInput
+  parentSentence?: Prisma.SentencesCreateNestedOneWithoutChildrenInput
+  children?: Prisma.SentencesCreateNestedManyWithoutParentSentenceInput
 }
 
 export type SentencesUncheckedCreateInput = {
@@ -409,6 +481,11 @@ export type SentencesUncheckedCreateInput = {
   originalContent?: string | null
   translatedContent?: string | null
   sortOrder?: number
+  parentSentenceId?: string | null
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -418,6 +495,7 @@ export type SentencesUncheckedCreateInput = {
   tenantId?: string
   teamId?: string | null
   env?: string | null
+  children?: Prisma.SentencesUncheckedCreateNestedManyWithoutParentSentenceInput
 }
 
 export type SentencesUpdateInput = {
@@ -426,6 +504,10 @@ export type SentencesUpdateInput = {
   originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -436,6 +518,8 @@ export type SentencesUpdateInput = {
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   article?: Prisma.ArticlesUpdateOneWithoutSentencesNestedInput
+  parentSentence?: Prisma.SentencesUpdateOneWithoutChildrenNestedInput
+  children?: Prisma.SentencesUpdateManyWithoutParentSentenceNestedInput
 }
 
 export type SentencesUncheckedUpdateInput = {
@@ -445,6 +529,11 @@ export type SentencesUncheckedUpdateInput = {
   originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  parentSentenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -454,6 +543,7 @@ export type SentencesUncheckedUpdateInput = {
   tenantId?: Prisma.StringFieldUpdateOperationsInput | string
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  children?: Prisma.SentencesUncheckedUpdateManyWithoutParentSentenceNestedInput
 }
 
 export type SentencesCreateManyInput = {
@@ -463,6 +553,11 @@ export type SentencesCreateManyInput = {
   originalContent?: string | null
   translatedContent?: string | null
   sortOrder?: number
+  parentSentenceId?: string | null
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -480,6 +575,10 @@ export type SentencesUpdateManyMutationInput = {
   originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -498,6 +597,11 @@ export type SentencesUncheckedUpdateManyInput = {
   originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  parentSentenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -519,6 +623,11 @@ export type SentencesOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type SentencesNullableScalarRelationFilter = {
+  is?: Prisma.SentencesWhereInput | null
+  isNot?: Prisma.SentencesWhereInput | null
+}
+
 export type SentencesCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   content?: Prisma.SortOrder
@@ -526,6 +635,11 @@ export type SentencesCountOrderByAggregateInput = {
   originalContent?: Prisma.SortOrder
   translatedContent?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  parentSentenceId?: Prisma.SortOrder
+  splitStatus?: Prisma.SortOrder
+  splitAnalyzedAt?: Prisma.SortOrder
+  splitModel?: Prisma.SortOrder
+  splitVersion?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -548,6 +662,11 @@ export type SentencesMaxOrderByAggregateInput = {
   originalContent?: Prisma.SortOrder
   translatedContent?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  parentSentenceId?: Prisma.SortOrder
+  splitStatus?: Prisma.SortOrder
+  splitAnalyzedAt?: Prisma.SortOrder
+  splitModel?: Prisma.SortOrder
+  splitVersion?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -566,6 +685,11 @@ export type SentencesMinOrderByAggregateInput = {
   originalContent?: Prisma.SortOrder
   translatedContent?: Prisma.SortOrder
   sortOrder?: Prisma.SortOrder
+  parentSentenceId?: Prisma.SortOrder
+  splitStatus?: Prisma.SortOrder
+  splitAnalyzedAt?: Prisma.SortOrder
+  splitModel?: Prisma.SortOrder
+  splitVersion?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -623,12 +747,74 @@ export type SentencesUncheckedUpdateManyWithoutArticleNestedInput = {
   deleteMany?: Prisma.SentencesScalarWhereInput | Prisma.SentencesScalarWhereInput[]
 }
 
+export type SentencesCreateNestedOneWithoutChildrenInput = {
+  create?: Prisma.XOR<Prisma.SentencesCreateWithoutChildrenInput, Prisma.SentencesUncheckedCreateWithoutChildrenInput>
+  connectOrCreate?: Prisma.SentencesCreateOrConnectWithoutChildrenInput
+  connect?: Prisma.SentencesWhereUniqueInput
+}
+
+export type SentencesCreateNestedManyWithoutParentSentenceInput = {
+  create?: Prisma.XOR<Prisma.SentencesCreateWithoutParentSentenceInput, Prisma.SentencesUncheckedCreateWithoutParentSentenceInput> | Prisma.SentencesCreateWithoutParentSentenceInput[] | Prisma.SentencesUncheckedCreateWithoutParentSentenceInput[]
+  connectOrCreate?: Prisma.SentencesCreateOrConnectWithoutParentSentenceInput | Prisma.SentencesCreateOrConnectWithoutParentSentenceInput[]
+  createMany?: Prisma.SentencesCreateManyParentSentenceInputEnvelope
+  connect?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+}
+
+export type SentencesUncheckedCreateNestedManyWithoutParentSentenceInput = {
+  create?: Prisma.XOR<Prisma.SentencesCreateWithoutParentSentenceInput, Prisma.SentencesUncheckedCreateWithoutParentSentenceInput> | Prisma.SentencesCreateWithoutParentSentenceInput[] | Prisma.SentencesUncheckedCreateWithoutParentSentenceInput[]
+  connectOrCreate?: Prisma.SentencesCreateOrConnectWithoutParentSentenceInput | Prisma.SentencesCreateOrConnectWithoutParentSentenceInput[]
+  createMany?: Prisma.SentencesCreateManyParentSentenceInputEnvelope
+  connect?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+}
+
+export type SentencesUpdateOneWithoutChildrenNestedInput = {
+  create?: Prisma.XOR<Prisma.SentencesCreateWithoutChildrenInput, Prisma.SentencesUncheckedCreateWithoutChildrenInput>
+  connectOrCreate?: Prisma.SentencesCreateOrConnectWithoutChildrenInput
+  upsert?: Prisma.SentencesUpsertWithoutChildrenInput
+  disconnect?: Prisma.SentencesWhereInput | boolean
+  delete?: Prisma.SentencesWhereInput | boolean
+  connect?: Prisma.SentencesWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SentencesUpdateToOneWithWhereWithoutChildrenInput, Prisma.SentencesUpdateWithoutChildrenInput>, Prisma.SentencesUncheckedUpdateWithoutChildrenInput>
+}
+
+export type SentencesUpdateManyWithoutParentSentenceNestedInput = {
+  create?: Prisma.XOR<Prisma.SentencesCreateWithoutParentSentenceInput, Prisma.SentencesUncheckedCreateWithoutParentSentenceInput> | Prisma.SentencesCreateWithoutParentSentenceInput[] | Prisma.SentencesUncheckedCreateWithoutParentSentenceInput[]
+  connectOrCreate?: Prisma.SentencesCreateOrConnectWithoutParentSentenceInput | Prisma.SentencesCreateOrConnectWithoutParentSentenceInput[]
+  upsert?: Prisma.SentencesUpsertWithWhereUniqueWithoutParentSentenceInput | Prisma.SentencesUpsertWithWhereUniqueWithoutParentSentenceInput[]
+  createMany?: Prisma.SentencesCreateManyParentSentenceInputEnvelope
+  set?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  disconnect?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  delete?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  connect?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  update?: Prisma.SentencesUpdateWithWhereUniqueWithoutParentSentenceInput | Prisma.SentencesUpdateWithWhereUniqueWithoutParentSentenceInput[]
+  updateMany?: Prisma.SentencesUpdateManyWithWhereWithoutParentSentenceInput | Prisma.SentencesUpdateManyWithWhereWithoutParentSentenceInput[]
+  deleteMany?: Prisma.SentencesScalarWhereInput | Prisma.SentencesScalarWhereInput[]
+}
+
+export type SentencesUncheckedUpdateManyWithoutParentSentenceNestedInput = {
+  create?: Prisma.XOR<Prisma.SentencesCreateWithoutParentSentenceInput, Prisma.SentencesUncheckedCreateWithoutParentSentenceInput> | Prisma.SentencesCreateWithoutParentSentenceInput[] | Prisma.SentencesUncheckedCreateWithoutParentSentenceInput[]
+  connectOrCreate?: Prisma.SentencesCreateOrConnectWithoutParentSentenceInput | Prisma.SentencesCreateOrConnectWithoutParentSentenceInput[]
+  upsert?: Prisma.SentencesUpsertWithWhereUniqueWithoutParentSentenceInput | Prisma.SentencesUpsertWithWhereUniqueWithoutParentSentenceInput[]
+  createMany?: Prisma.SentencesCreateManyParentSentenceInputEnvelope
+  set?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  disconnect?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  delete?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  connect?: Prisma.SentencesWhereUniqueInput | Prisma.SentencesWhereUniqueInput[]
+  update?: Prisma.SentencesUpdateWithWhereUniqueWithoutParentSentenceInput | Prisma.SentencesUpdateWithWhereUniqueWithoutParentSentenceInput[]
+  updateMany?: Prisma.SentencesUpdateManyWithWhereWithoutParentSentenceInput | Prisma.SentencesUpdateManyWithWhereWithoutParentSentenceInput[]
+  deleteMany?: Prisma.SentencesScalarWhereInput | Prisma.SentencesScalarWhereInput[]
+}
+
 export type SentencesCreateWithoutArticleInput = {
   id?: string
   content?: string | null
   originalContent?: string | null
   translatedContent?: string | null
   sortOrder?: number
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -638,6 +824,8 @@ export type SentencesCreateWithoutArticleInput = {
   tenantId?: string
   teamId?: string | null
   env?: string | null
+  parentSentence?: Prisma.SentencesCreateNestedOneWithoutChildrenInput
+  children?: Prisma.SentencesCreateNestedManyWithoutParentSentenceInput
 }
 
 export type SentencesUncheckedCreateWithoutArticleInput = {
@@ -646,6 +834,11 @@ export type SentencesUncheckedCreateWithoutArticleInput = {
   originalContent?: string | null
   translatedContent?: string | null
   sortOrder?: number
+  parentSentenceId?: string | null
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -655,6 +848,7 @@ export type SentencesUncheckedCreateWithoutArticleInput = {
   tenantId?: string
   teamId?: string | null
   env?: string | null
+  children?: Prisma.SentencesUncheckedCreateNestedManyWithoutParentSentenceInput
 }
 
 export type SentencesCreateOrConnectWithoutArticleInput = {
@@ -693,6 +887,11 @@ export type SentencesScalarWhereInput = {
   originalContent?: Prisma.StringNullableFilter<"Sentences"> | string | null
   translatedContent?: Prisma.StringNullableFilter<"Sentences"> | string | null
   sortOrder?: Prisma.IntFilter<"Sentences"> | number
+  parentSentenceId?: Prisma.UuidNullableFilter<"Sentences"> | string | null
+  splitStatus?: Prisma.StringFilter<"Sentences"> | string
+  splitAnalyzedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
+  splitModel?: Prisma.StringNullableFilter<"Sentences"> | string | null
+  splitVersion?: Prisma.StringNullableFilter<"Sentences"> | string | null
   deletedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
@@ -704,12 +903,197 @@ export type SentencesScalarWhereInput = {
   env?: Prisma.StringNullableFilter<"Sentences"> | string | null
 }
 
+export type SentencesCreateWithoutChildrenInput = {
+  id?: string
+  content?: string | null
+  originalContent?: string | null
+  translatedContent?: string | null
+  sortOrder?: number
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
+  deletedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedBy?: string | null
+  createdBy?: string | null
+  updatedBy?: string | null
+  tenantId?: string
+  teamId?: string | null
+  env?: string | null
+  article?: Prisma.ArticlesCreateNestedOneWithoutSentencesInput
+  parentSentence?: Prisma.SentencesCreateNestedOneWithoutChildrenInput
+}
+
+export type SentencesUncheckedCreateWithoutChildrenInput = {
+  id?: string
+  content?: string | null
+  articleId?: string | null
+  originalContent?: string | null
+  translatedContent?: string | null
+  sortOrder?: number
+  parentSentenceId?: string | null
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
+  deletedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedBy?: string | null
+  createdBy?: string | null
+  updatedBy?: string | null
+  tenantId?: string
+  teamId?: string | null
+  env?: string | null
+}
+
+export type SentencesCreateOrConnectWithoutChildrenInput = {
+  where: Prisma.SentencesWhereUniqueInput
+  create: Prisma.XOR<Prisma.SentencesCreateWithoutChildrenInput, Prisma.SentencesUncheckedCreateWithoutChildrenInput>
+}
+
+export type SentencesCreateWithoutParentSentenceInput = {
+  id?: string
+  content?: string | null
+  originalContent?: string | null
+  translatedContent?: string | null
+  sortOrder?: number
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
+  deletedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedBy?: string | null
+  createdBy?: string | null
+  updatedBy?: string | null
+  tenantId?: string
+  teamId?: string | null
+  env?: string | null
+  article?: Prisma.ArticlesCreateNestedOneWithoutSentencesInput
+  children?: Prisma.SentencesCreateNestedManyWithoutParentSentenceInput
+}
+
+export type SentencesUncheckedCreateWithoutParentSentenceInput = {
+  id?: string
+  content?: string | null
+  articleId?: string | null
+  originalContent?: string | null
+  translatedContent?: string | null
+  sortOrder?: number
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
+  deletedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedBy?: string | null
+  createdBy?: string | null
+  updatedBy?: string | null
+  tenantId?: string
+  teamId?: string | null
+  env?: string | null
+  children?: Prisma.SentencesUncheckedCreateNestedManyWithoutParentSentenceInput
+}
+
+export type SentencesCreateOrConnectWithoutParentSentenceInput = {
+  where: Prisma.SentencesWhereUniqueInput
+  create: Prisma.XOR<Prisma.SentencesCreateWithoutParentSentenceInput, Prisma.SentencesUncheckedCreateWithoutParentSentenceInput>
+}
+
+export type SentencesCreateManyParentSentenceInputEnvelope = {
+  data: Prisma.SentencesCreateManyParentSentenceInput | Prisma.SentencesCreateManyParentSentenceInput[]
+  skipDuplicates?: boolean
+}
+
+export type SentencesUpsertWithoutChildrenInput = {
+  update: Prisma.XOR<Prisma.SentencesUpdateWithoutChildrenInput, Prisma.SentencesUncheckedUpdateWithoutChildrenInput>
+  create: Prisma.XOR<Prisma.SentencesCreateWithoutChildrenInput, Prisma.SentencesUncheckedCreateWithoutChildrenInput>
+  where?: Prisma.SentencesWhereInput
+}
+
+export type SentencesUpdateToOneWithWhereWithoutChildrenInput = {
+  where?: Prisma.SentencesWhereInput
+  data: Prisma.XOR<Prisma.SentencesUpdateWithoutChildrenInput, Prisma.SentencesUncheckedUpdateWithoutChildrenInput>
+}
+
+export type SentencesUpdateWithoutChildrenInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  article?: Prisma.ArticlesUpdateOneWithoutSentencesNestedInput
+  parentSentence?: Prisma.SentencesUpdateOneWithoutChildrenNestedInput
+}
+
+export type SentencesUncheckedUpdateWithoutChildrenInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  articleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  parentSentenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+export type SentencesUpsertWithWhereUniqueWithoutParentSentenceInput = {
+  where: Prisma.SentencesWhereUniqueInput
+  update: Prisma.XOR<Prisma.SentencesUpdateWithoutParentSentenceInput, Prisma.SentencesUncheckedUpdateWithoutParentSentenceInput>
+  create: Prisma.XOR<Prisma.SentencesCreateWithoutParentSentenceInput, Prisma.SentencesUncheckedCreateWithoutParentSentenceInput>
+}
+
+export type SentencesUpdateWithWhereUniqueWithoutParentSentenceInput = {
+  where: Prisma.SentencesWhereUniqueInput
+  data: Prisma.XOR<Prisma.SentencesUpdateWithoutParentSentenceInput, Prisma.SentencesUncheckedUpdateWithoutParentSentenceInput>
+}
+
+export type SentencesUpdateManyWithWhereWithoutParentSentenceInput = {
+  where: Prisma.SentencesScalarWhereInput
+  data: Prisma.XOR<Prisma.SentencesUpdateManyMutationInput, Prisma.SentencesUncheckedUpdateManyWithoutParentSentenceInput>
+}
+
 export type SentencesCreateManyArticleInput = {
   id?: string
   content?: string | null
   originalContent?: string | null
   translatedContent?: string | null
   sortOrder?: number
+  parentSentenceId?: string | null
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -727,6 +1111,10 @@ export type SentencesUpdateWithoutArticleInput = {
   originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -736,6 +1124,8 @@ export type SentencesUpdateWithoutArticleInput = {
   tenantId?: Prisma.StringFieldUpdateOperationsInput | string
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  parentSentence?: Prisma.SentencesUpdateOneWithoutChildrenNestedInput
+  children?: Prisma.SentencesUpdateManyWithoutParentSentenceNestedInput
 }
 
 export type SentencesUncheckedUpdateWithoutArticleInput = {
@@ -744,6 +1134,11 @@ export type SentencesUncheckedUpdateWithoutArticleInput = {
   originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  parentSentenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -753,6 +1148,7 @@ export type SentencesUncheckedUpdateWithoutArticleInput = {
   tenantId?: Prisma.StringFieldUpdateOperationsInput | string
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  children?: Prisma.SentencesUncheckedUpdateManyWithoutParentSentenceNestedInput
 }
 
 export type SentencesUncheckedUpdateManyWithoutArticleInput = {
@@ -761,6 +1157,11 @@ export type SentencesUncheckedUpdateManyWithoutArticleInput = {
   originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  parentSentenceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -772,6 +1173,125 @@ export type SentencesUncheckedUpdateManyWithoutArticleInput = {
   env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
+export type SentencesCreateManyParentSentenceInput = {
+  id?: string
+  content?: string | null
+  articleId?: string | null
+  originalContent?: string | null
+  translatedContent?: string | null
+  sortOrder?: number
+  splitStatus?: string
+  splitAnalyzedAt?: Date | string | null
+  splitModel?: string | null
+  splitVersion?: string | null
+  deletedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedBy?: string | null
+  createdBy?: string | null
+  updatedBy?: string | null
+  tenantId?: string
+  teamId?: string | null
+  env?: string | null
+}
+
+export type SentencesUpdateWithoutParentSentenceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  article?: Prisma.ArticlesUpdateOneWithoutSentencesNestedInput
+  children?: Prisma.SentencesUpdateManyWithoutParentSentenceNestedInput
+}
+
+export type SentencesUncheckedUpdateWithoutParentSentenceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  articleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  children?: Prisma.SentencesUncheckedUpdateManyWithoutParentSentenceNestedInput
+}
+
+export type SentencesUncheckedUpdateManyWithoutParentSentenceInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  content?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  articleId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  originalContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  translatedContent?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sortOrder?: Prisma.IntFieldUpdateOperationsInput | number
+  splitStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tenantId?: Prisma.StringFieldUpdateOperationsInput | string
+  teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  env?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+
+/**
+ * Count Type SentencesCountOutputType
+ */
+
+export type SentencesCountOutputType = {
+  children: number
+}
+
+export type SentencesCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  children?: boolean | SentencesCountOutputTypeCountChildrenArgs
+}
+
+/**
+ * SentencesCountOutputType without action
+ */
+export type SentencesCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SentencesCountOutputType
+   */
+  select?: Prisma.SentencesCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * SentencesCountOutputType without action
+ */
+export type SentencesCountOutputTypeCountChildrenArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SentencesWhereInput
+}
 
 
 export type SentencesSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -781,6 +1301,11 @@ export type SentencesSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   originalContent?: boolean
   translatedContent?: boolean
   sortOrder?: boolean
+  parentSentenceId?: boolean
+  splitStatus?: boolean
+  splitAnalyzedAt?: boolean
+  splitModel?: boolean
+  splitVersion?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -791,6 +1316,9 @@ export type SentencesSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   teamId?: boolean
   env?: boolean
   article?: boolean | Prisma.Sentences$articleArgs<ExtArgs>
+  parentSentence?: boolean | Prisma.Sentences$parentSentenceArgs<ExtArgs>
+  children?: boolean | Prisma.Sentences$childrenArgs<ExtArgs>
+  _count?: boolean | Prisma.SentencesCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["sentences"]>
 
 export type SentencesSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -800,6 +1328,11 @@ export type SentencesSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   originalContent?: boolean
   translatedContent?: boolean
   sortOrder?: boolean
+  parentSentenceId?: boolean
+  splitStatus?: boolean
+  splitAnalyzedAt?: boolean
+  splitModel?: boolean
+  splitVersion?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -810,6 +1343,7 @@ export type SentencesSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   teamId?: boolean
   env?: boolean
   article?: boolean | Prisma.Sentences$articleArgs<ExtArgs>
+  parentSentence?: boolean | Prisma.Sentences$parentSentenceArgs<ExtArgs>
 }, ExtArgs["result"]["sentences"]>
 
 export type SentencesSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -819,6 +1353,11 @@ export type SentencesSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   originalContent?: boolean
   translatedContent?: boolean
   sortOrder?: boolean
+  parentSentenceId?: boolean
+  splitStatus?: boolean
+  splitAnalyzedAt?: boolean
+  splitModel?: boolean
+  splitVersion?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -829,6 +1368,7 @@ export type SentencesSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   teamId?: boolean
   env?: boolean
   article?: boolean | Prisma.Sentences$articleArgs<ExtArgs>
+  parentSentence?: boolean | Prisma.Sentences$parentSentenceArgs<ExtArgs>
 }, ExtArgs["result"]["sentences"]>
 
 export type SentencesSelectScalar = {
@@ -838,6 +1378,11 @@ export type SentencesSelectScalar = {
   originalContent?: boolean
   translatedContent?: boolean
   sortOrder?: boolean
+  parentSentenceId?: boolean
+  splitStatus?: boolean
+  splitAnalyzedAt?: boolean
+  splitModel?: boolean
+  splitVersion?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -849,21 +1394,28 @@ export type SentencesSelectScalar = {
   env?: boolean
 }
 
-export type SentencesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "content" | "articleId" | "originalContent" | "translatedContent" | "sortOrder" | "deletedAt" | "createdAt" | "updatedAt" | "deletedBy" | "createdBy" | "updatedBy" | "tenantId" | "teamId" | "env", ExtArgs["result"]["sentences"]>
+export type SentencesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "content" | "articleId" | "originalContent" | "translatedContent" | "sortOrder" | "parentSentenceId" | "splitStatus" | "splitAnalyzedAt" | "splitModel" | "splitVersion" | "deletedAt" | "createdAt" | "updatedAt" | "deletedBy" | "createdBy" | "updatedBy" | "tenantId" | "teamId" | "env", ExtArgs["result"]["sentences"]>
 export type SentencesInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   article?: boolean | Prisma.Sentences$articleArgs<ExtArgs>
+  parentSentence?: boolean | Prisma.Sentences$parentSentenceArgs<ExtArgs>
+  children?: boolean | Prisma.Sentences$childrenArgs<ExtArgs>
+  _count?: boolean | Prisma.SentencesCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SentencesIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   article?: boolean | Prisma.Sentences$articleArgs<ExtArgs>
+  parentSentence?: boolean | Prisma.Sentences$parentSentenceArgs<ExtArgs>
 }
 export type SentencesIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   article?: boolean | Prisma.Sentences$articleArgs<ExtArgs>
+  parentSentence?: boolean | Prisma.Sentences$parentSentenceArgs<ExtArgs>
 }
 
 export type $SentencesPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Sentences"
   objects: {
     article: Prisma.$ArticlesPayload<ExtArgs> | null
+    parentSentence: Prisma.$SentencesPayload<ExtArgs> | null
+    children: Prisma.$SentencesPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -872,6 +1424,11 @@ export type $SentencesPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     originalContent: string | null
     translatedContent: string | null
     sortOrder: number
+    parentSentenceId: string | null
+    splitStatus: string
+    splitAnalyzedAt: Date | null
+    splitModel: string | null
+    splitVersion: string | null
     deletedAt: Date | null
     createdAt: Date
     updatedAt: Date
@@ -1276,6 +1833,8 @@ readonly fields: SentencesFieldRefs;
 export interface Prisma__SentencesClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   article<T extends Prisma.Sentences$articleArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Sentences$articleArgs<ExtArgs>>): Prisma.Prisma__ArticlesClient<runtime.Types.Result.GetResult<Prisma.$ArticlesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  parentSentence<T extends Prisma.Sentences$parentSentenceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Sentences$parentSentenceArgs<ExtArgs>>): Prisma.Prisma__SentencesClient<runtime.Types.Result.GetResult<Prisma.$SentencesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  children<T extends Prisma.Sentences$childrenArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Sentences$childrenArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SentencesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1311,6 +1870,11 @@ export interface SentencesFieldRefs {
   readonly originalContent: Prisma.FieldRef<"Sentences", 'String'>
   readonly translatedContent: Prisma.FieldRef<"Sentences", 'String'>
   readonly sortOrder: Prisma.FieldRef<"Sentences", 'Int'>
+  readonly parentSentenceId: Prisma.FieldRef<"Sentences", 'String'>
+  readonly splitStatus: Prisma.FieldRef<"Sentences", 'String'>
+  readonly splitAnalyzedAt: Prisma.FieldRef<"Sentences", 'DateTime'>
+  readonly splitModel: Prisma.FieldRef<"Sentences", 'String'>
+  readonly splitVersion: Prisma.FieldRef<"Sentences", 'String'>
   readonly deletedAt: Prisma.FieldRef<"Sentences", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Sentences", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Sentences", 'DateTime'>
@@ -1732,6 +2296,49 @@ export type Sentences$articleArgs<ExtArgs extends runtime.Types.Extensions.Inter
    */
   include?: Prisma.ArticlesInclude<ExtArgs> | null
   where?: Prisma.ArticlesWhereInput
+}
+
+/**
+ * Sentences.parentSentence
+ */
+export type Sentences$parentSentenceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Sentences
+   */
+  select?: Prisma.SentencesSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Sentences
+   */
+  omit?: Prisma.SentencesOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SentencesInclude<ExtArgs> | null
+  where?: Prisma.SentencesWhereInput
+}
+
+/**
+ * Sentences.children
+ */
+export type Sentences$childrenArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Sentences
+   */
+  select?: Prisma.SentencesSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Sentences
+   */
+  omit?: Prisma.SentencesOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SentencesInclude<ExtArgs> | null
+  where?: Prisma.SentencesWhereInput
+  orderBy?: Prisma.SentencesOrderByWithRelationInput | Prisma.SentencesOrderByWithRelationInput[]
+  cursor?: Prisma.SentencesWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SentencesScalarFieldEnum | Prisma.SentencesScalarFieldEnum[]
 }
 
 /**

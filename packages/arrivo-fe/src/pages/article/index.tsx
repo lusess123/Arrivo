@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { history, useLocation, useNavigate, useParams } from '@umijs/max';
-import { Button, Form, Input, message, Modal, Popconfirm, Select, Slider, Spin, Tag } from 'antd';
+import { Button, Form, Input, message, Modal, Popconfirm, Select, Slider, Spin, Tag, Tooltip } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowLeftOutlined,
@@ -11,6 +11,9 @@ import {
   PlayCircleOutlined,
   PlusOutlined,
   SettingOutlined,
+  DownOutlined,
+  RightOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import styles from './index.module.less';
 import { asyncHandle } from '@/lib';
@@ -28,15 +31,24 @@ import {
 } from './playback';
 import { articleSentenceElementId } from './article-progress';
 import { useArticleProgress } from './use-article-progress';
+import { apiUrl } from '@/lib/api';
+import {
+  buildSentenceTree,
+  getPlayableSentences,
+  getSentenceDisplayRows,
+  type SentenceNode,
+} from './sentence-tree';
+import type { ArticleSentenceDto, SentenceSplitStatus } from '@arrivo/contracts';
 
-interface Sentence {
-  id: string;
-  articleId?: string;
-  originalContent: string;
-  translatedContent: string;
-  sortOrder?: number;
+interface Sentence extends ArticleSentenceDto {
   duration?: number;
 }
+
+type SplitUiState = {
+  analysis: string;
+  temporaryChildren: Array<{ originalContent: string; translatedContent: string }>;
+  loading: boolean;
+};
 
 interface ArticleNavigationState {
   autoPlay?: boolean;
@@ -63,18 +75,38 @@ const ArticlePage: React.FC = () => {
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(null);
   const [playbackSession, setPlaybackSession] = useState(0);
   const [continuousPlayback, setContinuousPlayback] = useState(false);
+  const [expandedSentenceIds, setExpandedSentenceIds] = useState<Set<string>>(new Set());
+  const [splitUiBySentence, setSplitUiBySentence] = useState<Record<string, SplitUiState>>({});
   const playbackSettingsRef = useRef(playbackSettings);
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const restoredArticleRef = useRef<string | null>(null);
   const currentUserId = (auth?.userData as any)?.id;
-  const sentenceIds = useMemo(() => sentences.map((sentence) => sentence.id), [sentences]);
+  const sentenceTree = useMemo(() => buildSentenceTree(sentences), [sentences]);
+  const displayRows = useMemo(
+    () => getSentenceDisplayRows(sentenceTree, expandedSentenceIds),
+    [expandedSentenceIds, sentenceTree],
+  );
+  const playableSentences = useMemo(() => getPlayableSentences(displayRows), [displayRows]);
+  const sentenceIds = useMemo(() => playableSentences.map((sentence) => sentence.id), [playableSentences]);
+  const sentenceById = useMemo(() => new Map(sentences.map((sentence) => [sentence.id, sentence])), [sentences]);
   const {
     loaded: progressLoaded,
-    resumeIndex,
+    resumeIndex: directResumeIndex,
+    resumeSentenceId,
     save: saveArticleProgress,
     clear: clearArticleProgress,
   } = useArticleProgress({ articleId: id, userId: currentUserId, sentenceIds });
+  const resumeIndex = useMemo(() => {
+    if (directResumeIndex !== null || !resumeSentenceId) return directResumeIndex;
+    let current = sentenceById.get(resumeSentenceId);
+    while (current?.parentSentenceId) {
+      const parentIndex = sentenceIds.indexOf(current.parentSentenceId);
+      if (parentIndex >= 0) return parentIndex;
+      current = sentenceById.get(current.parentSentenceId);
+    }
+    return null;
+  }, [directResumeIndex, resumeSentenceId, sentenceById, sentenceIds]);
   const canEdit = useMemo(
     () => Boolean(article && article.userId === currentUserId && !article.isPublic),
     [article, currentUserId],
@@ -123,6 +155,8 @@ const ArticlePage: React.FC = () => {
         ...sentence,
         originalContent: sentence.originalContent || '',
         translatedContent: sentence.translatedContent || '',
+        parentSentenceId: sentence.parentSentenceId || null,
+        splitStatus: (sentence.splitStatus || 'UNKNOWN') as SentenceSplitStatus,
       })),
     );
     setActiveSentenceIndex(null);
@@ -168,6 +202,24 @@ const ArticlePage: React.FC = () => {
     void fetchArticle();
   }, [fetchArticle]);
 
+  useEffect(() => {
+    if (!id || currentUserId === undefined || currentUserId === null) return;
+    const controller = new AbortController();
+    void fetch(apiUrl(`/api/user/articles/${encodeURIComponent(id)}/sentence-expansion`), {
+      credentials: 'include',
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(`Expansion state failed: ${response.status}`);
+      const body = await response.json() as { data?: { expandedSentenceIds?: string[] } };
+      if (!controller.signal.aborted) {
+        setExpandedSentenceIds(new Set(body.data?.expandedSentenceIds || []));
+      }
+    }).catch(() => {
+      if (!controller.signal.aborted) setExpandedSentenceIds(new Set());
+    });
+    return () => controller.abort();
+  }, [currentUserId, id]);
+
   useLayoutEffect(() => {
     if (
       !id
@@ -179,7 +231,7 @@ const ArticlePage: React.FC = () => {
     }
 
     if (resumeIndex === null) return;
-    const sentence = sentences[resumeIndex];
+    const sentence = playableSentences[resumeIndex];
     if (!sentence) return;
     restoredArticleRef.current = id;
 
@@ -187,13 +239,13 @@ const ArticlePage: React.FC = () => {
       behavior: 'auto',
       block: 'center',
     });
-  }, [id, loading, progressLoaded, resumeIndex, sentences]);
+  }, [id, loading, playableSentences, progressLoaded, resumeIndex]);
 
   useEffect(() => {
     if (activeSentenceIndex === null) return;
-    const sentence = sentences[activeSentenceIndex];
+    const sentence = playableSentences[activeSentenceIndex];
     if (sentence) saveArticleProgress(sentence.id);
-  }, [activeSentenceIndex, saveArticleProgress, sentences]);
+  }, [activeSentenceIndex, playableSentences, saveArticleProgress]);
 
   useEffect(() => {
     if (currentUserId === undefined || currentUserId === null) return;
@@ -254,7 +306,7 @@ const ArticlePage: React.FC = () => {
 
     const completion = resolvePlaybackCompletion({
       sentenceIndex: index,
-      sentenceCount: sentences.length,
+      sentenceCount: playableSentences.length,
       nextArticleId: article?.nextArticleId,
       continuous: continuousPlayback,
     });
@@ -279,10 +331,10 @@ const ArticlePage: React.FC = () => {
       clearArticleProgress();
       message.success('已播放完全部文章');
     }
-  }, [activeSentenceIndex, article?.nextArticleId, clearArticleProgress, continuousPlayback, router, sentences.length]);
+  }, [activeSentenceIndex, article?.nextArticleId, clearArticleProgress, continuousPlayback, playableSentences.length, router]);
 
   const startContinuousPlayback = useCallback((sentenceIndex: number) => {
-    if (!sentences.length) {
+    if (!playableSentences.length) {
       message.info('暂无可朗读内容');
       return;
     }
@@ -290,7 +342,7 @@ const ArticlePage: React.FC = () => {
     setPlaybackSession((session) => session + 1);
     setContinuousPlayback(true);
     setActiveSentenceIndex(sentenceIndex);
-  }, [sentences.length]);
+  }, [playableSentences.length]);
 
   const handleContinuePlayback = useCallback(() => {
     startContinuousPlayback(resumeIndex ?? 0);
@@ -317,7 +369,7 @@ const ArticlePage: React.FC = () => {
       state: null,
     });
 
-    if (!sentences.length) {
+    if (!playableSentences.length) {
       message.info('下一篇暂无可朗读内容');
       return;
     }
@@ -325,7 +377,125 @@ const ArticlePage: React.FC = () => {
     setPlaybackSession((session) => session + 1);
     setContinuousPlayback(true);
     setActiveSentenceIndex(resumeIndex ?? 0);
-  }, [article, id, loading, location.hash, location.pathname, location.search, location.state, progressLoaded, resumeIndex, router, sentences.length]);
+  }, [article, id, loading, location.hash, location.pathname, location.search, location.state, playableSentences.length, progressLoaded, resumeIndex, router]);
+
+  const persistExpansion = useCallback(async (sentenceId: string, expanded: boolean) => {
+    if (!id) return;
+    const [err] = await asyncHandle(axios.patch(
+      `/api/user/articles/${encodeURIComponent(id)}/sentence-expansion`,
+      { sentenceId, expanded },
+    ));
+    if (err) message.warning('展开状态暂未同步');
+  }, [id]);
+
+  const setSentenceExpanded = useCallback((sentenceId: string, expanded: boolean) => {
+    setActiveSentenceIndex(null);
+    setContinuousPlayback(false);
+    setExpandedSentenceIds((current) => {
+      const next = new Set(current);
+      if (expanded) next.add(sentenceId);
+      else next.delete(sentenceId);
+      return next;
+    });
+    void persistExpansion(sentenceId, expanded);
+  }, [persistExpansion]);
+
+  const updateSplitUi = useCallback((sentenceId: string, update: (state: SplitUiState) => SplitUiState) => {
+    setSplitUiBySentence((current) => ({
+      ...current,
+      [sentenceId]: update(current[sentenceId] || { analysis: '', temporaryChildren: [], loading: false }),
+    }));
+  }, []);
+
+  const handleSplitEvent = useCallback((sentenceId: string, eventName: string, payload: any) => {
+    if (eventName === 'started') {
+      updateSplitUi(sentenceId, (state) => ({ ...state, loading: true }));
+      return;
+    }
+    if (eventName === 'analysis_delta') {
+      updateSplitUi(sentenceId, (state) => ({ ...state, analysis: state.analysis + (payload.text || '') }));
+      return;
+    }
+    if (eventName === 'child_started') {
+      updateSplitUi(sentenceId, (state) => ({
+        ...state,
+        temporaryChildren: state.temporaryChildren[payload.index]
+          ? state.temporaryChildren
+          : [...state.temporaryChildren, { originalContent: '', translatedContent: '' }],
+      }));
+      window.setTimeout(() => {
+        updateSplitUi(sentenceId, (state) => ({ ...state, analysis: '' }));
+      }, 800);
+      return;
+    }
+    if (eventName === 'original_delta' || eventName === 'translation_delta') {
+      updateSplitUi(sentenceId, (state) => {
+        const temporaryChildren = [...state.temporaryChildren];
+        const child = temporaryChildren[payload.index] || { originalContent: '', translatedContent: '' };
+        temporaryChildren[payload.index] = {
+          ...child,
+          [eventName === 'original_delta' ? 'originalContent' : 'translatedContent']:
+            child[eventName === 'original_delta' ? 'originalContent' : 'translatedContent'] + (payload.text || ''),
+        };
+        return { ...state, temporaryChildren };
+      });
+      return;
+    }
+    if (eventName === 'child_completed') {
+      updateSplitUi(sentenceId, (state) => {
+        const temporaryChildren = [...state.temporaryChildren];
+        temporaryChildren[payload.index] = payload.child;
+        return { ...state, temporaryChildren };
+      });
+      return;
+    }
+    if (eventName === 'committed') {
+      setExpandedSentenceIds((current) => new Set(current).add(sentenceId));
+      void persistExpansion(sentenceId, true);
+      updateSplitUi(sentenceId, () => ({ analysis: '', temporaryChildren: [], loading: false }));
+      void fetchArticle();
+      return;
+    }
+    if (eventName === 'failed') {
+      updateSplitUi(sentenceId, (state) => ({ ...state, loading: false }));
+      message.error(payload.message || '句子切分失败');
+    }
+  }, [fetchArticle, persistExpansion, updateSplitUi]);
+
+  const startSentenceSplit = useCallback(async (sentence: SentenceNode) => {
+    if (!id) return;
+    if (sentence.children.length > 0 || sentence.splitStatus === 'SPLIT') {
+      setSentenceExpanded(sentence.id, !expandedSentenceIds.has(sentence.id));
+      return;
+    }
+
+    updateSplitUi(sentence.id, () => ({ analysis: '', temporaryChildren: [], loading: true }));
+    try {
+      const response = await fetch(apiUrl(
+        `/api/articles/${encodeURIComponent(id)}/sentences/${encodeURIComponent(sentence.id)}/split-stream`,
+      ), { method: 'POST', credentials: 'include' });
+      if (!response.ok || !response.body) throw new Error(`句子切分请求失败 (${response.status})`);
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += value.replace(/\r\n/g, '\n');
+        let boundary = buffer.indexOf('\n\n');
+        while (boundary >= 0) {
+          const block = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          const eventName = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
+          const data = block.match(/^data:\s*(.+)$/m)?.[1];
+          if (eventName && data) handleSplitEvent(sentence.id, eventName, JSON.parse(data));
+          boundary = buffer.indexOf('\n\n');
+        }
+      }
+    } catch (error) {
+      updateSplitUi(sentence.id, (state) => ({ ...state, loading: false }));
+      message.error(error instanceof Error ? error.message : '句子切分失败');
+    }
+  }, [expandedSentenceIds, handleSplitEvent, id, setSentenceExpanded, updateSplitUi]);
 
   const openCreateSentence = (insertIndex: number) => {
     if (!canEdit) return;
@@ -381,7 +551,7 @@ const ArticlePage: React.FC = () => {
             articleId: id,
             original,
             translation,
-            insertIndex: sentenceInsertIndex ?? sentences.length,
+            insertIndex: sentenceInsertIndex ?? sentenceTree.length,
           };
       const [err, res] = await asyncHandle(axios.post(endpoint, payload));
 
@@ -411,7 +581,7 @@ const ArticlePage: React.FC = () => {
   };
 
   const renderSentenceActions = (sentence: Sentence, index: number) => {
-    if (!canEdit) return null;
+    if (!canEdit || sentence.parentSentenceId) return null;
 
     return (
       <div className={styles.sentenceActions}>
@@ -430,7 +600,7 @@ const ArticlePage: React.FC = () => {
         <Button
           size="small"
           icon={<ArrowDownOutlined />}
-          disabled={index === sentences.length - 1}
+          disabled={index === sentenceTree.length - 1}
           onClick={() => mutateSentence('/api/article/moveSentence', { id: sentence.id, direction: 'down' }, '顺序已更新')}
         />
         <Button size="small" icon={<EditOutlined />} onClick={() => openEditSentence(sentence)}>
@@ -448,6 +618,56 @@ const ArticlePage: React.FC = () => {
           </Button>
         </Popconfirm>
       </div>
+    );
+  };
+
+  const renderSplitControl = (sentence: SentenceNode, expanded: boolean) => {
+    const ui = splitUiBySentence[sentence.id];
+    if (ui?.loading || sentence.splitStatus === 'SPLITTING') {
+      return <LoadingOutlined aria-label="正在切分" />;
+    }
+    if (sentence.children.length > 0 || sentence.splitStatus === 'SPLIT') {
+      return (
+        <Tooltip title={expanded ? '收起子句' : '展开子句'}>
+          <Button
+            type="text"
+            icon={expanded ? <DownOutlined /> : <RightOutlined />}
+            onClick={() => void startSentenceSplit(sentence)}
+            aria-label={expanded ? '收起子句' : '展开子句'}
+          />
+        </Tooltip>
+      );
+    }
+    if (sentence.splitStatus !== 'SPLITTABLE' && sentence.splitStatus !== 'FAILED') return null;
+    return (
+      <Tooltip title={sentence.splitStatus === 'FAILED' ? '重试继续切分' : '继续切分'}>
+        <Button
+          type="text"
+          icon={<PlusOutlined />}
+          onClick={() => void startSentenceSplit(sentence)}
+          aria-label="继续切分"
+        />
+      </Tooltip>
+    );
+  };
+
+  const renderSplitProgress = (sentenceId: string) => {
+    const state = splitUiBySentence[sentenceId];
+    if (!state?.loading && !state?.analysis && !state?.temporaryChildren.length) return null;
+    return (
+      <>
+        {state.analysis && <div className={styles.splitAnalysis}>{state.analysis}</div>}
+        {!!state.temporaryChildren.length && (
+          <div className={styles.temporaryChildren}>
+            {state.temporaryChildren.map((child, index) => (
+              <div key={`${sentenceId}-temporary-${index}`}>
+                <strong>{index + 1}.</strong> {child.originalContent}<br />
+                <span>{child.translatedContent}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
     );
   };
 
@@ -484,7 +704,7 @@ const ArticlePage: React.FC = () => {
           {canEdit && (
             <Button
               icon={<PlusOutlined />}
-              onClick={() => openCreateSentence(sentences.length)}
+              onClick={() => openCreateSentence(sentenceTree.length)}
               className={styles.addSentenceButton}
             >
               添加句子
@@ -521,7 +741,7 @@ const ArticlePage: React.FC = () => {
             )}
           </div>
         )}
-        {sentences.length === 0 && (
+        {sentenceTree.length === 0 && (
           <div className={styles.emptySentence}>
             <p>暂无句子</p>
             {canEdit && (
@@ -531,22 +751,29 @@ const ArticlePage: React.FC = () => {
             )}
           </div>
         )}
-        {sentences.map((sentence, index) => (
-          <SentenceItem
+        {displayRows.map((row, displayIndex) => {
+          const sentence = row.sentence;
+          const playableIndex = playableSentences.findIndex((item) => item.id === sentence.id);
+          const index = playableIndex >= 0 ? playableIndex : displayIndex;
+          const rootIndex = sentence.parentSentenceId
+            ? -1
+            : sentenceTree.findIndex((item) => item.id === sentence.id);
+          return (
+            <SentenceItem
             key={sentence.id}
             originalContent={sentence.originalContent}
             translatedContent={sentence.translatedContent}
             index={index}
-            duration={sentence.duration || 0}
+            duration={(sentence as Sentence).duration || 0}
             id={sentence.id}
-            resumePoint={activeSentenceIndex === null && resumeIndex === index}
+            resumePoint={row.playable && activeSentenceIndex === null && resumeIndex === playableIndex}
             times={playbackSettings.repeatCount}
             v={playbackSettings.voice}
             rate={playbackSettings.playbackRate}
             delay={playbackSettings.extraPauseSeconds}
-            playing={activeSentenceIndex === index}
+            playing={row.playable && activeSentenceIndex === playableIndex}
             hasNext={
-              index < sentences.length - 1
+              playableIndex >= 0 && playableIndex < playableSentences.length - 1
               || Boolean(continuousPlayback && article?.nextArticleId)
             }
             playbackKey={playbackSession}
@@ -554,9 +781,14 @@ const ArticlePage: React.FC = () => {
             onPlayStop={handleSentencePlayStop}
             onPlayEnd={handleSentencePlayEnd}
             sound={true}
-            actions={renderSentenceActions(sentence, index)}
+            actions={rootIndex >= 0 ? renderSentenceActions(sentence, rootIndex) : null}
+            depth={row.depth}
+            playable={row.playable}
+            auxiliaryControl={renderSplitControl(sentence, row.expanded)}
+            transientContent={renderSplitProgress(sentence.id)}
           />
-        ))}
+          );
+        })}
       </div>
 
       <Modal

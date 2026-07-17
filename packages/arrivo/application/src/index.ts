@@ -1,4 +1,5 @@
 export * from "./article/article.case";
+export * from "./article/sentence-split.case";
 export * from "./auth/auth.case";
 export * from "./health/health.case";
 export * from "./mdd/mdd.case";
@@ -7,3 +8,4 @@ export * from "./runtime/tts";
 export * from "./tts/tts.case";
 export * from "./user/article-progress.case";
 export * from "./user/playback-settings.case";
+export * from "./user/sentence-expansion.case";

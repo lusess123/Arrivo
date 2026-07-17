@@ -74,25 +74,33 @@ model Articles {
 }
 
 model Sentences {
-  id                String    @id @default(uuid(7)) @db.Uuid
+  id                String      @id @default(uuid(7)) @db.Uuid
   content           String?
-  articleId         String?   @db.Uuid
-  article           Articles? @relation(fields: [articleId], references: [id])
+  articleId         String?     @db.Uuid
+  article           Articles?   @relation(fields: [articleId], references: [id])
   originalContent   String?
   translatedContent String?
-  sortOrder         Int       @default(0)
+  sortOrder         Int         @default(0)
+  parentSentenceId  String?     @db.Uuid
+  parentSentence    Sentences?  @relation("SentenceChildren", fields: [parentSentenceId], references: [id], onDelete: Cascade)
+  children          Sentences[] @relation("SentenceChildren")
+  splitStatus       String      @default("UNKNOWN") @db.VarChar(20)
+  splitAnalyzedAt   DateTime?
+  splitModel        String?     @db.VarChar(100)
+  splitVersion      String?     @db.VarChar(50)
   deletedAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedBy         String?   @db.Uuid
-  createdBy         String?   @db.Uuid
-  updatedBy         String?   @db.Uuid
-  tenantId          String    @default("helloworld") @db.VarChar(50)
-  teamId            String?   @db.Uuid
-  env               String?   @db.VarChar(50)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  deletedBy         String?     @db.Uuid
+  createdBy         String?     @db.Uuid
+  updatedBy         String?     @db.Uuid
+  tenantId          String      @default("helloworld") @db.VarChar(50)
+  teamId            String?     @db.Uuid
+  env               String?     @db.VarChar(50)
 
   @@index([tenantId, articleId, createdAt])
   @@index([tenantId, articleId, sortOrder])
+  @@index([tenantId, parentSentenceId, sortOrder])
   @@index([tenantId, deletedAt])
 }
 

@@ -15,4 +15,8 @@ export type ArrivoWorkerEnv = {
   FIXED_SMS_CODE?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  AI_GATEWAY_API_KEY?: string;
+  AI_GATEWAY_BASE_URL?: string;
+  SENTENCE_SPLIT_MODEL?: string;
+  AI_BATCH_SECRET?: string;
 };

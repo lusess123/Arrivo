@@ -57,6 +57,16 @@ export const moveSentenceInputSchema = z.object({
   direction: z.enum(["up", "down"])
 });
 
+export const sentenceSplitParamSchema = z.object({
+  articleId: z.string().uuid(),
+  sentenceId: z.string().uuid()
+});
+
+export const sentenceSplitBatchInputSchema = z.object({
+  limit: z.number().int().min(1).max(50).optional().default(20),
+  retryFailed: z.boolean().optional().default(false)
+});
+
 export type SentenceInput = z.infer<typeof sentenceInputSchema>;
 export type CreateArticleInput = z.infer<typeof createArticleInputSchema>;
 export type ArticleDetailQuery = z.infer<typeof articleDetailQuerySchema>;
@@ -67,12 +77,27 @@ export type CreateSentenceInput = z.infer<typeof createSentenceInputSchema>;
 export type UpdateSentenceInput = z.infer<typeof updateSentenceInputSchema>;
 export type DeleteSentenceInput = z.infer<typeof deleteSentenceInputSchema>;
 export type MoveSentenceInput = z.infer<typeof moveSentenceInputSchema>;
+export type SentenceSplitParam = z.infer<typeof sentenceSplitParamSchema>;
+export type SentenceSplitBatchInput = z.infer<typeof sentenceSplitBatchInputSchema>;
+
+export const SENTENCE_SPLIT_STATUSES = [
+  "UNKNOWN",
+  "SPLITTABLE",
+  "SPLITTING",
+  "SPLIT",
+  "UNSPLITTABLE",
+  "FAILED"
+] as const;
+
+export type SentenceSplitStatus = typeof SENTENCE_SPLIT_STATUSES[number];
 
 export type ArticleSentenceDto = {
   id: string;
   originalContent: string | null;
   translatedContent: string | null;
   sortOrder: number;
+  parentSentenceId: string | null;
+  splitStatus: SentenceSplitStatus;
 };
 
 export type ArticleDto = {

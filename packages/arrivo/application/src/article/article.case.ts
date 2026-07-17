@@ -6,6 +6,7 @@ import type {
   DeleteArticleInput,
   DeleteSentenceInput,
   MoveSentenceInput,
+  SentenceSplitStatus,
   UpdateArticleInput,
   UpdateSentenceInput
 } from "@arrivo/contracts";
@@ -40,7 +41,9 @@ function getArticleSelect(tenantId: string) {
         id: true,
         originalContent: true,
         translatedContent: true,
-        sortOrder: true
+        sortOrder: true,
+        parentSentenceId: true,
+        splitStatus: true
       },
       orderBy: sentenceOrderBy
     }
@@ -127,6 +130,7 @@ async function getOrderedSentenceIds({ articleId, tenantId }: { articleId: strin
   return db.sentences.findMany({
     where: {
       articleId,
+      parentSentenceId: null,
       ...activeRecordWhere(tenantId)
     },
     select: {
@@ -188,6 +192,25 @@ async function normalizeSentenceOrder({
   });
 }
 
+async function getDescendantSentenceIds({ articleId, sentenceId, tenantId }: { articleId: string; sentenceId: string; tenantId: string }) {
+  const sentences = await db.sentences.findMany({
+    where: { articleId, ...activeRecordWhere(tenantId) },
+    select: { id: true, parentSentenceId: true }
+  });
+  const descendants: string[] = [];
+  const pending = [sentenceId];
+  while (pending.length) {
+    const parentId = pending.shift()!;
+    for (const sentence of sentences) {
+      if (sentence.parentSentenceId === parentId) {
+        descendants.push(sentence.id);
+        pending.push(sentence.id);
+      }
+    }
+  }
+  return descendants;
+}
+
 async function getRequiredArticleDetail({
   userId,
   tenantId,
@@ -204,11 +227,18 @@ async function getRequiredArticleDetail({
 
 export async function getArticleList({ userId, tenantId: inputTenantId }: ArticleCaseDeps): Promise<ArticleDto[]> {
   const tenantId = normalizeTenantId(inputTenantId);
-  return db.articles.findMany({
+  const articles = await db.articles.findMany({
     where: ownOrPublicArticleWhere({ userId, tenantId }),
     select: getArticleSelect(tenantId),
     orderBy: articleOrderBy
   });
+  return articles.map((article) => ({
+    ...article,
+    Sentences: article.Sentences.map((sentence) => ({
+      ...sentence,
+      splitStatus: sentence.splitStatus as SentenceSplitStatus
+    }))
+  }));
 }
 
 export async function getArticleDetail({
@@ -248,6 +278,10 @@ export async function getArticleDetail({
 
   return {
     ...article,
+    Sentences: article.Sentences.map((sentence) => ({
+      ...sentence,
+      splitStatus: sentence.splitStatus as SentenceSplitStatus
+    })),
     nextArticleId: nextArticle?.id ?? null
   };
 }
@@ -453,19 +487,28 @@ export async function updateSentence({
 }: ArticleCaseDeps & { input: UpdateSentenceInput }) {
   const tenantId = normalizeTenantId(inputTenantId);
   const sentence = await getWritableSentence({ userId, tenantId, id: input.id });
+  const descendantIds = await getDescendantSentenceIds({ articleId: sentence.articleId, sentenceId: input.id, tenantId });
+  const now = new Date();
 
-  await db.sentences.updateMany({
-    where: {
-      id: input.id,
-      ...activeRecordWhere(tenantId)
-    },
-    data: {
-      content: input.original || input.translation || "",
-      originalContent: input.original || "",
-      translatedContent: input.translation || "",
-      ...updateRecordBase({ userId })
-    }
-  });
+  await db.$transaction([
+    db.sentences.updateMany({
+      where: { id: input.id, ...activeRecordWhere(tenantId) },
+      data: {
+        content: input.original || input.translation || "",
+        originalContent: input.original || "",
+        translatedContent: input.translation || "",
+        splitStatus: "UNKNOWN",
+        splitAnalyzedAt: null,
+        splitModel: null,
+        splitVersion: null,
+        ...updateRecordBase({ userId, now })
+      }
+    }),
+    db.sentences.updateMany({
+      where: { id: { in: descendantIds }, ...activeRecordWhere(tenantId) },
+      data: softDeleteRecordBase({ userId, now })
+    })
+  ]);
 
   return getRequiredArticleDetail({ userId, tenantId, id: sentence.articleId });
 }
@@ -477,10 +520,11 @@ export async function deleteSentence({
 }: ArticleCaseDeps & { input: DeleteSentenceInput }) {
   const tenantId = normalizeTenantId(inputTenantId);
   const sentence = await getWritableSentence({ userId, tenantId, id: input.id });
+  const descendantIds = await getDescendantSentenceIds({ articleId: sentence.articleId, sentenceId: input.id, tenantId });
 
   await db.sentences.updateMany({
     where: {
-      id: input.id,
+      id: { in: [input.id, ...descendantIds] },
       ...activeRecordWhere(tenantId)
     },
     data: {
