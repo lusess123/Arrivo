@@ -82,6 +82,7 @@ jobs:
       - name: Copy production data to Neon
         run: |
           response=$(curl --fail --silent --show-error \
+            --retry 10 --retry-all-errors --retry-delay 2 \
             "https://arrivo-db-migrate.zyk2003xxx.workers.dev")
           test "$(printf '%s' "$response" | jq -r '.ok')" = "true"
           printf '%s' "$response" | jq '{ok, counts}'
