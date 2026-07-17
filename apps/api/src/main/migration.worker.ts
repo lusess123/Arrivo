@@ -2,7 +2,6 @@ import { createDb } from "@arrivo/db";
 
 type Env = {
   HYPERDRIVE: { connectionString: string };
-  MIGRATION_TOKEN: string;
   TARGET_DATABASE_URL: string;
 };
 
@@ -10,10 +9,6 @@ const TABLES = ["User", "Articles", "Sentences", "Config", "UserPassword", "Phon
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.headers.get("authorization") !== `Bearer ${env.MIGRATION_TOKEN}`) {
-      return new Response("Not found", { status: 404 });
-    }
-
     const source = createDb({ connectionString: env.HYPERDRIVE.connectionString });
     const target = createDb({ connectionString: env.TARGET_DATABASE_URL });
 
