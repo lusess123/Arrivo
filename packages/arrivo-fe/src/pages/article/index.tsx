@@ -228,7 +228,7 @@ const ArticlePage: React.FC = () => {
   }, [applyLoadedPlaybackSettings, currentUserId]);
 
   const handleGoBack = () => {
-    router('/');
+    router(-1);
   };
 
   const handleOpenSettings = () => {

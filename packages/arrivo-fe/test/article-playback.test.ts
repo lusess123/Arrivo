@@ -101,3 +101,14 @@ describe('article playback layout', () => {
     expect(styles).toContain('.countdownRow');
   });
 });
+
+describe('article navigation', () => {
+  test('returns to the previous route instead of forcing the home page', async () => {
+    const source = await Bun.file(
+      new URL('../src/pages/article/index.tsx', import.meta.url),
+    ).text();
+
+    expect(source).toContain('router(-1);');
+    expect(source).not.toContain("const handleGoBack = () => {\n    router('/');");
+  });
+});
