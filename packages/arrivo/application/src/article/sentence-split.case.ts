@@ -36,8 +36,10 @@ ANALYSIS: 一句简短摘要
 ORIGINAL: 英文子句
 TRANSLATION: 中文子句
 SPLITTABLE: true 或 false
-END
-splittable 表示这个子句是否还能合理拆成至少两个语义完整、适合独立朗读的片段。
+END_CHILD
+每个子句都必须以 END_CHILD 结束；全部子句输出后，单独输出一行 DONE。
+splittable 只有在拆分后的每一部分都能脱离上下文独立理解和朗读时才为 true。
+如果只能拆出连接词、话语标记、重复语或不完整从句，必须为 false。
 除这些行外不要输出任何内容。`;
 
 function splitPrompt(originalContent: string, translatedContent: string) {
@@ -104,6 +106,19 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
   let currentChild: Partial<SplitChild> | null = null;
   let committed = false;
 
+  function completeCurrentChild() {
+    if (
+      !currentChild
+      || typeof currentChild.originalContent !== "string"
+      || typeof currentChild.translatedContent !== "string"
+      || typeof currentChild.splittable !== "boolean"
+    ) throw new Error("LLM 返回了不完整的子句");
+    const child = currentChild as SplitChild;
+    children.push(child);
+    currentChild = null;
+    return child;
+  }
+
   try {
     for await (const chunk of input.ai.streamText({
       system: systemPrompt,
@@ -120,6 +135,10 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
           yield { type: "analysis_completed" };
         } else if (line.startsWith("ORIGINAL:")) {
           const text = line.slice("ORIGINAL:".length).trimStart();
+          if (partialKind !== "ORIGINAL" && currentChild) {
+            const child = completeCurrentChild();
+            yield { type: "child_completed", index: children.length - 1, child };
+          }
           if (!currentChild) currentChild = {};
           currentChild.originalContent = text;
           if (partialKind !== "ORIGINAL") yield { type: "child_started", index: children.length };
@@ -134,16 +153,11 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
           const value = line.slice("SPLITTABLE:".length).trim().toLowerCase();
           if (value !== "true" && value !== "false") throw new Error("子句可切分判断无效");
           currentChild.splittable = value === "true";
-        } else if (line.trim() === "END") {
-          if (
-            !currentChild
-            || typeof currentChild.originalContent !== "string"
-            || typeof currentChild.translatedContent !== "string"
-            || typeof currentChild.splittable !== "boolean"
-          ) throw new Error("LLM 返回了不完整的子句");
-          const child = currentChild as SplitChild;
-          children.push(child);
-          currentChild = null;
+        } else if (line.trim() === "END_CHILD" || line.trim() === "END") {
+          const child = completeCurrentChild();
+          yield { type: "child_completed", index: children.length - 1, child };
+        } else if (line.trim() === "DONE" && currentChild) {
+          const child = completeCurrentChild();
           yield { type: "child_completed", index: children.length - 1, child };
         }
         partialKind = "";
@@ -160,6 +174,10 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
           partialKind = kind;
           partialEmitted = 0;
           if (kind === "ORIGINAL") {
+            if (currentChild) {
+              const child = completeCurrentChild();
+              yield { type: "child_completed", index: children.length - 1, child };
+            }
             currentChild = {};
             yield { type: "child_started", index: children.length };
           }
@@ -181,18 +199,12 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
         }
       }
     }
-    if (buffer.trim() === "END" && currentChild) {
-      if (
-        typeof currentChild.originalContent !== "string"
-        || typeof currentChild.translatedContent !== "string"
-        || typeof currentChild.splittable !== "boolean"
-      ) throw new Error("LLM 返回了不完整的子句");
-      const child = currentChild as SplitChild;
-      children.push(child);
-      currentChild = null;
+    if (["END_CHILD", "END", "DONE"].includes(buffer.trim()) && currentChild) {
+      const child = completeCurrentChild();
       buffer = "";
       yield { type: "child_completed", index: children.length - 1, child };
     }
+    if (buffer.trim() === "DONE") buffer = "";
     if (buffer.trim() || currentChild) throw new Error("LLM 输出在子句完成前中断");
     validateSplitChildren(sentence.originalContent ?? "", children);
 
