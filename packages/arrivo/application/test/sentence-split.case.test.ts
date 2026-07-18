@@ -149,8 +149,8 @@ describe("sentence split validation", () => {
     expect(() => validateForcedChildren(
       "Thank the American people twice.",
       [
-        { originalContent: "Thank the American people.", translatedContent: "感谢美国人民。", splittable: false },
-        { originalContent: "THANK the American people!", translatedContent: "感谢美国人民！", splittable: false }
+        { originalContent: "We sincerely thank the American people.", translatedContent: "我们衷心感谢美国人民。", splittable: false },
+        { originalContent: "WE sincerely thank the American people!", translatedContent: "我们衷心感谢美国人民！", splittable: false }
       ],
       2
     )).toThrow("重复子句");
@@ -161,8 +161,8 @@ describe("sentence split validation", () => {
     const sentences = {
       findFirst: async () => ({
         id: "019f0000-0000-7000-8000-000000000010",
-        originalContent: "One, two.",
-        translatedContent: "一，二。",
+        originalContent: "We carefully listen to every question, and we clearly answer every important point.",
+        translatedContent: "我们认真倾听每个问题，并清楚回答每个要点。",
         splitStatus: "SPLITTABLE"
       }),
       updateMany: async () => ({ count: 1 }),
@@ -179,9 +179,9 @@ describe("sentence split validation", () => {
     const ai = {
       generateText: async () => "",
       async *streamText() {
-        yield "ANALYSIS: 两个并列项\nORIG";
-        yield "INAL: One,\nTRANSLATION: 一，\nSPLITTABLE: false\nEND\n";
-        yield "ORIGINAL: two.\nTRANSLATION: 二。\nSPLITTABLE: false\nEND";
+        yield "ANALYSIS: 两个并列分句\nORIG";
+        yield "INAL: We carefully listen to every question,\nTRANSLATION: 我们认真倾听每个问题，\nSPLITTABLE: false\nEND\n";
+        yield "ORIGINAL: and we clearly answer every important point.\nTRANSLATION: 并清楚回答每个要点。\nSPLITTABLE: false\nEND";
       }
     };
 
@@ -200,19 +200,19 @@ describe("sentence split validation", () => {
 
     expect(events.filter((event) => event.type === "child_started")).toHaveLength(2);
     expect(events.filter((event) => event.type === "original_delta").map((event: any) => event.text).join(""))
-      .toBe("One,two.");
+      .toBe("We carefully listen to every question,and we clearly answer every important point.");
     expect(events.at(-1)?.type).toBe("committed");
     expect(createdData.map((item) => item.splitStatus)).toEqual(["UNSPLITTABLE", "UNSPLITTABLE"]);
   });
 
   test("accepts the real DeepSeek response with one final legacy END", async () => {
     let createdData: any[] = [];
-    const original = "Thank you very much. Now winning the popular vote was very nice, very nice. I will tell you, it's a great feeling of love.";
+    const original = "Thank you very much for joining us today. Winning the popular vote was a truly wonderful experience. I will always remember this great feeling of love.";
     const sentences = {
       findFirst: async () => ({
         id: "019f0000-0000-7000-8000-000000000020",
         originalContent: original,
-        translatedContent: "非常感谢。赢得普选票真的非常好，非常好。我要告诉你们，这是一种伟大的爱的感觉。",
+        translatedContent: "非常感谢你们今天加入我们。赢得普选票是一次真正美好的经历。我会永远记住这种伟大的爱的感觉。",
         splitStatus: "SPLITTABLE"
       }),
       updateMany: async () => ({ count: 1 }),
@@ -228,16 +228,16 @@ describe("sentence split validation", () => {
     } as Partial<ArrivoDb>;
     const response = `ANALYSIS: 原句由三个独立句子组成，每句都可独立朗读。
 
-ORIGINAL: Thank you very much.
-TRANSLATION: 非常感谢。
+ORIGINAL: Thank you very much for joining us today.
+TRANSLATION: 非常感谢你们今天加入我们。
 SPLITTABLE: false
 
-ORIGINAL: Now winning the popular vote was very nice, very nice.
-TRANSLATION: 赢得普选票真的非常好，非常好。
+ORIGINAL: Winning the popular vote was a truly wonderful experience.
+TRANSLATION: 赢得普选票是一次真正美好的经历。
 SPLITTABLE: true
 
-ORIGINAL: I will tell you, it's a great feeling of love.
-TRANSLATION: 我要告诉你们，这是一种伟大的爱的感觉。
+ORIGINAL: I will always remember this great feeling of love.
+TRANSLATION: 我会永远记住这种伟大的爱的感觉。
 SPLITTABLE: true
 
 END`;
@@ -264,23 +264,23 @@ END`;
     expect(events.filter((event) => event.type === "child_completed")).toHaveLength(3);
     expect(events.at(-1)?.type).toBe("committed");
     expect(createdData.map((item) => item.originalContent)).toEqual([
-      "Thank you very much.",
-      "Now winning the popular vote was very nice, very nice.",
-      "I will tell you, it's a great feeling of love."
+      "Thank you very much for joining us today.",
+      "Winning the popular vote was a truly wonderful experience.",
+      "I will always remember this great feeling of love."
     ]);
   });
 
   test("accepts END_CHILD and DONE across one-character stream chunks", async () => {
     const result = await runStreamResponse({
-      original: "Although it rained, we stayed outside.",
-      translated: "尽管下雨了，我们还是待在外面。",
+      original: "Although heavy rain continued outside, we calmly stayed together inside.",
+      translated: "尽管外面大雨持续，我们还是平静地一起待在室内。",
       response: `ANALYSIS: 让步从句和主句。
-ORIGINAL: Although it rained,
-TRANSLATION: 尽管下雨了，
+ORIGINAL: Although heavy rain continued outside,
+TRANSLATION: 尽管外面大雨持续，
 SPLITTABLE: false
 END_CHILD
-ORIGINAL: we stayed outside.
-TRANSLATION: 我们还是待在外面。
+ORIGINAL: we calmly stayed together inside.
+TRANSLATION: 我们还是平静地一起待在室内。
 SPLITTABLE: false
 END_CHILD
 DONE`
@@ -339,22 +339,29 @@ DONE`
     expect(result.createdData).toHaveLength(0);
   });
 
-  test("marks the real prepositional-phrase example as unsplittable", async () => {
+  test("falls back to faithful rewriting when the sentence cannot be split directly", async () => {
     const original = "I want to thank the American people for the extraordinary honor of being elected your 47th president and your 45th president.";
     const result = await runStreamResponse({
       original,
       translated: "我想感谢美国人民赋予我这个非凡的荣誉，成为你们的第47任总统和第45任总统。",
-      response: `ANALYSIS: 后半部分是依赖主句的介词短语，不能独立朗读。
+      response: [`ANALYSIS: 后半部分是依赖主句的介词短语，不能独立朗读。
 RESULT: UNSPLITTABLE
-DONE`
+DONE`, `ANALYSIS: 保留原意并补充主语后改写为两个完整句子。
+RESULT: SPLIT
+ORIGINAL: I want to thank the American people for the extraordinary honor.
+TRANSLATION: 我想感谢美国人民赋予我这个非凡的荣誉。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: I was elected your 47th president and your 45th president.
+TRANSLATION: 我被选为你们的第47任总统和第45任总统。
+SPLITTABLE: false
+END_CHILD
+DONE`]
     });
-    expect(result.events.at(-1)).toEqual({
-      type: "unsplittable",
-      sentenceId: "019f0000-0000-7000-8000-000000000030"
-    });
-    expect(result.createdData).toHaveLength(0);
-    expect(result.updatedData.some((data) => data.splitStatus === "UNSPLITTABLE")).toBe(true);
-    expect(result.system).toContain("绝对不要再次输出输入的完整原句");
+    expect(result.events.some((event) => event.type === "retrying")).toBe(true);
+    expect(result.events.at(-1)?.type).toBe("committed");
+    expect(result.createdData).toHaveLength(2);
+    expect(result.prompt).toContain("原句无法在不改写的情况下产生两个有效短句");
   });
 
   test("rejects a response that repeats the parent before its children", async () => {
@@ -383,17 +390,17 @@ DONE`
 
   test("regenerates with the old result and error judgment before replacing children", async () => {
     const result = await runStreamResponse({
-      original: "First sentence. Second sentence.",
-      translated: "第一句。第二句。",
+      original: "First we carefully review every important detail. Then we clearly explain the final answer.",
+      translated: "首先我们认真检查每个重要细节。然后我们清楚解释最终答案。",
       regenerationFeedback: "旧结果重复了父句，第二段不能独立朗读。",
       response: `ANALYSIS: 修正旧结果。
 RESULT: SPLIT
-ORIGINAL: First sentence.
-TRANSLATION: 第一句。
+ORIGINAL: First we carefully review every important detail.
+TRANSLATION: 首先我们认真检查每个重要细节。
 SPLITTABLE: false
 END_CHILD
-ORIGINAL: Second sentence.
-TRANSLATION: 第二句。
+ORIGINAL: Then we clearly explain the final answer.
+TRANSLATION: 然后我们清楚解释最终答案。
 SPLITTABLE: false
 END_CHILD
 DONE`

@@ -770,23 +770,17 @@ const ArticlePage: React.FC = () => {
     }
     return (
       <span className={styles.splitControls}>
-      {(sentence.splitStatus === 'SPLITTABLE' || sentence.splitStatus === 'FAILED') && (
+      <Tooltip title="优先忠实切分，必要时自动调整表达并保留原意">
         <Button
           type="primary"
           size="small"
-          icon={<PlusOutlined />}
-          onClick={() => void startSentenceSplit(sentence)}
-        >切分句子</Button>
-      )}
-      <Tooltip title="允许调整表达，但保留核心单词和原意">
-        <Button
-          size="small"
-          className={styles.forceSplitButton}
           icon={<ThunderboltOutlined />}
-          onClick={() => void startSentenceSplit(sentence, {
-            force: { targetCount: 'auto', instruction: '' },
-          })}
-        >强制切分</Button>
+          onClick={() => sentence.splitStatus === 'SPLITTABLE'
+            ? void startSentenceSplit(sentence)
+            : void startSentenceSplit(sentence, {
+              force: { targetCount: 'auto', instruction: '' },
+            })}
+        >切分句子</Button>
       </Tooltip>
       </span>
     );
