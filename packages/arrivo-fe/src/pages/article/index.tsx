@@ -3,6 +3,7 @@ import { history, useLocation, useNavigate, useParams } from '@umijs/max';
 import { Button, Form, Input, message, Modal, Popconfirm, Select, Slider, Spin, Tag, Tooltip } from 'antd';
 import {
   ArrowDownOutlined,
+  AudioOutlined,
   ArrowLeftOutlined,
   ArrowUpOutlined,
   DeleteOutlined,
@@ -81,6 +82,9 @@ const ArticlePage: React.FC = () => {
   const [splitUiBySentence, setSplitUiBySentence] = useState<Record<string, SplitUiState>>({});
   const [regeneratingSentence, setRegeneratingSentence] = useState<SentenceNode | null>(null);
   const [regenerationFeedback, setRegenerationFeedback] = useState('');
+  const [regenerationFailure, setRegenerationFailure] = useState<SplitUiState['error']>();
+  const [listeningFeedback, setListeningFeedback] = useState(false);
+  const speechRecognitionRef = useRef<any>(null);
   const playbackSettingsRef = useRef(playbackSettings);
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -600,15 +604,56 @@ const ArticlePage: React.FC = () => {
 
   const submitRegeneration = useCallback(() => {
     const feedback = regenerationFeedback.trim();
-    if (!regeneratingSentence || !feedback) {
-      message.warning('请填写错误判断或修改建议');
+    if (!regeneratingSentence) return;
+    const sentence = regeneratingSentence;
+    const failure = regenerationFailure;
+    speechRecognitionRef.current?.stop();
+    setRegeneratingSentence(null);
+    setRegenerationFailure(undefined);
+    setRegenerationFeedback('');
+    if (failure) {
+      void startSentenceSplit(sentence, {
+        force: {
+          targetCount: 'auto',
+          instruction: feedback,
+          failedOutput: failure.failedOutput,
+          validationError: failure.validationError,
+        },
+      });
+    } else {
+      void startSentenceSplit(sentence, { feedback });
+    }
+  }, [regeneratingSentence, regenerationFailure, regenerationFeedback, startSentenceSplit]);
+
+  const toggleFeedbackSpeech = useCallback(() => {
+    if (listeningFeedback) {
+      speechRecognitionRef.current?.stop();
       return;
     }
-    const sentence = regeneratingSentence;
-    setRegeneratingSentence(null);
-    setRegenerationFeedback('');
-    void startSentenceSplit(sentence, { feedback });
-  }, [regeneratingSentence, regenerationFeedback, startSentenceSplit]);
+    const Recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!Recognition) return;
+    const recognition = new Recognition();
+    recognition.lang = 'zh-CN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onresult = (event: any) => {
+      const text = Array.from(event.results as any[])
+        .map((result: any) => result[0]?.transcript || '')
+        .join('');
+      setRegenerationFeedback(text.slice(0, 1000));
+    };
+    recognition.onend = () => {
+      speechRecognitionRef.current = null;
+      setListeningFeedback(false);
+    };
+    recognition.onerror = () => {
+      speechRecognitionRef.current = null;
+      setListeningFeedback(false);
+    };
+    speechRecognitionRef.current = recognition;
+    setListeningFeedback(true);
+    recognition.start();
+  }, [listeningFeedback]);
 
   const openCreateSentence = (insertIndex: number) => {
     if (!canEdit) return;
@@ -760,6 +805,7 @@ const ArticlePage: React.FC = () => {
               icon={<ReloadOutlined />}
               onClick={() => {
                 setRegeneratingSentence(sentence);
+                setRegenerationFailure(undefined);
                 setRegenerationFeedback('');
               }}
               aria-label="重新生成切分"
@@ -810,14 +856,11 @@ const ArticlePage: React.FC = () => {
               <Button
                 size="small"
                 type="primary"
-                onClick={() => void startSentenceSplit(sentence, {
-                  force: {
-                    targetCount: 'auto',
-                    instruction: '根据上一次校验错误修正结果。',
-                    failedOutput: state.error!.failedOutput,
-                    validationError: state.error!.validationError,
-                  },
-                })}
+                onClick={() => {
+                  setRegeneratingSentence(sentence);
+                  setRegenerationFailure(state.error);
+                  setRegenerationFeedback('');
+                }}
               >重新生成</Button>
               <Button
                 size="small"
@@ -956,22 +999,32 @@ const ArticlePage: React.FC = () => {
         title="纠错并重新生成"
         open={Boolean(regeneratingSentence)}
         onCancel={() => {
+          speechRecognitionRef.current?.stop();
           setRegeneratingSentence(null);
+          setRegenerationFailure(undefined);
           setRegenerationFeedback('');
         }}
         onOk={submitRegeneration}
-        okText="重新生成"
+        okText={regenerationFeedback.trim() ? '按建议重新生成' : '直接重新生成'}
         cancelText="取消"
       >
-        <p>请说明旧结果错在哪里。旧切分结果和你的判断会一起发给模型；新结果验证成功后才会替换旧子树。</p>
+        <p>可以直接重新生成，也可以补充修改建议。旧结果和已有校验错误会自动发送给模型。</p>
         <Input.TextArea
           value={regenerationFeedback}
           onChange={(event) => setRegenerationFeedback(event.target.value)}
-          placeholder="例如：第二段只是介词短语，不能独立朗读；不要重复完整原句。"
-          rows={5}
+          placeholder="选填：输入或使用语音说出修改建议"
+          rows={4}
           maxLength={1000}
           showCount
         />
+        {typeof window !== 'undefined' && Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
+          <Button
+            className={styles.feedbackSpeechButton}
+            icon={<AudioOutlined />}
+            type={listeningFeedback ? 'primary' : 'default'}
+            onClick={toggleFeedbackSpeech}
+          >{listeningFeedback ? '停止语音输入' : '语音输入'}</Button>
+        )}
       </Modal>
 
       <Modal

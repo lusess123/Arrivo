@@ -38,9 +38,9 @@ async function runStreamResponse({
       id: "019f0000-0000-7000-8000-000000000030",
       originalContent: original,
       translatedContent: translated,
-      splitStatus: regenerationFeedback ? "SPLIT" : forceSplit ? "UNSPLITTABLE" : "SPLITTABLE"
+      splitStatus: regenerationFeedback !== undefined ? "SPLIT" : forceSplit ? "UNSPLITTABLE" : "SPLITTABLE"
     }),
-    findMany: async () => regenerationFeedback ? [
+    findMany: async () => regenerationFeedback !== undefined ? [
       { originalContent: "Old first.", translatedContent: "旧第一句。", splitStatus: "UNSPLITTABLE" },
       { originalContent: "Old second.", translatedContent: "旧第二句。", splitStatus: "SPLITTABLE" }
     ] : [],
@@ -410,6 +410,28 @@ DONE`
     expect(result.prompt).toContain("错误判断：旧结果重复了父句，第二段不能独立朗读。");
     expect(result.deletedChildren).toBe(true);
     expect(result.createdData).toHaveLength(2);
+    expect(result.events.at(-1)?.type).toBe("committed");
+  });
+
+  test("allows regeneration without requiring a written suggestion", async () => {
+    const result = await runStreamResponse({
+      original: "First we carefully review every important detail. Then we clearly explain the final answer.",
+      translated: "首先我们认真检查每个重要细节。然后我们清楚解释最终答案。",
+      regenerationFeedback: "",
+      response: `ANALYSIS: 重新生成两个完整子句。
+RESULT: SPLIT
+ORIGINAL: First we carefully review every important detail.
+TRANSLATION: 首先我们认真检查每个重要细节。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: Then we clearly explain the final answer.
+TRANSLATION: 然后我们清楚解释最终答案。
+SPLITTABLE: false
+END_CHILD
+DONE`
+    });
+    expect(result.prompt).toContain("上一次错误结果");
+    expect(result.deletedChildren).toBe(true);
     expect(result.events.at(-1)?.type).toBe("committed");
   });
 

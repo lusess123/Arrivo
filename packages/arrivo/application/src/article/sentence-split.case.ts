@@ -158,7 +158,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
   });
   if (!sentence) throw httpError.notFound("句子不存在");
 
-  const isRegeneration = Boolean(input.regenerationFeedback);
+  const isRegeneration = input.regenerationFeedback !== undefined;
   const isForced = Boolean(input.forceSplit);
   if (isRegeneration && isForced) throw httpError.badRequest("不能同时纠错和强制切分");
   const previousChildren = isRegeneration

@@ -68,7 +68,7 @@ export const sentenceSplitBatchInputSchema = z.object({
 });
 
 export const sentenceRegenerateInputSchema = z.object({
-  feedback: z.string().trim().min(1).max(1000)
+  feedback: z.string().trim().max(1000).optional().default("")
 });
 
 export const sentenceForceSplitInputSchema = z.object({
