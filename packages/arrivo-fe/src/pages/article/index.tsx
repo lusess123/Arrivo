@@ -49,6 +49,7 @@ type SplitUiState = {
   analysis: string;
   temporaryChildren: Array<{ originalContent: string; translatedContent: string }>;
   loading: boolean;
+  error?: { message: string; failedOutput: string; validationError: string };
 };
 
 interface ArticleNavigationState {
@@ -412,7 +413,7 @@ const ArticlePage: React.FC = () => {
 
   const handleSplitEvent = useCallback((sentenceId: string, eventName: string, payload: any) => {
     if (eventName === 'started') {
-      updateSplitUi(sentenceId, (state) => ({ ...state, loading: true }));
+      updateSplitUi(sentenceId, (state) => ({ ...state, loading: true, error: undefined }));
       return;
     }
     if (eventName === 'retrying') {
@@ -521,14 +522,29 @@ const ArticlePage: React.FC = () => {
       return;
     }
     if (eventName === 'failed') {
-      updateSplitUi(sentenceId, (state) => ({ ...state, loading: false }));
-      message.error(payload.message || '句子切分失败');
+      updateSplitUi(sentenceId, (state) => ({
+        ...state,
+        loading: false,
+        error: {
+          message: payload.message || '句子切分失败',
+          failedOutput: payload.failedOutput || '',
+          validationError: payload.validationError || payload.message || '句子切分失败',
+        },
+      }));
     }
   }, [persistExpansion, updateSplitUi]);
 
   const startSentenceSplit = useCallback(async (
     sentence: SentenceNode,
-    options?: { feedback?: string; force?: { targetCount: 2 | 3 | 'auto'; instruction: string } },
+    options?: {
+      feedback?: string;
+      force?: {
+        targetCount: 2 | 3 | 'auto';
+        instruction: string;
+        failedOutput?: string;
+        validationError?: string;
+      };
+    },
   ) => {
     if (!id) return;
     if (!options && (sentence.children.length > 0 || sentence.splitStatus === 'SPLIT')) {
@@ -536,7 +552,7 @@ const ArticlePage: React.FC = () => {
       return;
     }
 
-    updateSplitUi(sentence.id, () => ({ analysis: '', temporaryChildren: [], loading: true }));
+    updateSplitUi(sentence.id, () => ({ analysis: '', temporaryChildren: [], loading: true, error: undefined }));
     try {
       const action = options?.feedback ? 'regenerate-stream' : options?.force ? 'force-split-stream' : 'split-stream';
       const response = await fetch(apiUrl(
@@ -548,7 +564,7 @@ const ArticlePage: React.FC = () => {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(options.feedback
             ? { feedback: options.feedback }
-            : { targetCount: options.force!.targetCount, instruction: options.force!.instruction }),
+            : options.force),
         } : {}),
       });
       if (!response.ok || !response.body) throw new Error(`句子切分请求失败 (${response.status})`);
@@ -569,8 +585,16 @@ const ArticlePage: React.FC = () => {
         }
       }
     } catch (error) {
-      updateSplitUi(sentence.id, (state) => ({ ...state, loading: false }));
-      message.error(error instanceof Error ? error.message : '句子切分失败');
+      const errorMessage = error instanceof Error ? error.message : '句子切分失败';
+      updateSplitUi(sentence.id, (state) => ({
+        ...state,
+        loading: false,
+        error: {
+          message: errorMessage,
+          failedOutput: JSON.stringify(state.temporaryChildren),
+          validationError: errorMessage,
+        },
+      }));
     }
   }, [expandedSentenceIds, handleSplitEvent, id, setSentenceExpanded, updateSplitUi]);
 
@@ -768,9 +792,10 @@ const ArticlePage: React.FC = () => {
     );
   };
 
-  const renderSplitProgress = (sentenceId: string) => {
+  const renderSplitProgress = (sentence: SentenceNode) => {
+    const sentenceId = sentence.id;
     const state = splitUiBySentence[sentenceId];
-    if (!state?.loading && !state?.analysis && !state?.temporaryChildren.length) return null;
+    if (!state?.loading && !state?.analysis && !state?.temporaryChildren.length && !state?.error) return null;
     return (
       <>
         {state.analysis && <div className={styles.splitAnalysis}>{state.analysis}</div>}
@@ -782,6 +807,31 @@ const ArticlePage: React.FC = () => {
                 <span>{child.translatedContent}</span>
               </div>
             ))}
+          </div>
+        )}
+        {state.error && (
+          <div className={styles.splitError} role="alert">
+            <span>{state.error.message}</span>
+            <div className={styles.splitErrorActions}>
+              <Button
+                size="small"
+                type="primary"
+                onClick={() => void startSentenceSplit(sentence, {
+                  force: {
+                    targetCount: 'auto',
+                    instruction: '根据上一次校验错误修正结果。',
+                    failedOutput: state.error!.failedOutput,
+                    validationError: state.error!.validationError,
+                  },
+                })}
+              >重新生成</Button>
+              <Button
+                size="small"
+                onClick={() => updateSplitUi(sentenceId, () => ({
+                  analysis: '', temporaryChildren: [], loading: false, error: undefined,
+                }))}
+              >清空结果</Button>
+            </div>
           </div>
         )}
       </>
@@ -902,7 +952,7 @@ const ArticlePage: React.FC = () => {
             depth={row.depth}
             playable={row.playable}
             auxiliaryControl={renderSplitControl(sentence, row.expanded)}
-            transientContent={renderSplitProgress(sentence.id)}
+            transientContent={renderSplitProgress(sentence)}
           />
           );
         })}

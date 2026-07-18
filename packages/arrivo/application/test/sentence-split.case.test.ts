@@ -20,7 +20,12 @@ async function runStreamResponse({
   response: string | string[];
   chunkSize?: number;
   regenerationFeedback?: string;
-  forceSplit?: { targetCount: 2 | 3 | "auto"; instruction?: string };
+  forceSplit?: {
+    targetCount: 2 | 3 | "auto";
+    instruction?: string;
+    failedOutput?: string;
+    validationError?: string;
+  };
 }) {
   let createdData: any[] = [];
   const updatedData: any[] = [];
@@ -405,7 +410,12 @@ DONE`
     const result = await runStreamResponse({
       original: "I want to thank the American people for the extraordinary honor they gave me.",
       translated: "我想感谢美国人民给予我的非凡荣誉。",
-      forceSplit: { targetCount: 2, instruction: "每句尽量简短" },
+      forceSplit: {
+        targetCount: 2,
+        instruction: "每句尽量简短",
+        failedOutput: "两个子句完全相同",
+        validationError: "强制切分生成了重复子句"
+      },
       response: `ANALYSIS: 补充代词后改写为两个完整句子。
 RESULT: SPLIT
 ORIGINAL: I want to thank the American people.
@@ -421,6 +431,8 @@ DONE`
     expect(result.system).toContain("允许调整语序、补充必要主语");
     expect(result.prompt).toContain("恰好 2 个完整短句");
     expect(result.prompt).toContain("额外要求：每句尽量简短");
+    expect(result.prompt).toContain("上一次错误输出：两个子句完全相同");
+    expect(result.prompt).toContain("上一次校验错误：强制切分生成了重复子句");
     expect(result.createdData).toHaveLength(2);
     expect(result.events.at(-1)?.type).toBe("committed");
   });

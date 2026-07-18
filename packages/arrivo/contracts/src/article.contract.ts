@@ -73,7 +73,9 @@ export const sentenceRegenerateInputSchema = z.object({
 
 export const sentenceForceSplitInputSchema = z.object({
   targetCount: z.union([z.literal(2), z.literal(3), z.literal("auto")]).default("auto"),
-  instruction: z.string().trim().max(1000).optional().default("")
+  instruction: z.string().trim().max(1000).optional().default(""),
+  failedOutput: z.string().max(12000).optional().default(""),
+  validationError: z.string().max(1000).optional().default("")
 });
 
 export type SentenceInput = z.infer<typeof sentenceInputSchema>;

@@ -14,7 +14,12 @@ type SplitDeps = {
   model: string;
   ai: AiGatewayTextClient;
   regenerationFeedback?: string;
-  forceSplit?: { targetCount: 2 | 3 | "auto"; instruction?: string };
+  forceSplit?: {
+    targetCount: 2 | 3 | "auto";
+    instruction?: string;
+    failedOutput?: string;
+    validationError?: string;
+  };
   retryCount?: number;
 };
 
@@ -31,7 +36,7 @@ export type SentenceSplitEvent =
   | { type: "child_completed"; index: number; child: SplitChild }
   | { type: "unsplittable"; sentenceId: string }
   | { type: "committed"; parentSentenceId: string; children: Array<SplitChild & { id: string; sortOrder: number }> }
-  | { type: "failed"; message: string };
+  | { type: "failed"; message: string; failedOutput: string; validationError: string };
 
 const systemPrompt = `你负责把英语学习文章中的长句切成更适合独立朗读的短句。
 先给出一句简短的结构分析摘要，再输出子句。不要输出详细思维过程。
@@ -86,7 +91,7 @@ function splitPrompt(
 
 function forcePrompt(originalContent: string, translatedContent: string, force: NonNullable<SplitDeps["forceSplit"]>) {
   const count = force.targetCount === "auto" ? "自动决定两个或多个" : `恰好 ${force.targetCount} 个`;
-  return `英文原句：${originalContent}\n中文释义：${translatedContent}\n请改写成${count}完整短句。${force.instruction ? `\n额外要求：${force.instruction}` : ""}`;
+  return `英文原句：${originalContent}\n中文释义：${translatedContent}\n请改写成${count}完整短句。${force.instruction ? `\n额外要求：${force.instruction}` : ""}${force.failedOutput ? `\n上一次错误输出：${force.failedOutput}` : ""}${force.validationError ? `\n上一次校验错误：${force.validationError}\n请修正该错误，不要重复上一次的问题。` : ""}`;
 }
 
 function normalizeComparable(text: string) {
@@ -184,6 +189,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
   let currentChild: Partial<SplitChild> | null = null;
   let splitResult: "SPLIT" | "UNSPLITTABLE" | null = null;
   let committed = false;
+  let rawOutput = "";
 
   function completeCurrentChild() {
     if (
@@ -218,6 +224,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
         } : undefined
       )
     })) {
+      rawOutput += chunk;
       buffer += chunk;
       let newlineIndex = buffer.indexOf("\n");
       while (newlineIndex >= 0) {
@@ -405,7 +412,12 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
       });
       return;
     }
-    yield { type: "failed", message };
+    yield {
+      type: "failed",
+      message,
+      failedOutput: rawOutput.slice(-12000),
+      validationError: message
+    };
   } finally {
     if (!committed) {
       await db.sentences.updateMany({
