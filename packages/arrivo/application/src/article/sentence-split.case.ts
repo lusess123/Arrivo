@@ -15,12 +15,14 @@ type SplitDeps = {
   ai: AiGatewayTextClient;
   regenerationFeedback?: string;
   forceSplit?: { targetCount: 2 | 3 | "auto"; instruction?: string };
+  retryCount?: number;
 };
 
 type SplitChild = { originalContent: string; translatedContent: string; splittable: boolean };
 
 export type SentenceSplitEvent =
   | { type: "started"; sentenceId: string }
+  | { type: "retrying"; message: string }
   | { type: "analysis_delta"; text: string }
   | { type: "analysis_completed" }
   | { type: "child_started"; index: number }
@@ -57,6 +59,7 @@ splittable 只有在拆分后的每一部分都能脱离上下文独立理解和
 const forceSystemPrompt = `你负责把英语学习文章中的长句改写成更适合独立朗读的多个短句。
 先输出一句简短结构摘要，再只输出改写后的子句。不要输出详细思维过程。
 允许调整语序、补充必要主语和连接方式，但核心单词、人物、数字、事实、语气和完整含义必须保持不变，不得增加新事实。
+所有子句必须表达不同的内容，禁止输出两个相同或仅大小写、空格、标点不同的英文或中文子句。
 每个英文子句都必须语法完整、可脱离其他子句独立理解和朗读；中文必须逐句对应。
 SPLITTABLE 必须按“不改写原文、只在原有边界切分”的普通标准判断；只有还能产生至少两个完整子句时才为 true，不能依赖再次改写。
 严格逐行输出：
@@ -104,6 +107,11 @@ export function validateForcedChildren(original: string, children: SplitChild[],
   if (targetCount !== "auto" && children.length !== targetCount) throw new Error(`强制切分必须生成 ${targetCount} 个子句`);
   if (children.some((child) => !child.originalContent.trim() || !child.translatedContent.trim())) {
     throw new Error("子句的英文和中文不能为空");
+  }
+  const normalizedOriginals = children.map((child) => normalizeComparable(child.originalContent));
+  const normalizedTranslations = children.map((child) => normalizeComparable(child.translatedContent));
+  if (new Set(normalizedOriginals).size !== children.length || new Set(normalizedTranslations).size !== children.length) {
+    throw new Error("强制切分生成了重复子句");
   }
   const sourceTokens = original.toLocaleLowerCase().match(/[a-z]+|\d+/g) || [];
   const outputTokens = new Set(children.flatMap((child) => child.originalContent.toLocaleLowerCase().match(/[a-z]+|\d+/g) || []));
@@ -372,6 +380,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
       }))
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "句子切分失败";
     await db.sentences.updateMany({
       where: { id: sentence.id, splitStatus: "SPLITTING", ...activeRecordWhere(tenantId) },
       data: {
@@ -382,7 +391,20 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
         ...updateRecordBase({ userId: input.userId })
       }
     });
-    const message = error instanceof Error ? error.message : "句子切分失败";
+    if (isForced && message.includes("重复子句") && (input.retryCount ?? 0) < 1) {
+      yield { type: "retrying", message: "检测到重复子句，正在自动重新生成" };
+      yield* streamSentenceSplit({
+        ...input,
+        retryCount: (input.retryCount ?? 0) + 1,
+        forceSplit: {
+          ...input.forceSplit!,
+          instruction: [input.forceSplit?.instruction, "上一次结果包含重复子句。每个子句必须表达不同内容，禁止重复。"]
+            .filter(Boolean)
+            .join("\n")
+        }
+      });
+      return;
+    }
     yield { type: "failed", message };
   } finally {
     if (!committed) {

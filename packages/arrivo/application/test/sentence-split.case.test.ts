@@ -17,7 +17,7 @@ async function runStreamResponse({
 }: {
   original: string;
   translated?: string;
-  response: string;
+  response: string | string[];
   chunkSize?: number;
   regenerationFeedback?: string;
   forceSplit?: { targetCount: 2 | 3 | "auto"; instruction?: string };
@@ -27,6 +27,7 @@ async function runStreamResponse({
   let system = "";
   let prompt = "";
   let deletedChildren = false;
+  let streamCall = 0;
   const sentences = {
     findFirst: async () => ({
       id: "019f0000-0000-7000-8000-000000000030",
@@ -61,7 +62,8 @@ async function runStreamResponse({
     async *streamText(input: { system: string; prompt: string }) {
       system = input.system;
       prompt = input.prompt;
-      for (let index = 0; index < response.length; index += chunkSize) yield response.slice(index, index + chunkSize);
+      const currentResponse = Array.isArray(response) ? response[Math.min(streamCall++, response.length - 1)] : response;
+      for (let index = 0; index < currentResponse.length; index += chunkSize) yield currentResponse.slice(index, index + chunkSize);
     }
   };
   const events = await withDb(mockDb, async () => {
@@ -139,6 +141,14 @@ describe("sentence split validation", () => {
     )).not.toThrow();
     expect(() => validateForcedChildren("One long sentence with important meaning.", children, 3))
       .toThrow("必须生成 3 个子句");
+    expect(() => validateForcedChildren(
+      "Thank the American people twice.",
+      [
+        { originalContent: "Thank the American people.", translatedContent: "感谢美国人民。", splittable: false },
+        { originalContent: "THANK the American people!", translatedContent: "感谢美国人民！", splittable: false }
+      ],
+      2
+    )).toThrow("重复子句");
   });
 
   test("streams child text deltas and commits child split decisions", async () => {
@@ -413,5 +423,42 @@ DONE`
     expect(result.prompt).toContain("额外要求：每句尽量简短");
     expect(result.createdData).toHaveLength(2);
     expect(result.events.at(-1)?.type).toBe("committed");
+  });
+
+  test("automatically retries once when forced splitting returns duplicate children", async () => {
+    const duplicate = `ANALYSIS: 错误结果。
+RESULT: SPLIT
+ORIGINAL: We keep the important meaning.
+TRANSLATION: 我们保留重要含义。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: We keep the important meaning!
+TRANSLATION: 我们保留重要含义！
+SPLITTABLE: false
+END_CHILD
+DONE`;
+    const corrected = `ANALYSIS: 修正重复结果。
+RESULT: SPLIT
+ORIGINAL: We keep the important meaning.
+TRANSLATION: 我们保留重要含义。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: The sentence becomes easier to read.
+TRANSLATION: 这个句子变得更容易朗读。
+SPLITTABLE: false
+END_CHILD
+DONE`;
+    const result = await runStreamResponse({
+      original: "We keep the important meaning and the sentence becomes easier to read.",
+      translated: "我们保留重要含义，并让句子更容易朗读。",
+      forceSplit: { targetCount: "auto" },
+      response: [duplicate, corrected]
+    });
+    expect(result.events.some((event) => event.type === "retrying")).toBe(true);
+    expect(result.events.at(-1)?.type).toBe("committed");
+    expect(result.createdData.map((item) => item.originalContent)).toEqual([
+      "We keep the important meaning.",
+      "The sentence becomes easier to read."
+    ]);
   });
 });

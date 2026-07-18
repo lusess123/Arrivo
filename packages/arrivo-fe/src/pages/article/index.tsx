@@ -80,9 +80,6 @@ const ArticlePage: React.FC = () => {
   const [splitUiBySentence, setSplitUiBySentence] = useState<Record<string, SplitUiState>>({});
   const [regeneratingSentence, setRegeneratingSentence] = useState<SentenceNode | null>(null);
   const [regenerationFeedback, setRegenerationFeedback] = useState('');
-  const [forceSplittingSentence, setForceSplittingSentence] = useState<SentenceNode | null>(null);
-  const [forceSplitCount, setForceSplitCount] = useState<2 | 3 | 'auto'>('auto');
-  const [forceSplitInstruction, setForceSplitInstruction] = useState('');
   const playbackSettingsRef = useRef(playbackSettings);
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -418,6 +415,11 @@ const ArticlePage: React.FC = () => {
       updateSplitUi(sentenceId, (state) => ({ ...state, loading: true }));
       return;
     }
+    if (eventName === 'retrying') {
+      updateSplitUi(sentenceId, () => ({ analysis: '', temporaryChildren: [], loading: true }));
+      message.info(payload.message || '结果不合格，正在自动重新生成');
+      return;
+    }
     if (eventName === 'analysis_delta') {
       updateSplitUi(sentenceId, (state) => ({ ...state, analysis: state.analysis + (payload.text || '') }));
       return;
@@ -583,15 +585,6 @@ const ArticlePage: React.FC = () => {
     setRegenerationFeedback('');
     void startSentenceSplit(sentence, { feedback });
   }, [regeneratingSentence, regenerationFeedback, startSentenceSplit]);
-
-  const submitForceSplit = useCallback(() => {
-    if (!forceSplittingSentence) return;
-    const sentence = forceSplittingSentence;
-    const force = { targetCount: forceSplitCount, instruction: forceSplitInstruction.trim() };
-    setForceSplittingSentence(null);
-    setForceSplitInstruction('');
-    void startSentenceSplit(sentence, { force });
-  }, [forceSplitCount, forceSplitInstruction, forceSplittingSentence, startSentenceSplit]);
 
   const openCreateSentence = (insertIndex: number) => {
     if (!canEdit) return;
@@ -766,11 +759,9 @@ const ArticlePage: React.FC = () => {
           size="small"
           className={styles.forceSplitButton}
           icon={<ThunderboltOutlined />}
-          onClick={() => {
-            setForceSplittingSentence(sentence);
-            setForceSplitCount('auto');
-            setForceSplitInstruction('');
-          }}
+          onClick={() => void startSentenceSplit(sentence, {
+            force: { targetCount: 'auto', instruction: '' },
+          })}
         >强制切分</Button>
       </Tooltip>
       </span>
@@ -916,38 +907,6 @@ const ArticlePage: React.FC = () => {
           );
         })}
       </div>
-
-      <Modal
-        title="强制切分"
-        open={Boolean(forceSplittingSentence)}
-        onCancel={() => {
-          setForceSplittingSentence(null);
-          setForceSplitInstruction('');
-        }}
-        onOk={submitForceSplit}
-        okText="开始强制切分"
-        cancelText="取消"
-      >
-        <p>允许适度调整语序、补充主语和连接方式，但会保留核心单词、事实和原意。</p>
-        <Select
-          value={forceSplitCount}
-          onChange={setForceSplitCount}
-          style={{ width: '100%', marginBottom: 12 }}
-          options={[
-            { value: 'auto', label: '自动决定句数' },
-            { value: 2, label: '生成 2 句' },
-            { value: 3, label: '生成 3 句' },
-          ]}
-        />
-        <Input.TextArea
-          value={forceSplitInstruction}
-          onChange={(event) => setForceSplitInstruction(event.target.value)}
-          placeholder="可选：填写额外要求"
-          rows={3}
-          maxLength={1000}
-          showCount
-        />
-      </Modal>
 
       <Modal
         title="纠错并重新生成"
