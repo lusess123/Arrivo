@@ -11,26 +11,42 @@ async function runStreamResponse({
   original,
   translated = "译文一。译文二。",
   response,
-  chunkSize = 1
+  chunkSize = 1,
+  regenerationFeedback
 }: {
   original: string;
   translated?: string;
   response: string;
   chunkSize?: number;
+  regenerationFeedback?: string;
 }) {
   let createdData: any[] = [];
+  const updatedData: any[] = [];
   let system = "";
+  let prompt = "";
+  let deletedChildren = false;
   const sentences = {
     findFirst: async () => ({
       id: "019f0000-0000-7000-8000-000000000030",
       originalContent: original,
       translatedContent: translated,
-      splitStatus: "SPLITTABLE"
+      splitStatus: regenerationFeedback ? "SPLIT" : "SPLITTABLE"
     }),
-    updateMany: async () => ({ count: 1 }),
+    findMany: async () => regenerationFeedback ? [
+      { originalContent: "Old first.", translatedContent: "旧第一句。", splitStatus: "UNSPLITTABLE" },
+      { originalContent: "Old second.", translatedContent: "旧第二句。", splitStatus: "SPLITTABLE" }
+    ] : [],
+    updateMany: async ({ data }: any) => {
+      updatedData.push(data);
+      return { count: 1 };
+    },
     createMany: async ({ data }: any) => {
       createdData = data;
       return { count: data.length };
+    },
+    deleteMany: async () => {
+      deletedChildren = true;
+      return { count: 2 };
     },
     update: async () => ({})
   };
@@ -40,8 +56,9 @@ async function runStreamResponse({
   } as Partial<ArrivoDb>;
   const ai = {
     generateText: async () => "",
-    async *streamText(input: { system: string }) {
+    async *streamText(input: { system: string; prompt: string }) {
       system = input.system;
+      prompt = input.prompt;
       for (let index = 0; index < response.length; index += chunkSize) yield response.slice(index, index + chunkSize);
     }
   };
@@ -53,11 +70,12 @@ async function runStreamResponse({
       articleId: "019f0000-0000-7000-8000-000000000002",
       sentenceId: "019f0000-0000-7000-8000-000000000030",
       model: "deepseek-chat",
-      ai
+      ai,
+      regenerationFeedback
     })) collected.push(event);
     return collected;
   });
-  return { events, createdData, system };
+  return { events, createdData, updatedData, deletedChildren, system, prompt };
 }
 
 describe("sentence split validation", () => {
@@ -287,5 +305,72 @@ DONE`
     });
     expect(result.events.at(-1)).toMatchObject({ type: "failed", message: "LLM 返回了不完整的子句" });
     expect(result.createdData).toHaveLength(0);
+  });
+
+  test("marks the real prepositional-phrase example as unsplittable", async () => {
+    const original = "I want to thank the American people for the extraordinary honor of being elected your 47th president and your 45th president.";
+    const result = await runStreamResponse({
+      original,
+      translated: "我想感谢美国人民赋予我这个非凡的荣誉，成为你们的第47任总统和第45任总统。",
+      response: `ANALYSIS: 后半部分是依赖主句的介词短语，不能独立朗读。
+RESULT: UNSPLITTABLE
+DONE`
+    });
+    expect(result.events.at(-1)).toEqual({
+      type: "unsplittable",
+      sentenceId: "019f0000-0000-7000-8000-000000000030"
+    });
+    expect(result.createdData).toHaveLength(0);
+    expect(result.updatedData.some((data) => data.splitStatus === "UNSPLITTABLE")).toBe(true);
+    expect(result.system).toContain("绝对不要再次输出输入的完整原句");
+  });
+
+  test("rejects a response that repeats the parent before its children", async () => {
+    const original = "I want to thank the American people for the extraordinary honor of being elected your 47th president and your 45th president.";
+    const result = await runStreamResponse({
+      original,
+      response: `ANALYSIS: 错误地同时输出父句和子句。
+RESULT: SPLIT
+ORIGINAL: ${original}
+TRANSLATION: 完整父句。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: I want to thank the American people.
+TRANSLATION: 我想感谢美国人民。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: For the extraordinary honor of being elected your 47th president and your 45th president.
+TRANSLATION: 为了这个非凡的荣誉。
+SPLITTABLE: false
+END_CHILD
+DONE`
+    });
+    expect(result.events.at(-1)).toMatchObject({ type: "failed", message: "切分结果遗漏或改写了英文原句" });
+    expect(result.createdData).toHaveLength(0);
+  });
+
+  test("regenerates with the old result and error judgment before replacing children", async () => {
+    const result = await runStreamResponse({
+      original: "First sentence. Second sentence.",
+      translated: "第一句。第二句。",
+      regenerationFeedback: "旧结果重复了父句，第二段不能独立朗读。",
+      response: `ANALYSIS: 修正旧结果。
+RESULT: SPLIT
+ORIGINAL: First sentence.
+TRANSLATION: 第一句。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: Second sentence.
+TRANSLATION: 第二句。
+SPLITTABLE: false
+END_CHILD
+DONE`
+    });
+    expect(result.prompt).toContain("上一次错误结果");
+    expect(result.prompt).toContain("Old first.");
+    expect(result.prompt).toContain("错误判断：旧结果重复了父句，第二段不能独立朗读。");
+    expect(result.deletedChildren).toBe(true);
+    expect(result.createdData).toHaveLength(2);
+    expect(result.events.at(-1)?.type).toBe("committed");
   });
 });
