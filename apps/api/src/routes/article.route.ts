@@ -39,11 +39,11 @@ function route(prefix: string, path: string) {
 }
 
 function getSentenceSplitAi(c: { env: AppEnv["Bindings"] }) {
-  const apiKey = c.env.AI_GATEWAY_API_KEY?.trim();
+  const gatewayToken = (c.env.AI_GATEWAY_AUTH_TOKEN || c.env.AI_GATEWAY_API_KEY)?.trim();
   const baseUrl = c.env.AI_GATEWAY_BASE_URL?.trim();
-  const model = c.env.SENTENCE_SPLIT_MODEL?.trim() || "deepseek/deepseek-v4-pro";
-  if (!apiKey || !baseUrl) throw httpError.internal("句子切分 AI 尚未配置");
-  return { model, ai: createAiGatewayTextClient({ apiKey, baseUrl, model }) };
+  const model = c.env.SENTENCE_SPLIT_MODEL?.trim() || "deepseek-chat";
+  if (!gatewayToken || !baseUrl) throw httpError.internal("句子切分 AI 尚未配置");
+  return { model, ai: createAiGatewayTextClient({ gatewayToken, baseUrl, model }) };
 }
 
 export function registerArticleRoutes(app: Hono<AppEnv>, prefix = "") {

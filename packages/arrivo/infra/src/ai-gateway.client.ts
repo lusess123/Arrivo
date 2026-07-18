@@ -4,7 +4,7 @@ export type AiGatewayTextClient = {
 };
 
 type AiGatewayConfig = {
-  apiKey: string;
+  gatewayToken: string;
   baseUrl: string;
   model: string;
   timeoutMs?: number;
@@ -19,7 +19,7 @@ export function createAiGatewayTextClient(config: AiGatewayConfig): AiGatewayTex
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${config.apiKey}`,
+        "cf-aig-authorization": `Bearer ${config.gatewayToken}`,
         "content-type": "application/json"
       },
       body: JSON.stringify({

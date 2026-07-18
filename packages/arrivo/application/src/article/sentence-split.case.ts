@@ -287,7 +287,7 @@ export async function analyzeSentenceBatch({
   let splittable = 0;
   let unsplittable = 0;
   let failed = 0;
-  for (const sentence of sentences) {
+  await Promise.all(sentences.map(async (sentence) => {
     try {
       const result = await ai.generateText({
         system: "判断句子能否拆成至少两个仍然语义完整、适合独立朗读的片段。只回答 SPLITTABLE 或 UNSPLITTABLE。",
@@ -308,7 +308,7 @@ export async function analyzeSentenceBatch({
       failed += 1;
       await db.sentences.update({ where: { id: sentence.id }, data: { splitStatus: "FAILED" } });
     }
-  }
+  }));
   const remaining = await db.sentences.count({
     where: { splitStatus: { in: statuses }, ...activeRecordWhere(tenantId) }
   });
