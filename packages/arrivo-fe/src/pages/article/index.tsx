@@ -13,8 +13,8 @@ import {
   SettingOutlined,
   DownOutlined,
   RightOutlined,
-  LoadingOutlined,
   ReloadOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import styles from './index.module.less';
 import { asyncHandle } from '@/lib';
@@ -80,6 +80,9 @@ const ArticlePage: React.FC = () => {
   const [splitUiBySentence, setSplitUiBySentence] = useState<Record<string, SplitUiState>>({});
   const [regeneratingSentence, setRegeneratingSentence] = useState<SentenceNode | null>(null);
   const [regenerationFeedback, setRegenerationFeedback] = useState('');
+  const [forceSplittingSentence, setForceSplittingSentence] = useState<SentenceNode | null>(null);
+  const [forceSplitCount, setForceSplitCount] = useState<2 | 3 | 'auto'>('auto');
+  const [forceSplitInstruction, setForceSplitInstruction] = useState('');
   const playbackSettingsRef = useRef(playbackSettings);
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -453,15 +456,65 @@ const ArticlePage: React.FC = () => {
       return;
     }
     if (eventName === 'committed') {
+      setSentences((current) => {
+        const descendants = new Set<string>();
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const item of current) {
+            if (item.parentSentenceId === sentenceId || (item.parentSentenceId && descendants.has(item.parentSentenceId))) {
+              if (!descendants.has(item.id)) {
+                descendants.add(item.id);
+                changed = true;
+              }
+            }
+          }
+        }
+        const retained = current
+          .filter((item) => !descendants.has(item.id))
+          .map((item) => item.id === sentenceId ? { ...item, splitStatus: 'SPLIT' as SentenceSplitStatus } : item);
+        const children: Sentence[] = (payload.children || []).map((child: any) => ({
+          id: child.id,
+          originalContent: child.originalContent || '',
+          translatedContent: child.translatedContent || '',
+          parentSentenceId: sentenceId,
+          sortOrder: child.sortOrder,
+          splitStatus: (child.splittable ? 'SPLITTABLE' : 'UNSPLITTABLE') as SentenceSplitStatus,
+        }));
+        return [...retained, ...children];
+      });
       setExpandedSentenceIds((current) => new Set(current).add(sentenceId));
       void persistExpansion(sentenceId, true);
       updateSplitUi(sentenceId, () => ({ analysis: '', temporaryChildren: [], loading: false }));
-      void fetchArticle();
       return;
     }
     if (eventName === 'unsplittable') {
+      setSentences((current) => {
+        const descendants = new Set<string>();
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const item of current) {
+            if (item.parentSentenceId === sentenceId || (item.parentSentenceId && descendants.has(item.parentSentenceId))) {
+              if (!descendants.has(item.id)) {
+                descendants.add(item.id);
+                changed = true;
+              }
+            }
+          }
+        }
+        return current
+          .filter((item) => !descendants.has(item.id))
+          .map((item) => item.id === sentenceId
+            ? { ...item, splitStatus: 'UNSPLITTABLE' as SentenceSplitStatus }
+            : item);
+      });
+      setExpandedSentenceIds((current) => {
+        const next = new Set(current);
+        next.delete(sentenceId);
+        return next;
+      });
       updateSplitUi(sentenceId, () => ({ analysis: '', temporaryChildren: [], loading: false }));
-      void fetchArticle();
       message.info('这个句子已经不适合继续切分');
       return;
     }
@@ -469,26 +522,31 @@ const ArticlePage: React.FC = () => {
       updateSplitUi(sentenceId, (state) => ({ ...state, loading: false }));
       message.error(payload.message || '句子切分失败');
     }
-  }, [fetchArticle, persistExpansion, updateSplitUi]);
+  }, [persistExpansion, updateSplitUi]);
 
-  const startSentenceSplit = useCallback(async (sentence: SentenceNode, feedback?: string) => {
+  const startSentenceSplit = useCallback(async (
+    sentence: SentenceNode,
+    options?: { feedback?: string; force?: { targetCount: 2 | 3 | 'auto'; instruction: string } },
+  ) => {
     if (!id) return;
-    if (!feedback && (sentence.children.length > 0 || sentence.splitStatus === 'SPLIT')) {
+    if (!options && (sentence.children.length > 0 || sentence.splitStatus === 'SPLIT')) {
       setSentenceExpanded(sentence.id, !expandedSentenceIds.has(sentence.id));
       return;
     }
 
     updateSplitUi(sentence.id, () => ({ analysis: '', temporaryChildren: [], loading: true }));
     try {
-      const action = feedback ? 'regenerate-stream' : 'split-stream';
+      const action = options?.feedback ? 'regenerate-stream' : options?.force ? 'force-split-stream' : 'split-stream';
       const response = await fetch(apiUrl(
         `/api/articles/${encodeURIComponent(id)}/sentences/${encodeURIComponent(sentence.id)}/${action}`,
       ), {
         method: 'POST',
         credentials: 'include',
-        ...(feedback ? {
+        ...(options ? {
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ feedback }),
+          body: JSON.stringify(options.feedback
+            ? { feedback: options.feedback }
+            : { targetCount: options.force!.targetCount, instruction: options.force!.instruction }),
         } : {}),
       });
       if (!response.ok || !response.body) throw new Error(`句子切分请求失败 (${response.status})`);
@@ -523,8 +581,17 @@ const ArticlePage: React.FC = () => {
     const sentence = regeneratingSentence;
     setRegeneratingSentence(null);
     setRegenerationFeedback('');
-    void startSentenceSplit(sentence, feedback);
+    void startSentenceSplit(sentence, { feedback });
   }, [regeneratingSentence, regenerationFeedback, startSentenceSplit]);
+
+  const submitForceSplit = useCallback(() => {
+    if (!forceSplittingSentence) return;
+    const sentence = forceSplittingSentence;
+    const force = { targetCount: forceSplitCount, instruction: forceSplitInstruction.trim() };
+    setForceSplittingSentence(null);
+    setForceSplitInstruction('');
+    void startSentenceSplit(sentence, { force });
+  }, [forceSplitCount, forceSplitInstruction, forceSplittingSentence, startSentenceSplit]);
 
   const openCreateSentence = (insertIndex: number) => {
     if (!canEdit) return;
@@ -653,7 +720,11 @@ const ArticlePage: React.FC = () => {
   const renderSplitControl = (sentence: SentenceNode, expanded: boolean) => {
     const ui = splitUiBySentence[sentence.id];
     if (ui?.loading || sentence.splitStatus === 'SPLITTING') {
-      return <LoadingOutlined aria-label="正在切分" />;
+      return (
+        <span className={styles.splitControls}>
+          <Button size="small" loading disabled>正在生成</Button>
+        </span>
+      );
     }
     if (sentence.children.length > 0 || sentence.splitStatus === 'SPLIT') {
       return (
@@ -680,16 +751,29 @@ const ArticlePage: React.FC = () => {
         </span>
       );
     }
-    if (sentence.splitStatus !== 'SPLITTABLE' && sentence.splitStatus !== 'FAILED') return null;
     return (
-      <Tooltip title={sentence.splitStatus === 'FAILED' ? '重试继续切分' : '继续切分'}>
+      <span className={styles.splitControls}>
+      {(sentence.splitStatus === 'SPLITTABLE' || sentence.splitStatus === 'FAILED') && (
         <Button
-          type="text"
+          type="primary"
+          size="small"
           icon={<PlusOutlined />}
           onClick={() => void startSentenceSplit(sentence)}
-          aria-label="继续切分"
-        />
+        >切分句子</Button>
+      )}
+      <Tooltip title="允许调整表达，但保留核心单词和原意">
+        <Button
+          size="small"
+          className={styles.forceSplitButton}
+          icon={<ThunderboltOutlined />}
+          onClick={() => {
+            setForceSplittingSentence(sentence);
+            setForceSplitCount('auto');
+            setForceSplitInstruction('');
+          }}
+        >强制切分</Button>
       </Tooltip>
+      </span>
     );
   };
 
@@ -832,6 +916,38 @@ const ArticlePage: React.FC = () => {
           );
         })}
       </div>
+
+      <Modal
+        title="强制切分"
+        open={Boolean(forceSplittingSentence)}
+        onCancel={() => {
+          setForceSplittingSentence(null);
+          setForceSplitInstruction('');
+        }}
+        onOk={submitForceSplit}
+        okText="开始强制切分"
+        cancelText="取消"
+      >
+        <p>允许适度调整语序、补充主语和连接方式，但会保留核心单词、事实和原意。</p>
+        <Select
+          value={forceSplitCount}
+          onChange={setForceSplitCount}
+          style={{ width: '100%', marginBottom: 12 }}
+          options={[
+            { value: 'auto', label: '自动决定句数' },
+            { value: 2, label: '生成 2 句' },
+            { value: 3, label: '生成 3 句' },
+          ]}
+        />
+        <Input.TextArea
+          value={forceSplitInstruction}
+          onChange={(event) => setForceSplitInstruction(event.target.value)}
+          placeholder="可选：填写额外要求"
+          rows={3}
+          maxLength={1000}
+          showCount
+        />
+      </Modal>
 
       <Modal
         title="纠错并重新生成"

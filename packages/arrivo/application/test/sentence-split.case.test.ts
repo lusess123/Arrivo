@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ArrivoDb } from "@arrivo/db";
 import { runWithDbClientFactory } from "../src/runtime/db";
-import { parseBatchSplitDecisions, streamSentenceSplit, validateSplitChildren } from "../src/article/sentence-split.case";
+import { parseBatchSplitDecisions, streamSentenceSplit, validateForcedChildren, validateSplitChildren } from "../src/article/sentence-split.case";
 
 function withDb<T>(mockDb: Partial<ArrivoDb>, run: () => T) {
   return runWithDbClientFactory({ createDb: () => mockDb as ArrivoDb, run });
@@ -12,13 +12,15 @@ async function runStreamResponse({
   translated = "译文一。译文二。",
   response,
   chunkSize = 1,
-  regenerationFeedback
+  regenerationFeedback,
+  forceSplit
 }: {
   original: string;
   translated?: string;
   response: string;
   chunkSize?: number;
   regenerationFeedback?: string;
+  forceSplit?: { targetCount: 2 | 3 | "auto"; instruction?: string };
 }) {
   let createdData: any[] = [];
   const updatedData: any[] = [];
@@ -30,7 +32,7 @@ async function runStreamResponse({
       id: "019f0000-0000-7000-8000-000000000030",
       originalContent: original,
       translatedContent: translated,
-      splitStatus: regenerationFeedback ? "SPLIT" : "SPLITTABLE"
+      splitStatus: regenerationFeedback ? "SPLIT" : forceSplit ? "UNSPLITTABLE" : "SPLITTABLE"
     }),
     findMany: async () => regenerationFeedback ? [
       { originalContent: "Old first.", translatedContent: "旧第一句。", splitStatus: "UNSPLITTABLE" },
@@ -71,7 +73,8 @@ async function runStreamResponse({
       sentenceId: "019f0000-0000-7000-8000-000000000030",
       model: "deepseek-chat",
       ai,
-      regenerationFeedback
+      regenerationFeedback,
+      forceSplit
     })) collected.push(event);
     return collected;
   });
@@ -122,6 +125,20 @@ describe("sentence split validation", () => {
       "One sentence.",
       [{ originalContent: "One sentence.", translatedContent: "一句话。", splittable: false }]
     )).toThrow("至少需要两个子句");
+  });
+
+  test("allows a faithful rewrite for forced splitting and enforces the requested count", () => {
+    const children = [
+      { originalContent: "I want to thank the American people.", translatedContent: "我想感谢美国人民。", splittable: false },
+      { originalContent: "They gave me the extraordinary honor of electing me as your 47th and 45th president.", translatedContent: "他们给予我非凡的荣誉，选举我为你们的第47任和第45任总统。", splittable: false }
+    ];
+    expect(() => validateForcedChildren(
+      "I want to thank the American people for the extraordinary honor of being elected your 47th president and your 45th president.",
+      children,
+      2
+    )).not.toThrow();
+    expect(() => validateForcedChildren("One long sentence with important meaning.", children, 3))
+      .toThrow("必须生成 3 个子句");
   });
 
   test("streams child text deltas and commits child split decisions", async () => {
@@ -370,6 +387,30 @@ DONE`
     expect(result.prompt).toContain("Old first.");
     expect(result.prompt).toContain("错误判断：旧结果重复了父句，第二段不能独立朗读。");
     expect(result.deletedChildren).toBe(true);
+    expect(result.createdData).toHaveLength(2);
+    expect(result.events.at(-1)?.type).toBe("committed");
+  });
+
+  test("force splits an unsplittable sentence with a separate rewrite prompt", async () => {
+    const result = await runStreamResponse({
+      original: "I want to thank the American people for the extraordinary honor they gave me.",
+      translated: "我想感谢美国人民给予我的非凡荣誉。",
+      forceSplit: { targetCount: 2, instruction: "每句尽量简短" },
+      response: `ANALYSIS: 补充代词后改写为两个完整句子。
+RESULT: SPLIT
+ORIGINAL: I want to thank the American people.
+TRANSLATION: 我想感谢美国人民。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: They gave me an extraordinary honor.
+TRANSLATION: 他们给予了我非凡的荣誉。
+SPLITTABLE: false
+END_CHILD
+DONE`
+    });
+    expect(result.system).toContain("允许调整语序、补充必要主语");
+    expect(result.prompt).toContain("恰好 2 个完整短句");
+    expect(result.prompt).toContain("额外要求：每句尽量简短");
     expect(result.createdData).toHaveLength(2);
     expect(result.events.at(-1)?.type).toBe("committed");
   });

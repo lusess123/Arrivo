@@ -71,6 +71,11 @@ export const sentenceRegenerateInputSchema = z.object({
   feedback: z.string().trim().min(1).max(1000)
 });
 
+export const sentenceForceSplitInputSchema = z.object({
+  targetCount: z.union([z.literal(2), z.literal(3), z.literal("auto")]).default("auto"),
+  instruction: z.string().trim().max(1000).optional().default("")
+});
+
 export type SentenceInput = z.infer<typeof sentenceInputSchema>;
 export type CreateArticleInput = z.infer<typeof createArticleInputSchema>;
 export type ArticleDetailQuery = z.infer<typeof articleDetailQuerySchema>;
@@ -84,6 +89,7 @@ export type MoveSentenceInput = z.infer<typeof moveSentenceInputSchema>;
 export type SentenceSplitParam = z.infer<typeof sentenceSplitParamSchema>;
 export type SentenceSplitBatchInput = z.infer<typeof sentenceSplitBatchInputSchema>;
 export type SentenceRegenerateInput = z.infer<typeof sentenceRegenerateInputSchema>;
+export type SentenceForceSplitInput = z.infer<typeof sentenceForceSplitInputSchema>;
 
 export const SENTENCE_SPLIT_STATUSES = [
   "UNKNOWN",

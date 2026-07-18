@@ -14,6 +14,7 @@ type SplitDeps = {
   model: string;
   ai: AiGatewayTextClient;
   regenerationFeedback?: string;
+  forceSplit?: { targetCount: 2 | 3 | "auto"; instruction?: string };
 };
 
 type SplitChild = { originalContent: string; translatedContent: string; splittable: boolean };
@@ -27,7 +28,7 @@ export type SentenceSplitEvent =
   | { type: "translation_delta"; index: number; text: string }
   | { type: "child_completed"; index: number; child: SplitChild }
   | { type: "unsplittable"; sentenceId: string }
-  | { type: "committed"; parentSentenceId: string; children: Array<Omit<SplitChild, "splittable"> & { id: string; sortOrder: number }> }
+  | { type: "committed"; parentSentenceId: string; children: Array<SplitChild & { id: string; sortOrder: number }> }
   | { type: "failed"; message: string };
 
 const systemPrompt = `你负责把英语学习文章中的长句切成更适合独立朗读的短句。
@@ -53,6 +54,20 @@ splittable 只有在拆分后的每一部分都能脱离上下文独立理解和
 例如 “I want to thank the American people for the extraordinary honor ...” 不能切成 “I want to thank the American people” 和 “for the extraordinary honor ...”，因为后者是依赖主句的介词短语；应返回 RESULT: UNSPLITTABLE。
 除这些行外不要输出任何内容。`;
 
+const forceSystemPrompt = `你负责把英语学习文章中的长句改写成更适合独立朗读的多个短句。
+先输出一句简短结构摘要，再只输出改写后的子句。不要输出详细思维过程。
+允许调整语序、补充必要主语和连接方式，但核心单词、人物、数字、事实、语气和完整含义必须保持不变，不得增加新事实。
+每个英文子句都必须语法完整、可脱离其他子句独立理解和朗读；中文必须逐句对应。
+SPLITTABLE 必须按“不改写原文、只在原有边界切分”的普通标准判断；只有还能产生至少两个完整子句时才为 true，不能依赖再次改写。
+严格逐行输出：
+ANALYSIS: 一句简短摘要
+RESULT: SPLIT
+ORIGINAL: 英文子句
+TRANSLATION: 中文子句
+SPLITTABLE: true 或 false
+END_CHILD
+每个子句以 END_CHILD 结束，最后单独输出 DONE。不要输出原句作为子句，也不要输出其他内容。`;
+
 function splitPrompt(
   originalContent: string,
   translatedContent: string,
@@ -66,6 +81,11 @@ function splitPrompt(
 请根据错误判断重新生成，避免重复旧结果中的问题。`;
 }
 
+function forcePrompt(originalContent: string, translatedContent: string, force: NonNullable<SplitDeps["forceSplit"]>) {
+  const count = force.targetCount === "auto" ? "自动决定两个或多个" : `恰好 ${force.targetCount} 个`;
+  return `英文原句：${originalContent}\n中文释义：${translatedContent}\n请改写成${count}完整短句。${force.instruction ? `\n额外要求：${force.instruction}` : ""}`;
+}
+
 function normalizeComparable(text: string) {
   return text.toLocaleLowerCase().replace(/[\p{P}\p{S}\s]/gu, "");
 }
@@ -77,6 +97,19 @@ export function validateSplitChildren(original: string, children: SplitChild[]) 
   }
   const joined = normalizeComparable(children.map((child) => child.originalContent).join(""));
   if (joined !== normalizeComparable(original)) throw new Error("切分结果遗漏或改写了英文原句");
+}
+
+export function validateForcedChildren(original: string, children: SplitChild[], targetCount: 2 | 3 | "auto") {
+  if (children.length < 2) throw new Error("强制切分至少需要两个子句");
+  if (targetCount !== "auto" && children.length !== targetCount) throw new Error(`强制切分必须生成 ${targetCount} 个子句`);
+  if (children.some((child) => !child.originalContent.trim() || !child.translatedContent.trim())) {
+    throw new Error("子句的英文和中文不能为空");
+  }
+  const sourceTokens = original.toLocaleLowerCase().match(/[a-z]+|\d+/g) || [];
+  const outputTokens = new Set(children.flatMap((child) => child.originalContent.toLocaleLowerCase().match(/[a-z]+|\d+/g) || []));
+  const important = sourceTokens.filter((token) => token.length >= 4 || /^\d+$/.test(token));
+  const retained = important.filter((token) => outputTokens.has(token)).length;
+  if (important.length && retained / important.length < 0.7) throw new Error("强制切分改动了过多核心单词");
 }
 
 export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<SentenceSplitEvent> {
@@ -93,6 +126,8 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
   if (!sentence) throw httpError.notFound("句子不存在");
 
   const isRegeneration = Boolean(input.regenerationFeedback);
+  const isForced = Boolean(input.forceSplit);
+  if (isRegeneration && isForced) throw httpError.badRequest("不能同时纠错和强制切分");
   const previousChildren = isRegeneration
     ? await db.sentences.findMany({
       where: { parentSentenceId: sentence.id, ...activeRecordWhere(tenantId) },
@@ -101,10 +136,10 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
     })
     : [];
 
-  if (sentence.splitStatus === "SPLIT" && !isRegeneration) {
+  if (sentence.splitStatus === "SPLIT" && !isRegeneration && !isForced) {
     const children = await db.sentences.findMany({
       where: { parentSentenceId: sentence.id, ...activeRecordWhere(tenantId) },
-      select: { id: true, originalContent: true, translatedContent: true, sortOrder: true },
+      select: { id: true, originalContent: true, translatedContent: true, sortOrder: true, splitStatus: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }]
     });
     yield {
@@ -114,18 +149,19 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
         id: child.id,
         originalContent: child.originalContent ?? "",
         translatedContent: child.translatedContent ?? "",
+        splittable: child.splitStatus === "SPLITTABLE",
         sortOrder: child.sortOrder
       }))
     };
     return;
   }
   if (isRegeneration && sentence.splitStatus !== "SPLIT") throw httpError.badRequest("只有已切分句子可以重新生成");
-  if (sentence.splitStatus === "UNSPLITTABLE") throw httpError.badRequest("这个句子已经不能继续切分");
+  if (sentence.splitStatus === "UNSPLITTABLE" && !isForced) throw httpError.badRequest("这个句子已经不能继续切分");
 
   const claimed = await db.sentences.updateMany({
     where: {
       id: sentence.id,
-      splitStatus: { in: isRegeneration ? ["SPLIT"] : ["SPLITTABLE", "FAILED"] },
+      splitStatus: { in: isRegeneration ? ["SPLIT"] : isForced ? ["UNKNOWN", "SPLITTABLE", "UNSPLITTABLE", "FAILED"] : ["SPLITTABLE", "FAILED"] },
       ...activeRecordWhere(tenantId)
     },
     data: { splitStatus: "SPLITTING", ...updateRecordBase({ userId: input.userId }) }
@@ -156,8 +192,12 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
 
   try {
     for await (const chunk of input.ai.streamText({
-      system: systemPrompt,
-      prompt: splitPrompt(
+      system: isForced ? forceSystemPrompt : systemPrompt,
+      prompt: isForced ? forcePrompt(
+        sentence.originalContent ?? "",
+        sentence.translatedContent ?? "",
+        input.forceSplit!
+      ) : splitPrompt(
         sentence.originalContent ?? "",
         sentence.translatedContent ?? "",
         isRegeneration ? {
@@ -261,6 +301,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
     if (buffer.trim() === "DONE") buffer = "";
     if (buffer.trim() || currentChild) throw new Error("LLM 输出在子句完成前中断");
     if (splitResult === "UNSPLITTABLE") {
+      if (isForced) throw new Error("强制切分必须生成至少两个完整短句");
       if (children.length > 0) throw new Error("不可切分结果不应包含子句");
       const now = new Date();
       const updateParent = db.sentences.updateMany({
@@ -285,7 +326,8 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
       yield { type: "unsplittable", sentenceId: sentence.id };
       return;
     }
-    validateSplitChildren(sentence.originalContent ?? "", children);
+    if (isForced) validateForcedChildren(sentence.originalContent ?? "", children, input.forceSplit!.targetCount);
+    else validateSplitChildren(sentence.originalContent ?? "", children);
 
     const now = new Date();
     const created = children.map((child, index) => ({
@@ -325,6 +367,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
         id: child.id,
         originalContent: child.originalContent,
         translatedContent: child.translatedContent,
+        splittable: child.splitStatus === "SPLITTABLE",
         sortOrder: child.sortOrder
       }))
     };
@@ -332,7 +375,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
     await db.sentences.updateMany({
       where: { id: sentence.id, splitStatus: "SPLITTING", ...activeRecordWhere(tenantId) },
       data: {
-        splitStatus: isRegeneration ? "SPLIT" : "FAILED",
+        splitStatus: isRegeneration ? "SPLIT" : isForced ? sentence.splitStatus : "FAILED",
         splitAnalyzedAt: new Date(),
         splitModel: input.model,
         splitVersion: SPLIT_VERSION,
@@ -346,7 +389,7 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
       await db.sentences.updateMany({
         where: { id: sentence.id, splitStatus: "SPLITTING", ...activeRecordWhere(tenantId) },
         data: {
-          splitStatus: isRegeneration ? "SPLIT" : "FAILED",
+          splitStatus: isRegeneration ? "SPLIT" : isForced ? sentence.splitStatus : "FAILED",
           splitAnalyzedAt: new Date(),
           splitModel: input.model,
           splitVersion: SPLIT_VERSION,

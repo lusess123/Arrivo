@@ -8,6 +8,7 @@ import {
   deleteArticleInputSchema,
   deleteSentenceInputSchema,
   moveSentenceInputSchema,
+  sentenceForceSplitInputSchema,
   sentenceRegenerateInputSchema,
   sentenceSplitBatchInputSchema,
   sentenceSplitParamSchema,
@@ -65,6 +66,33 @@ export function registerArticleRoutes(app: Hono<AppEnv>, prefix = "") {
           sentenceId,
           model,
           ai
+        })) {
+          await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+        }
+      });
+    }
+  );
+
+  app.post(
+    route(prefix, "/articles/:articleId/sentences/:sentenceId/force-split-stream"),
+    requireUser,
+    zValidator("param", sentenceSplitParamSchema),
+    zValidator("json", sentenceForceSplitInputSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      const { articleId, sentenceId } = c.req.valid("param");
+      const forceSplit = c.req.valid("json");
+      const { model, ai } = getSentenceSplitAi(c);
+      return streamSSE(c, async (stream) => {
+        for await (const event of streamSentenceSplit({
+          userId: user.id,
+          tenantId: user.tenant,
+          articleId,
+          sentenceId,
+          model,
+          ai,
+          forceSplit
         })) {
           await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
         }
