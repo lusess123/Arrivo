@@ -280,37 +280,72 @@ export async function analyzeSentenceBatch({
   const statuses = retryFailed ? ["UNKNOWN", "FAILED"] : ["UNKNOWN"];
   const sentences = await db.sentences.findMany({
     where: { splitStatus: { in: statuses }, ...activeRecordWhere(tenantId) },
-    select: { id: true, originalContent: true, translatedContent: true },
+    select: { id: true, originalContent: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limit
   });
-  let splittable = 0;
-  let unsplittable = 0;
-  let failed = 0;
-  await Promise.all(sentences.map(async (sentence) => {
-    try {
-      const result = await ai.generateText({
-        system: "判断句子能否拆成至少两个仍然语义完整、适合独立朗读的片段。只回答 SPLITTABLE 或 UNSPLITTABLE。",
-        prompt: `英文：${sentence.originalContent ?? ""}\n中文：${sentence.translatedContent ?? ""}`
-      });
-      const decision = result.trim().replace(/[^A-Z_]/g, "");
-      if (decision !== "SPLITTABLE" && decision !== "UNSPLITTABLE") {
-        throw new Error("LLM 返回了无效的可切分判断");
-      }
-      const status = decision;
-      await db.sentences.update({
-        where: { id: sentence.id },
-        data: { splitStatus: status, splitAnalyzedAt: new Date(), splitModel: model, splitVersion: SPLIT_VERSION }
-      });
-      if (status === "SPLITTABLE") splittable += 1;
-      else unsplittable += 1;
-    } catch {
-      failed += 1;
-      await db.sentences.update({ where: { id: sentence.id }, data: { splitStatus: "FAILED" } });
-    }
-  }));
+  if (sentences.length === 0) {
+    return { processed: 0, splittable: 0, unsplittable: 0, failed: 0, remaining: 0, hasMore: false };
+  }
+
+  const result = await ai.generateText({
+    system: `判断每个英文句子能否拆成至少两个仍然语义完整、适合独立朗读的片段。
+只输出 JSON 数组，不要解释或使用 Markdown。每项格式为 {"id":"原始 ID","splittable":true}。
+必须原样返回所有 ID，每个 ID 恰好出现一次。`,
+    prompt: JSON.stringify(sentences.map((sentence) => ({
+      id: sentence.id,
+      originalContent: sentence.originalContent ?? ""
+    })))
+  });
+  const decisions = parseBatchSplitDecisions(result, sentences.map((sentence) => sentence.id));
+  const now = new Date();
+  const idsByStatus = { SPLITTABLE: [] as string[], UNSPLITTABLE: [] as string[] };
+  for (const [id, splittable] of decisions) {
+    idsByStatus[splittable ? "SPLITTABLE" : "UNSPLITTABLE"].push(id);
+  }
+  const allIds = [...decisions.keys()];
+  const idParams = allIds.map((_, index) => `$${index + 1}::uuid`).join(", ");
+  const splittableIndexes = new Set(idsByStatus.SPLITTABLE.map((id) => allIds.indexOf(id) + 1));
+  const splittableCondition = splittableIndexes.size > 0
+    ? `"id" IN (${[...splittableIndexes].map((index) => `$${index}::uuid`).join(", ")})`
+    : "FALSE";
+  const nowIndex = allIds.length + 1;
+  const modelIndex = nowIndex + 1;
+  const versionIndex = modelIndex + 1;
+  const tenantIndex = versionIndex + 1;
+  const allowedStatuses = retryFailed ? "'UNKNOWN', 'FAILED'" : "'UNKNOWN'";
+  await db.$executeRawUnsafe(
+    `UPDATE "Sentences"
+     SET "splitStatus" = CASE WHEN ${splittableCondition} THEN 'SPLITTABLE' ELSE 'UNSPLITTABLE' END,
+         "splitAnalyzedAt" = $${nowIndex}, "splitModel" = $${modelIndex},
+         "splitVersion" = $${versionIndex}, "updatedAt" = $${nowIndex}
+     WHERE "id" IN (${idParams}) AND "splitStatus" IN (${allowedStatuses})
+       AND "tenantId" = $${tenantIndex} AND "deletedAt" IS NULL`,
+    ...allIds, now, model, SPLIT_VERSION, tenantId
+  );
+  const splittable = [...decisions.values()].filter(Boolean).length;
+  const unsplittable = decisions.size - splittable;
   const remaining = await db.sentences.count({
     where: { splitStatus: { in: statuses }, ...activeRecordWhere(tenantId) }
   });
-  return { processed: sentences.length, splittable, unsplittable, failed, remaining, hasMore: remaining > 0 };
+  return { processed: sentences.length, splittable, unsplittable, failed: 0, remaining, hasMore: remaining > 0 };
+}
+
+export function parseBatchSplitDecisions(text: string, expectedIds: string[]) {
+  const parsed = JSON.parse(text.trim()) as unknown;
+  if (!Array.isArray(parsed)) throw new Error("LLM 批量判断不是 JSON 数组");
+  if (parsed.length !== expectedIds.length) throw new Error("LLM 批量判断数量不一致");
+
+  const expected = new Set(expectedIds);
+  const decisions = new Map<string, boolean>();
+  for (const item of parsed) {
+    if (!item || typeof item !== "object") throw new Error("LLM 批量判断格式无效");
+    const { id, splittable } = item as { id?: unknown; splittable?: unknown };
+    if (typeof id !== "string" || !expected.has(id)) throw new Error("LLM 批量判断包含未知 ID");
+    if (decisions.has(id)) throw new Error("LLM 批量判断包含重复 ID");
+    if (typeof splittable !== "boolean") throw new Error("LLM 批量判断结果不是布尔值");
+    decisions.set(id, splittable);
+  }
+  if (decisions.size !== expected.size) throw new Error("LLM 批量判断缺少 ID");
+  return decisions;
 }

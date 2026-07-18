@@ -1,13 +1,31 @@
 import { describe, expect, test } from "bun:test";
 import type { ArrivoDb } from "@arrivo/db";
 import { runWithDbClientFactory } from "../src/runtime/db";
-import { streamSentenceSplit, validateSplitChildren } from "../src/article/sentence-split.case";
+import { parseBatchSplitDecisions, streamSentenceSplit, validateSplitChildren } from "../src/article/sentence-split.case";
 
 function withDb<T>(mockDb: Partial<ArrivoDb>, run: () => T) {
   return runWithDbClientFactory({ createDb: () => mockDb as ArrivoDb, run });
 }
 
 describe("sentence split validation", () => {
+  test("validates one complete batch of sentence decisions", () => {
+    const decisions = parseBatchSplitDecisions(
+      JSON.stringify([
+        { id: "sentence-a", splittable: true },
+        { id: "sentence-b", splittable: false }
+      ]),
+      ["sentence-a", "sentence-b"]
+    );
+    expect([...decisions]).toEqual([["sentence-a", true], ["sentence-b", false]]);
+  });
+
+  test("rejects incomplete, duplicate, or unknown batch decisions", () => {
+    expect(() => parseBatchSplitDecisions('[{"id":"sentence-a","splittable":true}]', ["sentence-a", "sentence-b"]))
+      .toThrow("数量不一致");
+    expect(() => parseBatchSplitDecisions('[{"id":"sentence-a","splittable":true},{"id":"sentence-a","splittable":false}]', ["sentence-a", "sentence-b"]))
+      .toThrow("重复 ID");
+  });
+
   test("accepts aligned children that preserve the English sentence", () => {
     expect(() => validateSplitChildren(
       "When we stop looking outside, we begin to understand ourselves.",
