@@ -73,18 +73,15 @@ export function registerArticleRoutes(app: Hono<AppEnv>, prefix = "") {
 
   app.post(
     route(prefix, "/articles/sentence-split/analyze-batch"),
-    requireUser,
     zValidator("json", sentenceSplitBatchInputSchema),
     async (c) => {
-      const user = c.get("user");
-      if (!user) throw httpError.unauthorized();
       if (!c.env.AI_BATCH_SECRET || c.req.header("x-ai-batch-secret") !== c.env.AI_BATCH_SECRET) {
         throw httpError.forbidden("批量分析凭证无效");
       }
       const input = c.req.valid("json");
       const { model, ai } = getSentenceSplitAi(c);
       return ok(c, await analyzeSentenceBatch({
-        tenantId: user.tenant,
+        tenantId: c.env.DEFAULT_TENANT_ID,
         limit: input.limit,
         retryFailed: input.retryFailed,
         model,

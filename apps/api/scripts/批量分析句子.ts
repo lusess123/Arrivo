@@ -1,9 +1,8 @@
 const apiBaseUrl = process.env.ARRIVO_API_BASE_URL || "https://api-arrivo.zyking.xyz";
-const authCookie = process.env.ARRIVO_AUTH_COOKIE;
 const batchSecret = process.env.AI_BATCH_SECRET;
 
-if (!authCookie || !batchSecret) {
-  throw new Error("请设置 ARRIVO_AUTH_COOKIE 和 AI_BATCH_SECRET");
+if (!batchSecret) {
+  throw new Error("请设置 AI_BATCH_SECRET");
 }
 
 let totalProcessed = 0;
@@ -14,7 +13,6 @@ while (true) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      cookie: authCookie,
       "x-ai-batch-secret": batchSecret
     },
     body: JSON.stringify({ limit: 20, retryFailed: false })
