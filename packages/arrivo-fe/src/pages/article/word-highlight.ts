@@ -49,3 +49,14 @@ export function findActiveWordIndex(words: TtsWordBoundaryDto[], currentTimeMs: 
     ?? word.offsetMs + Math.max(80, word.durationMs);
   return currentTimeMs < visibleUntil ? low : -1;
 }
+
+export function findPauseActiveWordIndex(
+  words: TtsWordBoundaryDto[],
+  elapsedMs: number,
+  totalMs: number,
+) {
+  if (!words.length || totalMs <= 0) return -1;
+
+  const progress = Math.min(1, Math.max(0, elapsedMs) / totalMs);
+  return Math.min(words.length - 1, Math.floor(progress * words.length));
+}

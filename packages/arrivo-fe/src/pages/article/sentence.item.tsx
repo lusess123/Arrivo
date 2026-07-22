@@ -4,7 +4,11 @@ import styles from './index.module.less'
 import { Button } from 'antd';
 import { AudioOutlined, PauseCircleOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
 import { apiUrl } from '@/lib/api';
-import { buildWordTextSegments, findActiveWordIndex } from './word-highlight';
+import {
+  buildWordTextSegments,
+  findActiveWordIndex,
+  findPauseActiveWordIndex,
+} from './word-highlight';
 import { articleSentenceElementId } from './article-progress';
 
 const AUDIO_CACHE_VERSION = '20260712-words-v1';
@@ -46,6 +50,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const countdownRemainingMsRef = useRef(0);
   const countdownCompleteRef = useRef<(() => void) | null>(null);
   const highlightFrameRef = useRef<number | null>(null);
+  const pauseHighlightFrameRef = useRef<number | null>(null);
+  const pauseHighlightStartedAtRef = useRef(0);
+  const pauseHighlightElapsedMsRef = useRef(0);
+  const pauseHighlightTotalMsRef = useRef(0);
   const wordBoundariesRef = useRef<TtsWordBoundaryDto[]>([]);
   const activeWordIndexRef = useRef(-1);
   const playCountRef = useRef(0);
@@ -76,6 +84,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
   }, []);
 
   const startHighlightTracking = useCallback(() => {
+    if (pauseHighlightFrameRef.current !== null) {
+      window.cancelAnimationFrame(pauseHighlightFrameRef.current);
+      pauseHighlightFrameRef.current = null;
+    }
     stopHighlightTracking();
     const update = () => {
       const audio = audioRef.current;
@@ -92,6 +104,42 @@ export default function SentenceItem(sentence: ISentenceItem) {
     update();
   }, [setHighlightedWord, stopHighlightTracking]);
 
+  const stopPauseHighlightTracking = useCallback(() => {
+    if (pauseHighlightFrameRef.current !== null) {
+      window.cancelAnimationFrame(pauseHighlightFrameRef.current);
+      pauseHighlightFrameRef.current = null;
+    }
+    pauseHighlightStartedAtRef.current = 0;
+  }, []);
+
+  const updatePauseHighlight = useCallback(() => {
+    const totalMs = pauseHighlightTotalMsRef.current;
+    const elapsedMs = Math.min(
+      totalMs,
+      pauseHighlightElapsedMsRef.current + Math.max(0, Date.now() - pauseHighlightStartedAtRef.current),
+    );
+    setHighlightedWord(findPauseActiveWordIndex(wordBoundariesRef.current, elapsedMs, totalMs));
+    return { elapsedMs, hasRemaining: elapsedMs < totalMs };
+  }, [setHighlightedWord]);
+
+  const startPauseHighlightTracking = useCallback((totalMs: number, resume = false) => {
+    stopPauseHighlightTracking();
+    if (!resume) {
+      pauseHighlightTotalMsRef.current = totalMs;
+      pauseHighlightElapsedMsRef.current = 0;
+    }
+    pauseHighlightStartedAtRef.current = Date.now();
+
+    const update = () => {
+      if (!updatePauseHighlight().hasRemaining) {
+        pauseHighlightFrameRef.current = null;
+        return;
+      }
+      pauseHighlightFrameRef.current = window.requestAnimationFrame(update);
+    };
+    update();
+  }, [stopPauseHighlightTracking, updatePauseHighlight]);
+
   const clearRepeatTimer = useCallback(() => {
     if (repeatTimerRef.current !== null) {
       window.clearTimeout(repeatTimerRef.current);
@@ -107,6 +155,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const resetPlaybackState = useCallback(() => {
     clearRepeatTimer();
     stopHighlightTracking();
+    stopPauseHighlightTracking();
     countdownCompleteRef.current = null;
     countdownEndAtRef.current = 0;
     countdownRemainingMsRef.current = 0;
@@ -118,9 +167,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsWaite(false);
     setIsPaused(false);
     setHighlightedWord(-1);
-  }, [clearRepeatTimer, setHighlightedWord, stopHighlightTracking]);
+  }, [clearRepeatTimer, setHighlightedWord, stopHighlightTracking, stopPauseHighlightTracking]);
 
-  const waitBeforeContinue = useCallback((seconds: number, onComplete: () => void) => {
+  const waitBeforeContinue = useCallback((seconds: number, onComplete: () => void, resumeHighlight = false) => {
     const waitMs = Math.max(0, Math.round(seconds * 1000));
 
     if (!waitMs) {
@@ -142,6 +191,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsWaite(true);
     setIsPaused(false);
     updateRemaining();
+    startPauseHighlightTracking(resumeHighlight ? pauseHighlightTotalMsRef.current : waitMs, resumeHighlight);
     countdownTimerRef.current = window.setInterval(updateRemaining, 100);
     repeatTimerRef.current = window.setTimeout(() => {
       const complete = countdownCompleteRef.current;
@@ -152,9 +202,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
       setPauseRemaining(0);
       setIsWaite(false);
       setIsPaused(false);
+      stopPauseHighlightTracking();
       complete?.();
     }, waitMs);
-  }, [clearRepeatTimer]);
+  }, [clearRepeatTimer, startPauseHighlightTracking, stopPauseHighlightTracking]);
 
   const pauseCountdown = useCallback(() => {
     const remainingMs = Math.max(0, countdownEndAtRef.current - Date.now());
@@ -174,10 +225,12 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     countdownRemainingMsRef.current = remainingMs;
     clearRepeatTimer();
+    pauseHighlightElapsedMsRef.current = updatePauseHighlight().elapsedMs;
+    stopPauseHighlightTracking();
     setPauseRemaining(Number((remainingMs / 1000).toFixed(1)));
     setIsWaite(true);
     setIsPaused(true);
-  }, [clearRepeatTimer]);
+  }, [clearRepeatTimer, stopPauseHighlightTracking, updatePauseHighlight]);
 
   const resumeCountdown = useCallback(() => {
     const complete = countdownCompleteRef.current;
@@ -199,7 +252,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       return;
     }
 
-    waitBeforeContinue(remainingSeconds, complete);
+    waitBeforeContinue(remainingSeconds, complete, true);
   }, [waitBeforeContinue]);
 
   const stopAudio = useCallback(() => {
@@ -226,6 +279,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     }
 
     clearRepeatTimer();
+    stopPauseHighlightTracking();
     countdownCompleteRef.current = null;
     countdownEndAtRef.current = 0;
     countdownRemainingMsRef.current = 0;
@@ -267,6 +321,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     sentence.originalContent,
     sentence.rate,
     sentence.sound,
+    stopPauseHighlightTracking,
     startHighlightTracking,
   ]);
 
@@ -368,8 +423,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
     return () => {
       clearRepeatTimer();
       stopHighlightTracking();
+      stopPauseHighlightTracking();
     };
-  }, [clearRepeatTimer, playOnce, sentence.playbackKey, sentence.playing, stopAudio, stopHighlightTracking]);
+  }, [clearRepeatTimer, playOnce, sentence.playbackKey, sentence.playing, stopAudio, stopHighlightTracking, stopPauseHighlightTracking]);
 
   const handleTogglePlay = () => {
     if (sentence.playing) {

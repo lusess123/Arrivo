@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { buildWordTextSegments, findActiveWordIndex } from '../src/pages/article/word-highlight';
+import {
+  buildWordTextSegments,
+  findActiveWordIndex,
+  findPauseActiveWordIndex,
+} from '../src/pages/article/word-highlight';
 
 const words = [
   { text: 'Hello', offsetMs: 100, durationMs: 300 },
@@ -21,5 +25,13 @@ describe('word highlight', () => {
     expect(findActiveWordIndex(words, 300)).toBe(0);
     expect(findActiveWordIndex(words, 600)).toBe(1);
     expect(findActiveWordIndex(words, 800)).toBe(-1);
+  });
+
+  test('spreads words evenly across a pause and keeps the final word highlighted', () => {
+    expect(findPauseActiveWordIndex(words, 0, 1_000)).toBe(0);
+    expect(findPauseActiveWordIndex(words, 499, 1_000)).toBe(0);
+    expect(findPauseActiveWordIndex(words, 500, 1_000)).toBe(1);
+    expect(findPauseActiveWordIndex(words, 1_000, 1_000)).toBe(1);
+    expect(findPauseActiveWordIndex(words, 1_500, 1_000)).toBe(1);
   });
 });
