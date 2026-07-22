@@ -27,11 +27,17 @@ describe('word highlight', () => {
     expect(findActiveWordIndex(words, 800)).toBe(-1);
   });
 
-  test('spreads words evenly across a pause and keeps the final word highlighted', () => {
-    expect(findPauseActiveWordIndex(words, 0, 1_000)).toBe(0);
-    expect(findPauseActiveWordIndex(words, 499, 1_000)).toBe(0);
-    expect(findPauseActiveWordIndex(words, 500, 1_000)).toBe(1);
-    expect(findPauseActiveWordIndex(words, 1_000, 1_000)).toBe(1);
-    expect(findPauseActiveWordIndex(words, 1_500, 1_000)).toBe(1);
+  test('reuses the TTS word timeline during a pause and keeps the final word highlighted afterwards', () => {
+    expect(findPauseActiveWordIndex(words, 0, 1_000, 1)).toBe(-1);
+    expect(findPauseActiveWordIndex(words, 100, 1_000, 1)).toBe(0);
+    expect(findPauseActiveWordIndex(words, 499, 1_000, 1)).toBe(0);
+    expect(findPauseActiveWordIndex(words, 500, 1_000, 1)).toBe(1);
+    expect(findPauseActiveWordIndex(words, 900, 1_000, 1)).toBe(1);
+    expect(findPauseActiveWordIndex(words, 1_500, 1_000, 1)).toBe(1);
+  });
+
+  test('scales the word timeline with the selected playback rate', () => {
+    expect(findPauseActiveWordIndex(words, 50, 500, 2)).toBe(0);
+    expect(findPauseActiveWordIndex(words, 250, 500, 2)).toBe(1);
   });
 });

@@ -53,10 +53,16 @@ export function findActiveWordIndex(words: TtsWordBoundaryDto[], currentTimeMs: 
 export function findPauseActiveWordIndex(
   words: TtsWordBoundaryDto[],
   elapsedMs: number,
-  totalMs: number,
+  speechDurationMs: number,
+  playbackRate: number,
 ) {
-  if (!words.length || totalMs <= 0) return -1;
+  if (!words.length) return -1;
+  if (elapsedMs >= speechDurationMs) return words.length - 1;
 
-  const progress = Math.min(1, Math.max(0, elapsedMs) / totalMs);
-  return Math.min(words.length - 1, Math.floor(progress * words.length));
+  const audioTimeMs = Math.max(0, elapsedMs) * Math.max(0.1, playbackRate);
+  const activeWordIndex = findActiveWordIndex(words, audioTimeMs);
+  if (activeWordIndex !== -1) return activeWordIndex;
+
+  const lastWordIndex = words.length - 1;
+  return audioTimeMs >= words[lastWordIndex].offsetMs ? lastWordIndex : -1;
 }

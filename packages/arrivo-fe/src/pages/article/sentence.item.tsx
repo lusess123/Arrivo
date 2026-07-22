@@ -54,6 +54,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const pauseHighlightStartedAtRef = useRef(0);
   const pauseHighlightElapsedMsRef = useRef(0);
   const pauseHighlightTotalMsRef = useRef(0);
+  const pauseHighlightSpeechDurationMsRef = useRef(0);
   const wordBoundariesRef = useRef<TtsWordBoundaryDto[]>([]);
   const activeWordIndexRef = useRef(-1);
   const playCountRef = useRef(0);
@@ -118,15 +119,25 @@ export default function SentenceItem(sentence: ISentenceItem) {
       totalMs,
       pauseHighlightElapsedMsRef.current + Math.max(0, Date.now() - pauseHighlightStartedAtRef.current),
     );
-    setHighlightedWord(findPauseActiveWordIndex(wordBoundariesRef.current, elapsedMs, totalMs));
+    setHighlightedWord(findPauseActiveWordIndex(
+      wordBoundariesRef.current,
+      elapsedMs,
+      pauseHighlightSpeechDurationMsRef.current,
+      sentence.rate,
+    ));
     return { elapsedMs, hasRemaining: elapsedMs < totalMs };
-  }, [setHighlightedWord]);
+  }, [sentence.rate, setHighlightedWord]);
 
-  const startPauseHighlightTracking = useCallback((totalMs: number, resume = false) => {
+  const startPauseHighlightTracking = useCallback((
+    totalMs: number,
+    speechDurationMs: number,
+    resume = false,
+  ) => {
     stopPauseHighlightTracking();
     if (!resume) {
       pauseHighlightTotalMsRef.current = totalMs;
       pauseHighlightElapsedMsRef.current = 0;
+      pauseHighlightSpeechDurationMsRef.current = speechDurationMs;
     }
     pauseHighlightStartedAtRef.current = Date.now();
 
@@ -169,7 +180,12 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setHighlightedWord(-1);
   }, [clearRepeatTimer, setHighlightedWord, stopHighlightTracking, stopPauseHighlightTracking]);
 
-  const waitBeforeContinue = useCallback((seconds: number, onComplete: () => void, resumeHighlight = false) => {
+  const waitBeforeContinue = useCallback((
+    seconds: number,
+    onComplete: () => void,
+    options: { resumeHighlight?: boolean; speechDurationMs?: number } = {},
+  ) => {
+    const { resumeHighlight = false, speechDurationMs = 0 } = options;
     const waitMs = Math.max(0, Math.round(seconds * 1000));
 
     if (!waitMs) {
@@ -191,7 +207,11 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsWaite(true);
     setIsPaused(false);
     updateRemaining();
-    startPauseHighlightTracking(resumeHighlight ? pauseHighlightTotalMsRef.current : waitMs, resumeHighlight);
+    startPauseHighlightTracking(
+      resumeHighlight ? pauseHighlightTotalMsRef.current : waitMs,
+      resumeHighlight ? pauseHighlightSpeechDurationMsRef.current : speechDurationMs,
+      resumeHighlight,
+    );
     countdownTimerRef.current = window.setInterval(updateRemaining, 100);
     repeatTimerRef.current = window.setTimeout(() => {
       const complete = countdownCompleteRef.current;
@@ -252,7 +272,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       return;
     }
 
-    waitBeforeContinue(remainingSeconds, complete, true);
+    waitBeforeContinue(remainingSeconds, complete, { resumeHighlight: true });
   }, [waitBeforeContinue]);
 
   const stopAudio = useCallback(() => {
@@ -476,7 +496,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     if (currentCount < maxCount) {
       waitBeforeContinue(pauseSeconds, () => {
         void playOnce(currentCount + 1);
-      });
+      }, { speechDurationMs: playbackSeconds * 1000 });
       return;
     }
 
@@ -484,7 +504,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       waitBeforeContinue(pauseSeconds, () => {
         resetPlaybackState();
         sentence.onPlayEnd(sentence.index);
-      });
+      }, { speechDurationMs: playbackSeconds * 1000 });
       return;
     }
 
