@@ -7,5 +7,6 @@ export * from "./runtime/db";
 export * from "./runtime/tts";
 export * from "./tts/tts.case";
 export * from "./user/article-progress.case";
+export * from "./user/last-visited-page.case";
 export * from "./user/playback-settings.case";
 export * from "./user/sentence-expansion.case";

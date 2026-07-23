@@ -8,7 +8,7 @@ import {
   emailPasswordSignInInputSchema,
   resetPasswordInputSchema,
   sendEmailLoginLinkInputSchema,
-  sendPasswordResetEmailInputSchema
+  sendPasswordResetEmailInputSchema,
 } from "@arrivo/contracts";
 import {
   emailLinkLogin,
@@ -17,7 +17,7 @@ import {
   registerEmailPassword,
   resetPassword,
   sendEmailLoginLink,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
 } from "@arrivo/application";
 import { createResendEmailClient } from "@arrivo/infra";
 import type { AppEnv } from "../context";
@@ -35,11 +35,14 @@ function cookieOptions(c: Parameters<typeof setCookie>[0]) {
     sameSite: "None" as const,
     path: "/",
     domain: c.env.COOKIE_DOMAIN,
-    maxAge: Number(c.env.JWT_EXPIRES_SECONDS || 604800)
+    maxAge: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
   };
 }
 
-function setAuthCookies(c: Context<AppEnv>, result: Awaited<ReturnType<typeof emailPasswordLogin>>) {
+function setAuthCookies(
+  c: Context<AppEnv>,
+  result: Awaited<ReturnType<typeof emailPasswordLogin>>,
+) {
   setCookie(c, "Authentication", result.accessToken, cookieOptions(c));
   setCookie(c, "Refresh", result.refreshToken, cookieOptions(c));
   setCookie(c, "AuthenticationRole", result.payload.role, cookieOptions(c));
@@ -48,16 +51,20 @@ function setAuthCookies(c: Context<AppEnv>, result: Awaited<ReturnType<typeof em
 function emailClient(c: Context<AppEnv>) {
   return createResendEmailClient({
     apiKey: c.env.RESEND_API_KEY,
-    from: c.env.EMAIL_FROM
+    from: c.env.EMAIL_FROM,
   });
 }
 
 function safeRedirect(c: Context<AppEnv>, redirect?: string) {
   if (!redirect) return c.env.WEB_ORIGIN;
-  const allowedOrigins = [c.env.WEB_ORIGIN, c.env.MANAGE_ORIGIN].filter(Boolean).map((origin) => new URL(origin!).origin);
+  const allowedOrigins = [c.env.WEB_ORIGIN, c.env.MANAGE_ORIGIN]
+    .filter(Boolean)
+    .map((origin) => new URL(origin!).origin);
   try {
-    const target = new URL(redirect);
-    return allowedOrigins.includes(target.origin) ? target.toString() : c.env.WEB_ORIGIN;
+    const target = new URL(redirect, c.env.WEB_ORIGIN);
+    return allowedOrigins.includes(target.origin)
+      ? target.toString()
+      : c.env.WEB_ORIGIN;
   } catch {
     return c.env.WEB_ORIGIN;
   }
@@ -69,101 +76,141 @@ export function registerAuthRoutes(app: Hono<AppEnv>, prefix = "") {
     return ok(c, user ?? {});
   });
 
-  app.post(route(prefix, "/auth/emailPasswordLogin"), zValidator("json", emailPasswordLoginInputSchema), async (c) => {
-    const input = c.req.valid("json");
-    const result = await emailPasswordLogin({
-      input,
-      jwtSecret: c.env.JWT_SECRET,
-      jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
-      defaultTenantId: c.env.DEFAULT_TENANT_ID
-    });
-    setAuthCookies(c, result);
-    return ok(c, result);
-  });
+  app.post(
+    route(prefix, "/auth/emailPasswordLogin"),
+    zValidator("json", emailPasswordLoginInputSchema),
+    async (c) => {
+      const input = c.req.valid("json");
+      const result = await emailPasswordLogin({
+        input,
+        jwtSecret: c.env.JWT_SECRET,
+        jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
+        defaultTenantId: c.env.DEFAULT_TENANT_ID,
+      });
+      setAuthCookies(c, result);
+      return ok(c, result);
+    },
+  );
 
-  app.post(route(prefix, "/auth/emailPasswordSignIn"), zValidator("json", emailPasswordSignInInputSchema), async (c) => {
-    const input = c.req.valid("json");
-    const result = await emailPasswordSignIn({
-      input,
-      jwtSecret: c.env.JWT_SECRET,
-      jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
-      defaultTenantId: c.env.DEFAULT_TENANT_ID
-    });
-    setAuthCookies(c, result);
-    return ok(c, result);
-  });
+  app.post(
+    route(prefix, "/auth/emailPasswordSignIn"),
+    zValidator("json", emailPasswordSignInInputSchema),
+    async (c) => {
+      const input = c.req.valid("json");
+      const result = await emailPasswordSignIn({
+        input,
+        jwtSecret: c.env.JWT_SECRET,
+        jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
+        defaultTenantId: c.env.DEFAULT_TENANT_ID,
+      });
+      setAuthCookies(c, result);
+      return ok(c, result);
+    },
+  );
 
-  app.post(route(prefix, "/auth/registerEmailPassword"), zValidator("json", emailPasswordRegisterInputSchema), async (c) => {
-    const input = c.req.valid("json");
-    const result = await registerEmailPassword({
-      input,
-      jwtSecret: c.env.JWT_SECRET,
-      jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
-      defaultTenantId: c.env.DEFAULT_TENANT_ID
-    });
-    setAuthCookies(c, result);
-    return ok(c, result);
-  });
+  app.post(
+    route(prefix, "/auth/registerEmailPassword"),
+    zValidator("json", emailPasswordRegisterInputSchema),
+    async (c) => {
+      const input = c.req.valid("json");
+      const result = await registerEmailPassword({
+        input,
+        jwtSecret: c.env.JWT_SECRET,
+        jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
+        defaultTenantId: c.env.DEFAULT_TENANT_ID,
+      });
+      setAuthCookies(c, result);
+      return ok(c, result);
+    },
+  );
 
-  app.post(route(prefix, "/auth/sendPasswordResetEmail"), zValidator("json", sendPasswordResetEmailInputSchema), async (c) => {
-    const input = c.req.valid("json");
-    const result = await sendPasswordResetEmail({
-      input,
-      jwtSecret: c.env.JWT_SECRET,
-      jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
-      defaultTenantId: c.env.DEFAULT_TENANT_ID,
-      apiBaseUrl: c.env.API_BASE_URL,
-      webOrigin: c.env.WEB_ORIGIN,
-      emailClient: emailClient(c)
-    });
-    return ok(c, result);
-  });
+  app.post(
+    route(prefix, "/auth/sendPasswordResetEmail"),
+    zValidator("json", sendPasswordResetEmailInputSchema),
+    async (c) => {
+      const input = c.req.valid("json");
+      const result = await sendPasswordResetEmail({
+        input,
+        jwtSecret: c.env.JWT_SECRET,
+        jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
+        defaultTenantId: c.env.DEFAULT_TENANT_ID,
+        apiBaseUrl: c.env.API_BASE_URL,
+        webOrigin: c.env.WEB_ORIGIN,
+        emailClient: emailClient(c),
+      });
+      return ok(c, result);
+    },
+  );
 
-  app.post(route(prefix, "/auth/resetPassword"), zValidator("json", resetPasswordInputSchema), async (c) => {
-    const input = c.req.valid("json");
-    const result = await resetPassword({
-      input,
-      jwtSecret: c.env.JWT_SECRET,
-      jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
-      defaultTenantId: c.env.DEFAULT_TENANT_ID
-    });
-    setAuthCookies(c, result);
-    return ok(c, result);
-  });
+  app.post(
+    route(prefix, "/auth/resetPassword"),
+    zValidator("json", resetPasswordInputSchema),
+    async (c) => {
+      const input = c.req.valid("json");
+      const result = await resetPassword({
+        input,
+        jwtSecret: c.env.JWT_SECRET,
+        jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
+        defaultTenantId: c.env.DEFAULT_TENANT_ID,
+      });
+      setAuthCookies(c, result);
+      return ok(c, result);
+    },
+  );
 
-  app.post(route(prefix, "/auth/sendEmailLoginLink"), zValidator("json", sendEmailLoginLinkInputSchema), async (c) => {
-    const input = c.req.valid("json");
-    const result = await sendEmailLoginLink({
-      input: {
-        ...input,
-        redirect: safeRedirect(c, input.redirect)
-      },
-      jwtSecret: c.env.JWT_SECRET,
-      jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
-      defaultTenantId: c.env.DEFAULT_TENANT_ID,
-      apiBaseUrl: c.env.API_BASE_URL,
-      webOrigin: c.env.WEB_ORIGIN,
-      emailClient: emailClient(c)
-    });
-    return ok(c, result);
-  });
+  app.post(
+    route(prefix, "/auth/sendEmailLoginLink"),
+    zValidator("json", sendEmailLoginLinkInputSchema),
+    async (c) => {
+      const input = c.req.valid("json");
+      const result = await sendEmailLoginLink({
+        input: {
+          ...input,
+          redirect: safeRedirect(c, input.redirect),
+        },
+        jwtSecret: c.env.JWT_SECRET,
+        jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
+        defaultTenantId: c.env.DEFAULT_TENANT_ID,
+        apiBaseUrl: c.env.API_BASE_URL,
+        webOrigin: c.env.WEB_ORIGIN,
+        emailClient: emailClient(c),
+      });
+      return ok(c, result);
+    },
+  );
 
-  app.get(route(prefix, "/auth/emailLinkLogin"), zValidator("query", emailLinkLoginQuerySchema), async (c) => {
-    const input = c.req.valid("query");
-    const result = await emailLinkLogin({
-      token: input.token,
-      jwtSecret: c.env.JWT_SECRET,
-      jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
-      defaultTenantId: c.env.DEFAULT_TENANT_ID
-    });
-    setAuthCookies(c, result);
-    return c.redirect(safeRedirect(c, input.redirect), 302);
-  });
+  app.get(
+    route(prefix, "/auth/emailLinkLogin"),
+    zValidator("query", emailLinkLoginQuerySchema),
+    async (c) => {
+      const input = c.req.valid("query");
+      const result = await emailLinkLogin({
+        token: input.token,
+        jwtSecret: c.env.JWT_SECRET,
+        jwtExpiresSeconds: Number(c.env.JWT_EXPIRES_SECONDS || 604800),
+        defaultTenantId: c.env.DEFAULT_TENANT_ID,
+      });
+      setAuthCookies(c, result);
+      return c.redirect(
+        safeRedirect(
+          c,
+          input.redirect || result.payload.lastVisitedPath || undefined,
+        ),
+        302,
+      );
+    },
+  );
 
   app.post(route(prefix, "/auth/signout"), (c) => {
-    deleteCookie(c, "Authentication", { path: "/", domain: c.env.COOKIE_DOMAIN });
+    deleteCookie(c, "Authentication", {
+      path: "/",
+      domain: c.env.COOKIE_DOMAIN,
+    });
     deleteCookie(c, "Refresh", { path: "/", domain: c.env.COOKIE_DOMAIN });
-    deleteCookie(c, "AuthenticationRole", { path: "/", domain: c.env.COOKIE_DOMAIN });
+    deleteCookie(c, "AuthenticationRole", {
+      path: "/",
+      domain: c.env.COOKIE_DOMAIN,
+    });
     return ok(c, { message: "Logout Success" });
   });
 }

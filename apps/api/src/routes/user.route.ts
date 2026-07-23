@@ -2,18 +2,20 @@ import { zValidator } from "@hono/zod-validator";
 import {
   clearArticleProgress,
   getArticleProgress,
+  updateLastVisitedPage,
   getPlaybackSettings,
   getSentenceExpansion,
   saveArticleProgress,
   updatePlaybackSettings,
-  updateSentenceExpansion
+  updateSentenceExpansion,
 } from "@arrivo/application";
 import {
   articleProgressArticleParamSchema,
   articleProgressSentenceInputSchema,
+  lastVisitedPageInputSchema,
   playbackSettingsInputSchema,
   sentenceExpansionArticleParamSchema,
-  sentenceExpansionInputSchema
+  sentenceExpansionInputSchema,
 } from "@arrivo/contracts";
 import { httpError } from "@arrivo/runtime";
 import type { Hono } from "hono";
@@ -34,8 +36,15 @@ export function registerUserRoutes(app: Hono<AppEnv>, prefix = "") {
       const user = c.get("user");
       if (!user) throw httpError.unauthorized();
       const { articleId } = c.req.valid("param");
-      return ok(c, await getSentenceExpansion({ userId: user.id, tenantId: user.tenant, articleId }));
-    }
+      return ok(
+        c,
+        await getSentenceExpansion({
+          userId: user.id,
+          tenantId: user.tenant,
+          articleId,
+        }),
+      );
+    },
   );
 
   app.patch(
@@ -47,13 +56,16 @@ export function registerUserRoutes(app: Hono<AppEnv>, prefix = "") {
       const user = c.get("user");
       if (!user) throw httpError.unauthorized();
       const { articleId } = c.req.valid("param");
-      return ok(c, await updateSentenceExpansion({
-        userId: user.id,
-        tenantId: user.tenant,
-        articleId,
-        input: c.req.valid("json")
-      }));
-    }
+      return ok(
+        c,
+        await updateSentenceExpansion({
+          userId: user.id,
+          tenantId: user.tenant,
+          articleId,
+          input: c.req.valid("json"),
+        }),
+      );
+    },
   );
 
   app.get(
@@ -64,8 +76,33 @@ export function registerUserRoutes(app: Hono<AppEnv>, prefix = "") {
       const user = c.get("user");
       if (!user) throw httpError.unauthorized();
       const { articleId } = c.req.valid("param");
-      return ok(c, await getArticleProgress({ userId: user.id, tenantId: user.tenant, articleId }));
-    }
+      return ok(
+        c,
+        await getArticleProgress({
+          userId: user.id,
+          tenantId: user.tenant,
+          articleId,
+        }),
+      );
+    },
+  );
+
+  app.put(
+    route(prefix, "/user/last-visited-page"),
+    requireUser,
+    zValidator("json", lastVisitedPageInputSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      return ok(
+        c,
+        await updateLastVisitedPage({
+          userId: user.id,
+          tenantId: user.tenant,
+          input: c.req.valid("json"),
+        }),
+      );
+    },
   );
 
   app.put(
@@ -78,12 +115,15 @@ export function registerUserRoutes(app: Hono<AppEnv>, prefix = "") {
       if (!user) throw httpError.unauthorized();
       const { articleId } = c.req.valid("param");
       const input = c.req.valid("json");
-      return ok(c, await saveArticleProgress({
-        userId: user.id,
-        tenantId: user.tenant,
-        input: { articleId, sentenceId: input.sentenceId }
-      }));
-    }
+      return ok(
+        c,
+        await saveArticleProgress({
+          userId: user.id,
+          tenantId: user.tenant,
+          input: { articleId, sentenceId: input.sentenceId },
+        }),
+      );
+    },
   );
 
   app.delete(
@@ -94,15 +134,22 @@ export function registerUserRoutes(app: Hono<AppEnv>, prefix = "") {
       const user = c.get("user");
       if (!user) throw httpError.unauthorized();
       const { articleId } = c.req.valid("param");
-      await clearArticleProgress({ userId: user.id, tenantId: user.tenant, articleId });
+      await clearArticleProgress({
+        userId: user.id,
+        tenantId: user.tenant,
+        articleId,
+      });
       return ok(c, null);
-    }
+    },
   );
 
   app.get(route(prefix, "/user/playback-settings"), requireUser, async (c) => {
     const user = c.get("user");
     if (!user) throw httpError.unauthorized();
-    return ok(c, await getPlaybackSettings({ userId: user.id, tenantId: user.tenant }));
+    return ok(
+      c,
+      await getPlaybackSettings({ userId: user.id, tenantId: user.tenant }),
+    );
   });
 
   app.put(
@@ -113,7 +160,14 @@ export function registerUserRoutes(app: Hono<AppEnv>, prefix = "") {
       const user = c.get("user");
       if (!user) throw httpError.unauthorized();
       const input = c.req.valid("json");
-      return ok(c, await updatePlaybackSettings({ userId: user.id, tenantId: user.tenant, input }));
-    }
+      return ok(
+        c,
+        await updatePlaybackSettings({
+          userId: user.id,
+          tenantId: user.tenant,
+          input,
+        }),
+      );
+    },
   );
 }

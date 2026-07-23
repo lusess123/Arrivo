@@ -5,48 +5,58 @@ const passwordSchema = z.string().min(6);
 
 export const phoneNumberLoginInputSchema = z.object({
   phoneNumber: z.string().min(1),
-  phoneNumberCode: z.string().min(1)
+  phoneNumberCode: z.string().min(1),
 });
 
 export const sendSmsCodeInputSchema = z.object({
-  phoneNumber: z.string().min(1)
+  phoneNumber: z.string().min(1),
 });
 
 export const emailPasswordLoginInputSchema = z.object({
   email: emailSchema,
-  password: passwordSchema
+  password: passwordSchema,
 });
 
 export const emailPasswordSignInInputSchema = emailPasswordLoginInputSchema;
 export const emailPasswordRegisterInputSchema = emailPasswordLoginInputSchema;
 
 export const sendPasswordResetEmailInputSchema = z.object({
-  email: emailSchema
+  email: emailSchema,
 });
 
 export const resetPasswordInputSchema = z.object({
   token: z.string().min(20),
-  password: passwordSchema
+  password: passwordSchema,
 });
 
 export const sendEmailLoginLinkInputSchema = z.object({
   email: emailSchema,
-  redirect: z.string().url().optional()
+  redirect: z.string().url().optional(),
 });
 
 export const emailLinkLoginQuerySchema = z.object({
   token: z.string().min(20),
-  redirect: z.string().url().optional()
+  redirect: z.string().url().optional(),
 });
 
 export type PhoneNumberLoginInput = z.infer<typeof phoneNumberLoginInputSchema>;
 export type SendSmsCodeInput = z.infer<typeof sendSmsCodeInputSchema>;
-export type EmailPasswordLoginInput = z.infer<typeof emailPasswordLoginInputSchema>;
-export type EmailPasswordSignInInput = z.infer<typeof emailPasswordSignInInputSchema>;
-export type EmailPasswordRegisterInput = z.infer<typeof emailPasswordRegisterInputSchema>;
-export type SendPasswordResetEmailInput = z.infer<typeof sendPasswordResetEmailInputSchema>;
+export type EmailPasswordLoginInput = z.infer<
+  typeof emailPasswordLoginInputSchema
+>;
+export type EmailPasswordSignInInput = z.infer<
+  typeof emailPasswordSignInInputSchema
+>;
+export type EmailPasswordRegisterInput = z.infer<
+  typeof emailPasswordRegisterInputSchema
+>;
+export type SendPasswordResetEmailInput = z.infer<
+  typeof sendPasswordResetEmailInputSchema
+>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;
-export type SendEmailLoginLinkInput = z.infer<typeof sendEmailLoginLinkInputSchema>;
+export type SendEmailLoginLinkInput = z.infer<
+  typeof sendEmailLoginLinkInputSchema
+>;
 export type EmailLinkLoginQuery = z.infer<typeof emailLinkLoginQuerySchema>;
 
 export type AuthUserDto = {
@@ -60,6 +70,7 @@ export type AuthUserDto = {
   nickname?: string | null;
   headimgurl?: string | null;
   access?: string | null;
+  lastVisitedPath?: string | null;
   lastLoginTime?: Date | string | null;
   createTime?: Date | string | null;
 };

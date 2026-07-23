@@ -6,7 +6,7 @@ describe('auth route wrapper', () => {
       new URL('../src/wrappers/auth.tsx', import.meta.url),
     ).text();
 
-    expect(source).toContain("import { Outlet } from '@umijs/max';");
+    expect(source).toContain('import { Outlet, useLocation } from "@umijs/max";');
     expect(source).toContain('if (!checking) return <Outlet />;');
     expect(source).not.toContain('return children');
   });

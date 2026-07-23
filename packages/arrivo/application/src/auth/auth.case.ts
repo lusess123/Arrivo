@@ -7,13 +7,19 @@ import type {
   PhoneNumberLoginInput,
   ResetPasswordInput,
   SendEmailLoginLinkInput,
-  SendPasswordResetEmailInput
+  SendPasswordResetEmailInput,
 } from "@arrivo/contracts";
 import type { ArrivoDb } from "@arrivo/db";
 import type { EmailClient } from "@arrivo/infra";
 import { httpError, signUserJwt } from "@arrivo/runtime";
-import { activeRecordWhere, createRecordBase, normalizeTenantId, updateRecordBase } from "../runtime/data-scope";
+import {
+  activeRecordWhere,
+  createRecordBase,
+  normalizeTenantId,
+  updateRecordBase,
+} from "../runtime/data-scope";
 import { db } from "../runtime/db";
+import { getLastVisitedPage } from "../user/last-visited-page.case";
 
 type AuthDeps = {
   jwtSecret: string;
@@ -74,7 +80,7 @@ function toAuthUser(user: {
     headimgurl: user.headimgurl,
     access: user.access,
     lastLoginTime: user.lastLoginTime,
-    createTime: user.createdAt
+    createTime: user.createdAt,
   };
 }
 
@@ -104,46 +110,60 @@ function randomToken(bytes = 32) {
 }
 
 async function sha256Hex(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
   return toHex(digest);
 }
 
 async function hashPassword(password: string, salt = randomToken(16)) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, [
-    "deriveBits"
-  ]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
   const hash = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
       hash: "SHA-256",
       salt: fromHex(salt),
-      iterations: PASSWORD_HASH_ITERATIONS
+      iterations: PASSWORD_HASH_ITERATIONS,
     },
     key,
-    256
+    256,
   );
   return `${PASSWORD_HASH_PREFIX}$${PASSWORD_HASH_ITERATIONS}$${salt}$${toHex(hash)}`;
 }
 
-async function verifyPassword(password: string, storedPassword: string | null | undefined) {
+async function verifyPassword(
+  password: string,
+  storedPassword: string | null | undefined,
+) {
   if (!storedPassword) return false;
   const [prefix, iterations, salt, hash] = storedPassword.split("$");
   if (prefix !== PASSWORD_HASH_PREFIX || !iterations || !salt || !hash) {
     return storedPassword === password;
   }
 
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, [
-    "deriveBits"
-  ]);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
   const passwordHash = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
       hash: "SHA-256",
       salt: fromHex(salt),
-      iterations: Number(iterations)
+      iterations: Number(iterations),
     },
     key,
-    256
+    256,
   );
   return toHex(passwordHash) === hash;
 }
@@ -151,7 +171,7 @@ async function verifyPassword(password: string, storedPassword: string | null | 
 async function issueLoginResult({
   user,
   jwtSecret,
-  jwtExpiresSeconds
+  jwtExpiresSeconds,
 }: {
   user: AuthUserRecord;
   jwtSecret: string;
@@ -161,37 +181,43 @@ async function issueLoginResult({
   await db.user.updateMany({
     where: {
       id: user.id,
-      ...activeRecordWhere(user.tenantId)
+      ...activeRecordWhere(user.tenantId),
     },
     data: {
       lastLoginTime: now,
-      ...updateRecordBase({ userId: user.id, now })
-    }
+      ...updateRecordBase({ userId: user.id, now }),
+    },
   });
   const updatedUser = await db.user.findFirst({
     where: {
       id: user.id,
-      ...activeRecordWhere(user.tenantId)
-    }
+      ...activeRecordWhere(user.tenantId),
+    },
   });
   if (!updatedUser) throw httpError.unauthorized();
 
-  const payload = toAuthUser(updatedUser);
+  const payload = {
+    ...toAuthUser(updatedUser),
+    lastVisitedPath: await getLastVisitedPage({
+      userId: updatedUser.id,
+      tenantId: updatedUser.tenantId,
+    }),
+  };
   const accessToken = await signUserJwt({
     user: payload,
     secret: jwtSecret,
-    expiresSeconds: jwtExpiresSeconds
+    expiresSeconds: jwtExpiresSeconds,
   });
   const refreshToken = await signUserJwt({
     user: payload,
     secret: jwtSecret,
-    expiresSeconds: 7 * 24 * 60 * 60
+    expiresSeconds: 7 * 24 * 60 * 60,
   });
 
   return {
     payload,
     accessToken,
-    refreshToken
+    refreshToken,
   };
 }
 
@@ -199,22 +225,30 @@ async function findUserByEmail(email: string, tenantId: string) {
   return db.user.findFirst({
     where: {
       email: normalizeEmail(email),
-      ...activeRecordWhere(tenantId)
-    }
+      ...activeRecordWhere(tenantId),
+    },
   });
 }
 
-async function setUserPassword({ userId, password, tenantId }: { userId: string; password: string; tenantId: string }) {
+async function setUserPassword({
+  userId,
+  password,
+  tenantId,
+}: {
+  userId: string;
+  password: string;
+  tenantId: string;
+}) {
   const now = new Date();
   const passwordHash = await hashPassword(password);
   const existingPassword = await db.userPassword.findFirst({
     where: {
       id: userId,
-      ...activeRecordWhere(tenantId)
+      ...activeRecordWhere(tenantId),
     },
     select: {
-      id: true
-    }
+      id: true,
+    },
   });
 
   if (existingPassword) {
@@ -222,8 +256,8 @@ async function setUserPassword({ userId, password, tenantId }: { userId: string;
       where: { id: userId },
       data: {
         password: passwordHash,
-        ...updateRecordBase({ userId, now })
-      }
+        ...updateRecordBase({ userId, now }),
+      },
     });
     return;
   }
@@ -232,12 +266,20 @@ async function setUserPassword({ userId, password, tenantId }: { userId: string;
     data: {
       ...createRecordBase({ userId, tenantId, now }),
       id: userId,
-      password: passwordHash
-    }
+      password: passwordHash,
+    },
   });
 }
 
-async function createEmailUser({ email, tenantId, password }: { email: string; tenantId: string; password?: string }) {
+async function createEmailUser({
+  email,
+  tenantId,
+  password,
+}: {
+  email: string;
+  tenantId: string;
+  password?: string;
+}) {
   const now = new Date();
   const normalizedEmail = normalizeEmail(email);
   const userBase = createRecordBase({ tenantId, now });
@@ -248,8 +290,8 @@ async function createEmailUser({ email, tenantId, password }: { email: string; t
       userName: normalizedEmail,
       nickname: normalizedEmail,
       registrationTime: now,
-      lastLoginTime: now
-    }
+      lastLoginTime: now,
+    },
   });
 
   if (password) {
@@ -257,8 +299,8 @@ async function createEmailUser({ email, tenantId, password }: { email: string; t
       data: {
         ...createRecordBase({ userId: user.id, tenantId, now }),
         id: user.id,
-        password: await hashPassword(password)
-      }
+        password: await hashPassword(password),
+      },
     });
   }
 
@@ -270,7 +312,7 @@ async function createEmailToken({
   purpose,
   tenantId,
   userId,
-  expiresMinutes
+  expiresMinutes,
 }: {
   email: string;
   purpose: string;
@@ -287,24 +329,32 @@ async function createEmailToken({
       purpose,
       toEmail: normalizeEmail(email),
       userId: userId ?? undefined,
-      expiredTime: new Date(now.getTime() + expiresMinutes * 60 * 1000)
-    }
+      expiredTime: new Date(now.getTime() + expiresMinutes * 60 * 1000),
+    },
   });
   return token;
 }
 
-async function getValidEmailToken({ token, purpose, tenantId }: { token: string; purpose: string; tenantId: string }) {
+async function getValidEmailToken({
+  token,
+  purpose,
+  tenantId,
+}: {
+  token: string;
+  purpose: string;
+  tenantId: string;
+}) {
   const tokenHash = await sha256Hex(token);
   const record = await db.emailCode.findFirst({
     where: {
       code: tokenHash,
       purpose,
       usedAt: null,
-      ...activeRecordWhere(tenantId)
+      ...activeRecordWhere(tenantId),
     },
     orderBy: {
-      createdAt: "desc"
-    }
+      createdAt: "desc",
+    },
   });
   if (!record) throw httpError.badRequest("链接无效或已使用");
   if (record.expiredTime && record.expiredTime < new Date()) {
@@ -314,13 +364,19 @@ async function getValidEmailToken({ token, purpose, tenantId }: { token: string;
   return record;
 }
 
-async function markEmailTokenUsed({ id, userId }: { id: string; userId?: string | null }) {
+async function markEmailTokenUsed({
+  id,
+  userId,
+}: {
+  id: string;
+  userId?: string | null;
+}) {
   await db.emailCode.update({
     where: { id },
     data: {
       usedAt: new Date(),
-      ...updateRecordBase({ userId: userId ?? undefined })
-    }
+      ...updateRecordBase({ userId: userId ?? undefined }),
+    },
   });
 }
 
@@ -338,16 +394,20 @@ function emailLoginHtml(link: string) {
   return `<p>你正在登录 Arrivo。</p><p><a href="${link}">点击这里完成登录</a></p><p>链接 15 分钟内有效。如果不是你本人操作，请忽略这封邮件。</p>`;
 }
 
-async function getFixedSmsCode(db: ArrivoDb, envFixedCode?: string, tenantId?: string | null) {
+async function getFixedSmsCode(
+  db: ArrivoDb,
+  envFixedCode?: string,
+  tenantId?: string | null,
+) {
   if (envFixedCode) return envFixedCode;
   const fixedConfig = await db.config.findFirst({
     where: {
       key: "FixedCode",
-      ...activeRecordWhere(tenantId)
+      ...activeRecordWhere(tenantId),
     },
     select: {
-      value: true
-    }
+      value: true,
+    },
   });
   return fixedConfig?.value || undefined;
 }
@@ -355,7 +415,7 @@ async function getFixedSmsCode(db: ArrivoDb, envFixedCode?: string, tenantId?: s
 export async function sendSmsCode({
   phoneNumber,
   fixedSmsCode,
-  defaultTenantId
+  defaultTenantId,
 }: {
   phoneNumber: string;
   fixedSmsCode?: string;
@@ -372,8 +432,8 @@ export async function sendSmsCode({
       ...createRecordBase({ tenantId, now }),
       code,
       toPhoneNumber: phoneNumber,
-      expiredTime: new Date(Date.now() + 10 * 60 * 1000)
-    }
+      expiredTime: new Date(Date.now() + 10 * 60 * 1000),
+    },
   });
 
   return 1;
@@ -384,22 +444,23 @@ export async function phoneNumberLogin({
   jwtExpiresSeconds,
   fixedSmsCode,
   defaultTenantId,
-  input
+  input,
 }: AuthDeps & { input: PhoneNumberLoginInput }): Promise<LoginResultDto> {
   const tenantId = normalizeTenantId(defaultTenantId);
   const fixedCode = await getFixedSmsCode(db, fixedSmsCode, tenantId);
   if (fixedCode) {
-    if (input.phoneNumberCode !== fixedCode) throw httpError.badRequest("验证码错误");
+    if (input.phoneNumberCode !== fixedCode)
+      throw httpError.badRequest("验证码错误");
   } else {
     const record = await db.phoneCode.findFirst({
       where: {
         code: input.phoneNumberCode,
         toPhoneNumber: input.phoneNumber,
-        ...activeRecordWhere(tenantId)
+        ...activeRecordWhere(tenantId),
       },
       orderBy: {
-        createdAt: "desc"
-      }
+        createdAt: "desc",
+      },
     });
     if (!record) throw httpError.badRequest("手机验证码错误");
     if (record.expiredTime && record.expiredTime < new Date()) {
@@ -411,8 +472,8 @@ export async function phoneNumberLogin({
   let user = await db.user.findFirst({
     where: {
       phoneNumber: input.phoneNumber,
-      ...activeRecordWhere(tenantId)
-    }
+      ...activeRecordWhere(tenantId),
+    },
   });
 
   if (!user) {
@@ -423,46 +484,52 @@ export async function phoneNumberLogin({
         email: "",
         userName: input.phoneNumber,
         registrationTime: now,
-        lastLoginTime: now
-      }
+        lastLoginTime: now,
+      },
     });
   } else {
     await db.user.updateMany({
       where: {
         id: user.id,
-        ...activeRecordWhere(tenantId)
+        ...activeRecordWhere(tenantId),
       },
       data: {
         lastLoginTime: now,
-        ...updateRecordBase({ userId: user.id, now })
-      }
+        ...updateRecordBase({ userId: user.id, now }),
+      },
     });
     const updatedUser = await db.user.findFirst({
       where: {
         id: user.id,
-        ...activeRecordWhere(tenantId)
-      }
+        ...activeRecordWhere(tenantId),
+      },
     });
     if (!updatedUser) throw httpError.unauthorized();
     user = updatedUser;
   }
 
-  const payload = toAuthUser(user);
+  const payload = {
+    ...toAuthUser(user),
+    lastVisitedPath: await getLastVisitedPage({
+      userId: user.id,
+      tenantId: user.tenantId,
+    }),
+  };
   const accessToken = await signUserJwt({
     user: payload,
     secret: jwtSecret,
-    expiresSeconds: jwtExpiresSeconds
+    expiresSeconds: jwtExpiresSeconds,
   });
   const refreshToken = await signUserJwt({
     user: payload,
     secret: jwtSecret,
-    expiresSeconds: 7 * 24 * 60 * 60
+    expiresSeconds: 7 * 24 * 60 * 60,
   });
 
   return {
     payload,
     accessToken,
-    refreshToken
+    refreshToken,
   };
 }
 
@@ -470,7 +537,7 @@ export async function registerEmailPassword({
   jwtSecret,
   jwtExpiresSeconds,
   defaultTenantId,
-  input
+  input,
 }: AuthDeps & { input: EmailPasswordRegisterInput }): Promise<LoginResultDto> {
   const tenantId = normalizeTenantId(defaultTenantId);
   const email = normalizeEmail(input.email);
@@ -479,15 +546,27 @@ export async function registerEmailPassword({
     const existingPassword = await db.userPassword.findFirst({
       where: {
         id: existingUser.id,
-        ...activeRecordWhere(tenantId)
-      }
+        ...activeRecordWhere(tenantId),
+      },
     });
     if (existingPassword?.password) throw httpError.badRequest("邮箱已注册");
-    await setUserPassword({ userId: existingUser.id, password: input.password, tenantId });
-    return issueLoginResult({ user: existingUser, jwtSecret, jwtExpiresSeconds });
+    await setUserPassword({
+      userId: existingUser.id,
+      password: input.password,
+      tenantId,
+    });
+    return issueLoginResult({
+      user: existingUser,
+      jwtSecret,
+      jwtExpiresSeconds,
+    });
   }
 
-  const user = await createEmailUser({ email, tenantId, password: input.password });
+  const user = await createEmailUser({
+    email,
+    tenantId,
+    password: input.password,
+  });
   return issueLoginResult({ user, jwtSecret, jwtExpiresSeconds });
 }
 
@@ -495,7 +574,7 @@ export async function emailPasswordLogin({
   jwtSecret,
   jwtExpiresSeconds,
   defaultTenantId,
-  input
+  input,
 }: AuthDeps & { input: EmailPasswordLoginInput }): Promise<LoginResultDto> {
   const tenantId = normalizeTenantId(defaultTenantId);
   const user = await findUserByEmail(input.email, tenantId);
@@ -503,13 +582,23 @@ export async function emailPasswordLogin({
   const userPassword = await db.userPassword.findFirst({
     where: {
       id: user.id,
-      ...activeRecordWhere(tenantId)
-    }
+      ...activeRecordWhere(tenantId),
+    },
   });
-  const passwordMatched = await verifyPassword(input.password, userPassword?.password);
+  const passwordMatched = await verifyPassword(
+    input.password,
+    userPassword?.password,
+  );
   if (!passwordMatched) throw httpError.badRequest("邮箱或密码错误");
-  if (userPassword?.password && !userPassword.password.startsWith(PASSWORD_HASH_PREFIX)) {
-    await setUserPassword({ userId: user.id, password: input.password, tenantId });
+  if (
+    userPassword?.password &&
+    !userPassword.password.startsWith(PASSWORD_HASH_PREFIX)
+  ) {
+    await setUserPassword({
+      userId: user.id,
+      password: input.password,
+      tenantId,
+    });
   }
   return issueLoginResult({ user, jwtSecret, jwtExpiresSeconds });
 }
@@ -518,33 +607,52 @@ export async function emailPasswordSignIn({
   jwtSecret,
   jwtExpiresSeconds,
   defaultTenantId,
-  input
+  input,
 }: AuthDeps & { input: EmailPasswordSignInInput }): Promise<LoginResultDto> {
   const tenantId = normalizeTenantId(defaultTenantId);
   const email = normalizeEmail(input.email);
   const user = await findUserByEmail(email, tenantId);
 
   if (!user) {
-    const createdUser = await createEmailUser({ email, tenantId, password: input.password });
-    return issueLoginResult({ user: createdUser, jwtSecret, jwtExpiresSeconds });
+    const createdUser = await createEmailUser({
+      email,
+      tenantId,
+      password: input.password,
+    });
+    return issueLoginResult({
+      user: createdUser,
+      jwtSecret,
+      jwtExpiresSeconds,
+    });
   }
 
   const userPassword = await db.userPassword.findFirst({
     where: {
       id: user.id,
-      ...activeRecordWhere(tenantId)
-    }
+      ...activeRecordWhere(tenantId),
+    },
   });
 
   if (!userPassword?.password) {
-    await setUserPassword({ userId: user.id, password: input.password, tenantId });
+    await setUserPassword({
+      userId: user.id,
+      password: input.password,
+      tenantId,
+    });
     return issueLoginResult({ user, jwtSecret, jwtExpiresSeconds });
   }
 
-  const passwordMatched = await verifyPassword(input.password, userPassword.password);
+  const passwordMatched = await verifyPassword(
+    input.password,
+    userPassword.password,
+  );
   if (!passwordMatched) throw httpError.badRequest("邮箱或密码错误");
   if (!userPassword.password.startsWith(PASSWORD_HASH_PREFIX)) {
-    await setUserPassword({ userId: user.id, password: input.password, tenantId });
+    await setUserPassword({
+      userId: user.id,
+      password: input.password,
+      tenantId,
+    });
   }
 
   return issueLoginResult({ user, jwtSecret, jwtExpiresSeconds });
@@ -554,7 +662,7 @@ export async function sendPasswordResetEmail({
   defaultTenantId,
   emailClient,
   input,
-  webOrigin
+  webOrigin,
 }: EmailAuthDeps & { input: SendPasswordResetEmailInput }) {
   requireEmailClient(emailClient);
   const tenantId = normalizeTenantId(defaultTenantId);
@@ -567,14 +675,14 @@ export async function sendPasswordResetEmail({
     purpose: PASSWORD_RESET_PURPOSE,
     tenantId,
     userId: user.id,
-    expiresMinutes: PASSWORD_RESET_EXPIRES_MINUTES
+    expiresMinutes: PASSWORD_RESET_EXPIRES_MINUTES,
   });
   const link = `${webOrigin}/login?resetToken=${encodeURIComponent(token)}`;
   await emailClient.send({
     to: email,
     subject: "Arrivo 密码找回",
     text: `点击链接设置新密码：${link}\n\n链接 30 分钟内有效。如果不是你本人操作，请忽略这封邮件。`,
-    html: passwordResetEmailHtml(link)
+    html: passwordResetEmailHtml(link),
   });
   return 1;
 }
@@ -583,17 +691,21 @@ export async function resetPassword({
   jwtSecret,
   jwtExpiresSeconds,
   defaultTenantId,
-  input
+  input,
 }: AuthDeps & { input: ResetPasswordInput }): Promise<LoginResultDto> {
   const tenantId = normalizeTenantId(defaultTenantId);
   const record = await getValidEmailToken({
     token: input.token,
     purpose: PASSWORD_RESET_PURPOSE,
-    tenantId
+    tenantId,
   });
   const user = await findUserByEmail(record.toEmail!, tenantId);
   if (!user) throw httpError.badRequest("账号不存在");
-  await setUserPassword({ userId: user.id, password: input.password, tenantId });
+  await setUserPassword({
+    userId: user.id,
+    password: input.password,
+    tenantId,
+  });
   await markEmailTokenUsed({ id: record.id, userId: user.id });
   return issueLoginResult({ user, jwtSecret, jwtExpiresSeconds });
 }
@@ -603,7 +715,7 @@ export async function sendEmailLoginLink({
   defaultTenantId,
   emailClient,
   input,
-  webOrigin
+  webOrigin,
 }: EmailAuthDeps & { input: SendEmailLoginLinkInput }) {
   requireEmailClient(emailClient);
   const tenantId = normalizeTenantId(defaultTenantId);
@@ -614,7 +726,7 @@ export async function sendEmailLoginLink({
     purpose: EMAIL_LOGIN_PURPOSE,
     tenantId,
     userId: user?.id,
-    expiresMinutes: EMAIL_LOGIN_EXPIRES_MINUTES
+    expiresMinutes: EMAIL_LOGIN_EXPIRES_MINUTES,
   });
   const redirect = input.redirect || webOrigin;
   const link = `${apiBaseUrl}/auth/emailLinkLogin?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirect)}`;
@@ -622,7 +734,7 @@ export async function sendEmailLoginLink({
     to: email,
     subject: "登录 Arrivo",
     text: `点击链接登录 Arrivo：${link}\n\n链接 15 分钟内有效。如果不是你本人操作，请忽略这封邮件。`,
-    html: emailLoginHtml(link)
+    html: emailLoginHtml(link),
   });
   return 1;
 }
@@ -631,13 +743,13 @@ export async function emailLinkLogin({
   jwtSecret,
   jwtExpiresSeconds,
   defaultTenantId,
-  token
+  token,
 }: AuthDeps & { token: string }): Promise<LoginResultDto> {
   const tenantId = normalizeTenantId(defaultTenantId);
   const record = await getValidEmailToken({
     token,
     purpose: EMAIL_LOGIN_PURPOSE,
-    tenantId
+    tenantId,
   });
   let user = await findUserByEmail(record.toEmail!, tenantId);
   if (!user) {

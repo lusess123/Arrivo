@@ -1,16 +1,37 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { MouseEvent } from 'react';
-import { useApp } from '@/hooks';
-import { history, useSearchParams } from '@umijs/max';
-import { Button, Form, Input, message, Modal, Popconfirm, Spin, Tabs, Tag } from 'antd';
-import { ClockCircleOutlined, DeleteOutlined, EditOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import styles from './index.module.less';
-import logo from '@/assets/logo.png';
-import emptyImage from '@/assets/foot.png';
+import { useEffect, useMemo, useState } from "react";
+import type { MouseEvent } from "react";
+import { useApp } from "@/hooks";
+import { history, useSearchParams } from "@umijs/max";
+import {
+  Button,
+  Form,
+  Input,
+  message,
+  Modal,
+  Popconfirm,
+  Spin,
+  Tabs,
+  Tag,
+} from "antd";
+import {
+  ClockCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import styles from "./index.module.less";
+import logo from "@/assets/logo.png";
+import emptyImage from "@/assets/foot.png";
 // import { Article, mockArticles } from '@/mock/articles';
-import axios from 'axios';
-import { asyncHandle } from '@/lib';
-import { resolveArticleTab, sortPublicArticles, withArticleTab } from './article-list';
+import axios from "axios";
+import { asyncHandle } from "@/lib";
+import { buildLoginUrl } from "@/lib/auth-redirect";
+import {
+  resolveArticleTab,
+  sortPublicArticles,
+  withArticleTab,
+} from "./article-list";
 
 export default function IndexPage() {
   const { auth } = useApp();
@@ -25,12 +46,15 @@ export default function IndexPage() {
   const activeTab = resolveArticleTab(searchParams);
 
   const myArticles = useMemo(
-    () => articles.filter(article => article.userId === currentUserId && !article.isPublic),
+    () =>
+      articles.filter(
+        (article) => article.userId === currentUserId && !article.isPublic,
+      ),
     [articles, currentUserId],
   );
 
   const publicArticles = useMemo(
-    () => sortPublicArticles(articles.filter(article => article.isPublic)),
+    () => sortPublicArticles(articles.filter((article) => article.isPublic)),
     [articles],
   );
 
@@ -39,8 +63,10 @@ export default function IndexPage() {
   }, []);
 
   useEffect(() => {
-    if (searchParams.get('tab') !== activeTab) {
-      setSearchParams(withArticleTab(searchParams, activeTab), { replace: true });
+    if (searchParams.get("tab") !== activeTab) {
+      setSearchParams(withArticleTab(searchParams, activeTab), {
+        replace: true,
+      });
     }
   }, [activeTab, searchParams, setSearchParams]);
 
@@ -49,7 +75,9 @@ export default function IndexPage() {
       setLoading(true);
       // Simulate network delay
       // await new Promise(resolve => setTimeout(resolve, 300));
-      const [err, res] = await  asyncHandle(axios.get('/api/article/getArticleList'));
+      const [err, res] = await asyncHandle(
+        axios.get("/api/article/getArticleList"),
+      );
       if (err) {
         if (err.response?.status !== 401) {
           message.error(err.message);
@@ -59,37 +87,41 @@ export default function IndexPage() {
       const list = res?.data?.data || [];
       const newList = list.map((item: any) => ({
         ...item,
-        createdAt: item.createdAt ||  new Date(),
-        content: item.Sentences?.length > 0 ?
-        `${item.Sentences[0].translatedContent || ''}${item.Sentences[0].originalContent || ''}` : '',
+        createdAt: item.createdAt || new Date(),
+        content:
+          item.Sentences?.length > 0
+            ? `${item.Sentences[0].translatedContent || ""}${item.Sentences[0].originalContent || ""}`
+            : "",
       }));
       setArticles(newList);
       // Load all articles at once
       // setArticles(mockArticles);
     } catch (error) {
-      console.error('Error fetching articles:', error);
+      console.error("Error fetching articles:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    const [err, res] = await asyncHandle(axios.post('/api/auth/signout'));
-        if(err) {
-            // Toast.show('Logout failed');
-            message.error(err.message);
-        } else {
-            // Toast.show('Logout success');
-            // setData(null);
-            await auth.clearUser?.();
-            history.replace(`/login`);
-        }
-        // return [err, res]
+    const [err, res] = await asyncHandle(axios.post("/api/auth/signout"));
+    if (err) {
+      // Toast.show('Logout failed');
+      message.error(err.message);
+    } else {
+      // Toast.show('Logout success');
+      // setData(null);
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      await auth.saveLastVisitedPage(currentPath);
+      await auth.clearUser?.();
+      history.replace(buildLoginUrl(currentPath));
+    }
+    // return [err, res]
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   };
 
   function handleArticleClick(id: string): void {
@@ -99,11 +131,11 @@ export default function IndexPage() {
   function openCreateArticle(): void {
     setEditingArticle(null);
     articleForm.setFieldsValue({
-      title: '',
+      title: "",
       sentences: [
         {
-          original: '',
-          translation: '',
+          original: "",
+          translation: "",
         },
       ],
     });
@@ -130,12 +162,16 @@ export default function IndexPage() {
             title: values.title,
             sentences: (values.sentences || [])
               .map((sentence: any) => ({
-                original: sentence?.original?.trim() || '',
-                translation: sentence?.translation?.trim() || '',
+                original: sentence?.original?.trim() || "",
+                translation: sentence?.translation?.trim() || "",
               }))
-              .filter((sentence: any) => sentence.original || sentence.translation),
+              .filter(
+                (sentence: any) => sentence.original || sentence.translation,
+              ),
           };
-      const endpoint = editingArticle ? '/api/article/updateArticle' : '/api/article/createArticle';
+      const endpoint = editingArticle
+        ? "/api/article/updateArticle"
+        : "/api/article/createArticle";
       const [err, res] = await asyncHandle(axios.post(endpoint, payload));
 
       if (err) {
@@ -147,7 +183,7 @@ export default function IndexPage() {
       setEditingArticle(null);
       articleForm.resetFields();
       await fetchArticles();
-      message.success(editingArticle ? '文章已更新' : '文章已创建');
+      message.success(editingArticle ? "文章已更新" : "文章已创建");
 
       const createdArticleId = res?.data?.data?.id;
       if (!editingArticle && createdArticleId) {
@@ -159,14 +195,16 @@ export default function IndexPage() {
   }
 
   async function handleDeleteArticle(article: any) {
-    const [err] = await asyncHandle(axios.post('/api/article/deleteArticle', { id: article.id }));
+    const [err] = await asyncHandle(
+      axios.post("/api/article/deleteArticle", { id: article.id }),
+    );
 
     if (err) {
       message.error(err.response?.data?.message || err.message);
       return;
     }
 
-    message.success('文章已删除');
+    message.success("文章已删除");
     await fetchArticles();
   }
 
@@ -174,14 +212,25 @@ export default function IndexPage() {
     if (list.length === 0) {
       return (
         <div className={styles.empty}>
-          <img src={emptyImage} alt="No Articles" className={styles.emptyImage} />
+          <img
+            src={emptyImage}
+            alt="No Articles"
+            className={styles.emptyImage}
+          />
           <p>{emptyText}</p>
         </div>
       );
     }
 
-    return list.map(article => (
-      <div key={article.id} className={styles.articleCard + '  cursor-pointer  hover:text-blue-700 focus:outline-none' } onClick={() => handleArticleClick(article.id)}>
+    return list.map((article) => (
+      <div
+        key={article.id}
+        className={
+          styles.articleCard +
+          "  cursor-pointer  hover:text-blue-700 focus:outline-none"
+        }
+        onClick={() => handleArticleClick(article.id)}
+      >
         <div className={styles.articleTitleRow}>
           <h3 className={styles.articleTitle}>{article.title}</h3>
           {article.isPublic && <Tag color="blue">公共</Tag>}
@@ -198,8 +247,15 @@ export default function IndexPage() {
         </div>
         <p className={styles.articleExcerpt}>{article.content}</p>
         {!readonly && (
-          <div className={styles.cardActions} onClick={(event) => event.stopPropagation()}>
-            <Button size="small" icon={<EditOutlined />} onClick={(event) => openEditArticle(article, event)}>
+          <div
+            className={styles.cardActions}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={(event) => openEditArticle(article, event)}
+            >
               编辑
             </Button>
             <Popconfirm
@@ -233,36 +289,42 @@ export default function IndexPage() {
           >
             新增文章
           </Button>
-          <Button
-            className={styles.logoutBtn}
-            onClick={handleLogout}
-          >
+          <Button className={styles.logoutBtn} onClick={handleLogout}>
             退出登录
           </Button>
         </div>
       </header>
-      
+
       <main className={styles.content}>
         <div className={styles.articleList}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
               <Spin size="large" />
             </div>
           ) : (
             <Tabs
               className={styles.articleTabs}
               activeKey={activeTab}
-              onChange={(tab) => setSearchParams(withArticleTab(searchParams, tab as 'mine' | 'public'), { replace: true })}
+              onChange={(tab) =>
+                setSearchParams(
+                  withArticleTab(searchParams, tab as "mine" | "public"),
+                  { replace: true },
+                )
+              }
               items={[
                 {
-                  key: 'mine',
+                  key: "mine",
                   label: `我的文章 ${myArticles.length}`,
-                  children: renderArticleList(myArticles, '暂无我的文章'),
+                  children: renderArticleList(myArticles, "暂无我的文章"),
                 },
                 {
-                  key: 'public',
+                  key: "public",
                   label: `公共文章 ${publicArticles.length}`,
-                  children: renderArticleList(publicArticles, '暂无公共文章', true),
+                  children: renderArticleList(
+                    publicArticles,
+                    "暂无公共文章",
+                    true,
+                  ),
                 },
               ]}
             />
@@ -271,7 +333,7 @@ export default function IndexPage() {
       </main>
 
       <Modal
-        title={editingArticle ? '编辑文章' : '新增文章'}
+        title={editingArticle ? "编辑文章" : "新增文章"}
         open={articleModalOpen}
         onCancel={() => {
           setArticleModalOpen(false);
@@ -280,14 +342,14 @@ export default function IndexPage() {
         }}
         onOk={handleSaveArticle}
         confirmLoading={savingArticle}
-        okText={editingArticle ? '保存' : '创建'}
+        okText={editingArticle ? "保存" : "创建"}
         cancelText="取消"
       >
         <Form form={articleForm} layout="vertical">
           <Form.Item
             label="标题"
             name="title"
-            rules={[{ required: true, message: '请输入标题' }]}
+            rules={[{ required: true, message: "请输入标题" }]}
           >
             <Input placeholder="输入文章标题" />
           </Form.Item>
@@ -309,11 +371,25 @@ export default function IndexPage() {
                             onClick={() => remove(name)}
                           />
                         </div>
-                        <Form.Item {...restField} name={[name, 'original']} label="英文">
-                          <Input.TextArea rows={2} placeholder="输入要朗读的英文，可不填" />
+                        <Form.Item
+                          {...restField}
+                          name={[name, "original"]}
+                          label="英文"
+                        >
+                          <Input.TextArea
+                            rows={2}
+                            placeholder="输入要朗读的英文，可不填"
+                          />
                         </Form.Item>
-                        <Form.Item {...restField} name={[name, 'translation']} label="中文释义">
-                          <Input.TextArea rows={2} placeholder="输入中文释义，可不填" />
+                        <Form.Item
+                          {...restField}
+                          name={[name, "translation"]}
+                          label="中文释义"
+                        >
+                          <Input.TextArea
+                            rows={2}
+                            placeholder="输入中文释义，可不填"
+                          />
                         </Form.Item>
                       </div>
                     ))}
@@ -321,7 +397,7 @@ export default function IndexPage() {
                       type="dashed"
                       block
                       icon={<PlusOutlined />}
-                      onClick={() => add({ original: '', translation: '' })}
+                      onClick={() => add({ original: "", translation: "" })}
                     >
                       添加一句
                     </Button>
