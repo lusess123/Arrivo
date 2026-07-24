@@ -43,7 +43,7 @@ function route(prefix: string, path: string) {
 function getSentenceSplitAi(c: { env: AppEnv["Bindings"] }) {
   const gatewayToken = (c.env.AI_GATEWAY_AUTH_TOKEN || c.env.AI_GATEWAY_API_KEY)?.trim();
   const baseUrl = c.env.AI_GATEWAY_BASE_URL?.trim();
-  const model = c.env.SENTENCE_SPLIT_MODEL?.trim() || "deepseek-chat";
+  const model = c.env.SENTENCE_SPLIT_MODEL?.trim() || "deepseek-v4-flash";
   if (!gatewayToken || !baseUrl) throw httpError.internal("句子切分 AI 尚未配置");
   return { model, ai: createAiGatewayTextClient({ gatewayToken, baseUrl, model }) };
 }
