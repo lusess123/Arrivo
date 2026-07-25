@@ -112,6 +112,9 @@ describe('article word seeking', () => {
     expect(source).toContain('audio.pause();\n    stopHighlightTracking();');
     expect(source).toContain("audio.addEventListener('seeked', resumeAfterSeek, { once: true });");
     expect(source).toContain('seekAndContinueAtWord(word.offsetMs / 1000);');
+    expect(source).toContain('startedPlaybackSessionRef.current !== session');
+    expect(source).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');
+    expect(source).not.toContain('播放当前单词');
   });
 });
 

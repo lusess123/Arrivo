@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ArrivoDb } from "@arrivo/db";
-import { getArticleDetail, getArticleList, incrementArticlePlayCount, incrementSentencePlayCount, runWithDbClientFactory } from "../src";
+import { getArticleDetail, getArticleList, incrementArticlePlayCount, incrementSentencePlayCount, recordSentenceWordPlay, runWithDbClientFactory } from "../src";
 
 function withDb<T>(mockDb: Partial<ArrivoDb>, run: () => T) {
   return runWithDbClientFactory({
@@ -77,6 +77,33 @@ describe("article navigation", () => {
       where: { id: "019f0000-0000-7000-8000-000000000001" },
       data: { playCount: { increment: 1 } },
       select: { playCount: true }
+    });
+  });
+
+  test("records a sentence word index once", async () => {
+    let updateArgs: any;
+    const sentences = {
+      findFirst: async () => ({ id: "019f0000-0000-7000-8000-000000000001", playedWordIndexes: [1] }),
+      update: async (args: any) => {
+        updateArgs = args;
+        return { playedWordIndexes: [1, 3] };
+      }
+    };
+
+    const result = await withDb({ sentences } as Partial<ArrivoDb>, () =>
+      recordSentenceWordPlay({
+        userId: "user-a",
+        tenantId: "tenant-a",
+        id: "019f0000-0000-7000-8000-000000000001",
+        wordIndex: 3
+      })
+    );
+
+    expect(result).toEqual({ playedWordIndexes: [1, 3] });
+    expect(updateArgs).toEqual({
+      where: { id: "019f0000-0000-7000-8000-000000000001" },
+      data: { playedWordIndexes: [1, 3] },
+      select: { playedWordIndexes: true }
     });
   });
 

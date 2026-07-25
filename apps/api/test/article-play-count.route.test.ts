@@ -75,6 +75,31 @@ describe("article play count route", () => {
     expect((await response.json() as any).data).toEqual({ playCount: 12 });
   });
 
+  test("records a previewed word on an accessible sentence", async () => {
+    const response = await requestWithDb(
+      {
+        sentences: {
+          findFirst: async () => ({
+            id: "019f0000-0000-7000-8000-000000000001",
+            playedWordIndexes: [1]
+          }),
+          update: async () => ({ playedWordIndexes: [1, 3] })
+        }
+      } as Partial<ArrivoDb>,
+      new Request("http://localhost/api/article/recordSentenceWordPlay", {
+        method: "POST",
+        headers: {
+          Cookie: await authCookie(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ id: "019f0000-0000-7000-8000-000000000001", wordIndex: 3 })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json() as any).data).toEqual({ playedWordIndexes: [1, 3] });
+  });
+
   test("requires authentication", async () => {
     const response = await requestWithDb(
       {},

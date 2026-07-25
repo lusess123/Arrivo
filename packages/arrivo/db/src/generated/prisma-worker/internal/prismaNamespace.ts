@@ -1041,6 +1041,7 @@ export const SentencesScalarFieldEnum = {
   splitModel: 'splitModel',
   splitVersion: 'splitVersion',
   playCount: 'playCount',
+  playedWordIndexes: 'playedWordIndexes',
   deletedAt: 'deletedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',

@@ -125,6 +125,7 @@ const ArticlePage: React.FC = () => {
   const speechRecognitionRef = useRef<any>(null);
   const playbackSettingsRef = useRef(playbackSettings);
   const sentencePlayCountQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const sentenceWordPlayQueueRef = useRef<Promise<void>>(Promise.resolve());
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const restoredArticleRef = useRef<string | null>(null);
@@ -226,6 +227,9 @@ const ArticlePage: React.FC = () => {
         translatedContent: sentence.translatedContent || "",
         parentSentenceId: sentence.parentSentenceId || null,
         splitStatus: (sentence.splitStatus || "UNKNOWN") as SentenceSplitStatus,
+        playedWordIndexes: Array.isArray(sentence.playedWordIndexes)
+          ? sentence.playedWordIndexes
+          : [],
       })),
     );
     setActiveSentenceIndex(null);
@@ -421,6 +425,34 @@ const ArticlePage: React.FC = () => {
         if (typeof playCount !== "number") return;
         setSentences((current) => current.map((sentence) => (
           sentence.id === sentenceId ? { ...sentence, playCount } : sentence
+        )));
+      });
+  }, []);
+
+  const handleSentenceWordPreviewed = useCallback((sentenceId: string, wordIndex: number) => {
+    setSentences((current) => current.map((sentence) => (
+      sentence.id === sentenceId && !sentence.playedWordIndexes.includes(wordIndex)
+        ? { ...sentence, playedWordIndexes: [...sentence.playedWordIndexes, wordIndex] }
+        : sentence
+    )));
+
+    sentenceWordPlayQueueRef.current = sentenceWordPlayQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const [err, res] = await asyncHandle(
+          axios.post("/api/article/recordSentenceWordPlay", { id: sentenceId, wordIndex }),
+        );
+        if (err) {
+          if (err.response?.status !== 401) {
+            message.error(err.response?.data?.message || "单词播放记录保存失败");
+          }
+          return;
+        }
+
+        const playedWordIndexes = res?.data?.data?.playedWordIndexes;
+        if (!Array.isArray(playedWordIndexes)) return;
+        setSentences((current) => current.map((sentence) => (
+          sentence.id === sentenceId ? { ...sentence, playedWordIndexes } : sentence
         )));
       });
   }, []);
@@ -1295,6 +1327,7 @@ const ArticlePage: React.FC = () => {
               duration={(sentence as Sentence).duration || 0}
               id={sentence.id}
               totalPlayCount={sentence.playCount}
+              playedWordIndexes={sentence.playedWordIndexes}
               resumePoint={
                 row.playable &&
                 activeSentenceIndex === null &&
@@ -1315,6 +1348,7 @@ const ArticlePage: React.FC = () => {
               onPlayStop={handleSentencePlayStop}
               onPlayEnd={handleSentencePlayEnd}
               onPlaybackCompleted={handleSentencePlaybackCompleted}
+              onWordPreviewed={handleSentenceWordPreviewed}
               sound={true}
               actions={
                 rootIndex >= 0

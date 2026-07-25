@@ -286,6 +286,8 @@
 }
 
 .wordButton {
+  position: relative;
+  isolation: isolate;
   border: 0;
   border-radius: 4px;
   padding: 0;
@@ -306,6 +308,39 @@
   text-decoration-color: #4c9fc5;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+}
+
+.wordPreviewLoading {
+  color: #176b8d;
+  background: rgba(160, 216, 239, 0.28);
+  animation: wordPreviewPulse 720ms ease-in-out infinite;
+
+  &::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -0.18em -0.32em;
+    border: 1px solid rgba(76, 159, 197, 0.64);
+    border-radius: 999px;
+    pointer-events: none;
+    animation: wordPreviewRipple 720ms ease-out infinite;
+  }
+}
+
+@keyframes wordPreviewPulse {
+  50% { background: rgba(160, 216, 239, 0.5); }
+}
+
+@keyframes wordPreviewRipple {
+  from { opacity: 0.8; transform: scale(0.86); }
+  to { opacity: 0; transform: scale(1.22); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordPreviewLoading,
+  .wordPreviewLoading::after {
+    animation: none;
+  }
 }
 
 .activeWord {

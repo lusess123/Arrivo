@@ -20,6 +20,7 @@ interface ISentenceItem {
     duration: number,
     id: string,
     totalPlayCount: number,
+    playedWordIndexes: number[],
     resumePoint?: boolean,
     times: number,
     // s: string,
@@ -33,6 +34,7 @@ interface ISentenceItem {
     onPlayStop: (index: number) => void,
     onPlayEnd: (index: number) => void,
     onPlaybackCompleted: (id: string) => void,
+    onWordPreviewed: (id: string, wordIndex: number) => void,
     sound: boolean,
     actions?: React.ReactNode,
     depth?: number,
@@ -62,6 +64,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const activeWordIndexRef = useRef(-1);
   const resumeWordOffsetRef = useRef<number | null>(null);
   const seekRequestRef = useRef(0);
+  const startedPlaybackSessionRef = useRef<string | null>(null);
   const playCountRef = useRef(0);
   const [playCount, setPlayCount] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -70,8 +73,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [pauseRemaining, setPauseRemaining] = useState(0);
   const [wordBoundaries, setWordBoundaries] = useState<TtsWordBoundaryDto[]>([]);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
-  const [isWordPreviewing, setIsWordPreviewing] = useState(false);
-  const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(() => new Set());
+  const [previewLoadingWordIndex, setPreviewLoadingWordIndex] = useState(-1);
+  const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(
+    () => new Set(sentence.playedWordIndexes),
+  );
   const maxCount = Math.max(1, sentence.times || 1);
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
@@ -79,8 +84,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
   );
 
   useEffect(() => {
-    setPreviewedWordIndices(new Set());
-  }, [sentence.id, sentence.originalContent]);
+    setPreviewedWordIndices(new Set(sentence.playedWordIndexes));
+  }, [sentence.id, sentence.originalContent, sentence.playedWordIndexes]);
 
   const stopWordPreview = useCallback(() => {
     const preview = wordPreviewRef.current;
@@ -90,7 +95,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     preview.removeAttribute('src');
     preview.load();
     wordPreviewRef.current = null;
-    setIsWordPreviewing(false);
+    setPreviewLoadingWordIndex(-1);
   }, []);
 
   const stopHighlightTracking = useCallback(() => {
@@ -534,8 +539,13 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
   useEffect(() => {
     if (sentence.playing) {
-      void playOnce(1);
+      const session = `${sentence.playbackKey}:${sentence.index}`;
+      if (startedPlaybackSessionRef.current !== session) {
+        startedPlaybackSessionRef.current = session;
+        void playOnce(1);
+      }
     } else {
+      startedPlaybackSessionRef.current = null;
       stopAudio();
     }
 
@@ -589,7 +599,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     wordPreviewRef.current = preview;
     preview.volume = sentence.sound ? 1 : 0;
     preview.playbackRate = sentence.rate;
-    setIsWordPreviewing(true);
+    setPreviewLoadingWordIndex(wordIndex);
 
     const finish = () => {
       if (wordPreviewRef.current !== preview) return;
@@ -597,17 +607,19 @@ export default function SentenceItem(sentence: ISentenceItem) {
       preview.removeAttribute('src');
       preview.load();
       wordPreviewRef.current = null;
-      setIsWordPreviewing(false);
+      setPreviewLoadingWordIndex(-1);
     };
     preview.addEventListener('ended', finish, { once: true });
     preview.addEventListener('error', () => finish(), { once: true });
     void preview.play()
       .then(() => {
         if (wordPreviewRef.current !== preview) return;
+        setPreviewLoadingWordIndex(-1);
         setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
+        sentence.onWordPreviewed(sentence.id, wordIndex);
       })
       .catch(() => finish());
-  }, [sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
+  }, [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
 
   const handleWordClick = useCallback((wordIndex: number) => {
     const word = wordBoundariesRef.current[wordIndex];
@@ -709,6 +721,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
             const className = [
               styles.word,
               wordIndex === activeWordIndex ? styles.activeWord : '',
+              wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
               previewedWordIndices.has(wordIndex) ? styles.previewedWord : '',
             ].filter(Boolean).join(' ');
             return (
@@ -718,6 +731,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 key={`word-${wordIndex}`}
                 onClick={() => handleWordClick(wordIndex)}
                 aria-label={`播放或定位单词 ${segment.text}`}
+                aria-busy={wordIndex === previewLoadingWordIndex}
               >
                 {segment.text}
               </button>
@@ -739,18 +753,6 @@ export default function SentenceItem(sentence: ISentenceItem) {
           />
         )}
         {sentence.auxiliaryControl}
-        {isPaused && activeWordIndex >= 0 ? (
-          <Button
-            type="text"
-            icon={<SoundOutlined />}
-            loading={isWordPreviewing}
-            onClick={handlePlayCurrentWord}
-            className={styles.wordPreviewButton}
-            aria-label={`播放当前单词 ${wordBoundaries[activeWordIndex]?.text || ''}`}
-          >
-            播放当前单词
-          </Button>
-        ) : null}
         {sentence.playing ? (
           <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
         ) : null}

@@ -44,7 +44,8 @@ function getArticleSelect(tenantId: string) {
         sortOrder: true,
         parentSentenceId: true,
         splitStatus: true,
-        playCount: true
+        playCount: true,
+        playedWordIndexes: true
       },
       orderBy: sentenceOrderBy
     }
@@ -338,6 +339,37 @@ export async function incrementSentencePlayCount({
   });
 }
 
+export async function recordSentenceWordPlay({
+  userId,
+  tenantId: inputTenantId,
+  id,
+  wordIndex
+}: ArticleCaseDeps & { id: string; wordIndex: number }): Promise<{ playedWordIndexes: number[] }> {
+  const tenantId = normalizeTenantId(inputTenantId);
+  const sentence = await db.sentences.findFirst({
+    where: {
+      id,
+      ...activeRecordWhere(tenantId),
+      article: {
+        is: ownOrPublicArticleWhere({ userId, tenantId })
+      }
+    },
+    select: { id: true, playedWordIndexes: true }
+  });
+
+  if (!sentence) throw httpError.notFound("句子不存在");
+
+  if (sentence.playedWordIndexes.includes(wordIndex)) {
+    return { playedWordIndexes: sentence.playedWordIndexes };
+  }
+
+  return db.sentences.update({
+    where: { id: sentence.id },
+    data: { playedWordIndexes: [...sentence.playedWordIndexes, wordIndex] },
+    select: { playedWordIndexes: true }
+  });
+}
+
 export async function createArticle({
   userId,
   tenantId: inputTenantId,
@@ -528,6 +560,7 @@ export async function updateSentence({
         splitAnalyzedAt: null,
         splitModel: null,
         splitVersion: null,
+        playedWordIndexes: [],
         ...updateRecordBase({ userId, now })
       }
     }),

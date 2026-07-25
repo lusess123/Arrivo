@@ -14,6 +14,7 @@ import {
   sentenceSplitParamSchema,
   incrementArticlePlayCountInputSchema,
   incrementSentencePlayCountInputSchema,
+  recordSentenceWordPlayInputSchema,
   updateArticleInputSchema,
   updateSentenceInputSchema
 } from "@arrivo/contracts";
@@ -26,6 +27,7 @@ import {
   getArticleList,
   incrementArticlePlayCount,
   incrementSentencePlayCount,
+  recordSentenceWordPlay,
   moveSentence,
   analyzeSentenceBatch,
   streamSentenceSplit,
@@ -84,6 +86,23 @@ export function registerArticleRoutes(app: Hono<AppEnv>, prefix = "") {
       if (!user) throw httpError.unauthorized();
       const input = c.req.valid("json");
       return ok(c, await incrementSentencePlayCount({ userId: user.id, tenantId: user.tenant, id: input.id }));
+    }
+  );
+
+  app.post(
+    route(prefix, "/article/recordSentenceWordPlay"),
+    requireUser,
+    zValidator("json", recordSentenceWordPlayInputSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      const input = c.req.valid("json");
+      return ok(c, await recordSentenceWordPlay({
+        userId: user.id,
+        tenantId: user.tenant,
+        id: input.id,
+        wordIndex: input.wordIndex
+      }));
     }
   );
 
