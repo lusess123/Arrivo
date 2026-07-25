@@ -112,6 +112,8 @@ describe('article word seeking', () => {
     expect(source).toContain('const word = wordBoundaries[wordIndex];');
     expect(source).toContain('void handlePlayCurrentWord(word, wordIndex);');
     expect(source).toContain('audio.pause();\n      stopHighlightTracking();\n      await seekAudio(audio, resumeAt);');
+    expect(source).toContain('Math.abs(audio.currentTime - seekTo) <= 0.05');
+    expect(source).toContain("audio.addEventListener('seeked', handleSeeked);");
     expect(source).toContain('const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;');
     expect(source).toContain('startedPlaybackSessionRef.current !== session');
     expect(source).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');

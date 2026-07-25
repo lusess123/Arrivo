@@ -398,15 +398,21 @@ export default function SentenceItem(sentence: ISentenceItem) {
     new Promise<void>((resolve) => {
       let timer: number | undefined;
       const finish = () => {
-        audio.removeEventListener('seeked', finish);
+        audio.removeEventListener('seeked', handleSeeked);
         if (timer !== undefined) window.clearTimeout(timer);
         resolve();
       };
+      const handleSeeked = () => {
+        if (Math.abs(audio.currentTime - seekTo) <= 0.05) {
+          finish();
+        }
+      };
 
-      audio.addEventListener('seeked', finish, { once: true });
+      audio.addEventListener('seeked', handleSeeked);
       timer = window.setTimeout(finish, 500);
       try {
         audio.currentTime = seekTo;
+        handleSeeked();
       } catch {
         finish();
       }
