@@ -8,6 +8,7 @@ import {
   buildWordTextSegments,
   findActiveWordIndex,
   findPauseActiveWordIndex,
+  getWordPlaybackRange,
 } from './word-highlight';
 import { articleSentenceElementId } from './article-progress';
 
@@ -43,6 +44,7 @@ interface ISentenceItem {
 
 export default function SentenceItem(sentence: ISentenceItem) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const wordPreviewRef = useRef<HTMLAudioElement | null>(null);
   const itemRef = useRef<HTMLDivElement | null>(null);
   const repeatTimerRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
@@ -67,11 +69,23 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [pauseRemaining, setPauseRemaining] = useState(0);
   const [wordBoundaries, setWordBoundaries] = useState<TtsWordBoundaryDto[]>([]);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
+  const [isWordPreviewing, setIsWordPreviewing] = useState(false);
   const maxCount = Math.max(1, sentence.times || 1);
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
     [sentence.originalContent, wordBoundaries],
   );
+
+  const stopWordPreview = useCallback(() => {
+    const preview = wordPreviewRef.current;
+    if (!preview) return;
+
+    preview.pause();
+    preview.removeAttribute('src');
+    preview.load();
+    wordPreviewRef.current = null;
+    setIsWordPreviewing(false);
+  }, []);
 
   const stopHighlightTracking = useCallback(() => {
     if (highlightFrameRef.current !== null) {
@@ -166,6 +180,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   }, []);
 
   const resetPlaybackState = useCallback(() => {
+    stopWordPreview();
     clearRepeatTimer();
     stopHighlightTracking();
     stopPauseHighlightTracking();
@@ -180,7 +195,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsWaite(false);
     setIsPaused(false);
     setHighlightedWord(-1);
-  }, [clearRepeatTimer, setHighlightedWord, stopHighlightTracking, stopPauseHighlightTracking]);
+  }, [clearRepeatTimer, setHighlightedWord, stopHighlightTracking, stopPauseHighlightTracking, stopWordPreview]);
 
   const waitBeforeContinue = useCallback((
     seconds: number,
@@ -446,8 +461,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
       clearRepeatTimer();
       stopHighlightTracking();
       stopPauseHighlightTracking();
+      stopWordPreview();
     };
-  }, [clearRepeatTimer, playOnce, sentence.playbackKey, sentence.playing, stopAudio, stopHighlightTracking, stopPauseHighlightTracking]);
+  }, [clearRepeatTimer, playOnce, sentence.playbackKey, sentence.playing, stopAudio, stopHighlightTracking, stopPauseHighlightTracking, stopWordPreview]);
 
   const handleTogglePlay = () => {
     if (sentence.playing) {
@@ -470,6 +486,40 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     sentence.onPlayStart(sentence.index);
   };
+
+  const handlePlayCurrentWord = useCallback(() => {
+    const source = audioRef.current?.currentSrc;
+    const word = wordBoundariesRef.current[activeWordIndexRef.current];
+    const range = getWordPlaybackRange(word);
+    if (!source || !range) return;
+
+    stopWordPreview();
+    const preview = new Audio(source);
+    wordPreviewRef.current = preview;
+    preview.volume = sentence.sound ? 1 : 0;
+    preview.playbackRate = sentence.rate;
+    setIsWordPreviewing(true);
+
+    const finish = () => {
+      if (wordPreviewRef.current !== preview) return;
+      preview.pause();
+      preview.removeAttribute('src');
+      preview.load();
+      wordPreviewRef.current = null;
+      setIsWordPreviewing(false);
+    };
+    const stopAtWordEnd = () => {
+      if (preview.currentTime >= range.endSeconds) finish();
+    };
+
+    preview.addEventListener('timeupdate', stopAtWordEnd);
+    preview.addEventListener('ended', finish, { once: true });
+    preview.addEventListener('error', finish, { once: true });
+    preview.addEventListener('loadedmetadata', () => {
+      preview.currentTime = range.startSeconds;
+      void preview.play().catch(finish);
+    }, { once: true });
+  }, [sentence.rate, sentence.sound, stopWordPreview]);
 
   const handleEnded = () => {
     stopHighlightTracking();
@@ -573,6 +623,18 @@ export default function SentenceItem(sentence: ISentenceItem) {
           />
         )}
         {sentence.auxiliaryControl}
+        {isPaused && activeWordIndex >= 0 ? (
+          <Button
+            type="text"
+            icon={<SoundOutlined />}
+            loading={isWordPreviewing}
+            onClick={handlePlayCurrentWord}
+            className={styles.wordPreviewButton}
+            aria-label={`播放当前单词 ${wordBoundaries[activeWordIndex]?.text || ''}`}
+          >
+            播放当前单词
+          </Button>
+        ) : null}
         {sentence.playing ? (
           <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
         ) : null}
