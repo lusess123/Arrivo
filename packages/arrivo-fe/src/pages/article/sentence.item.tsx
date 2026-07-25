@@ -63,7 +63,6 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const wordBoundariesRef = useRef<TtsWordBoundaryDto[]>([]);
   const activeWordIndexRef = useRef(-1);
   const resumeWordOffsetRef = useRef<number | null>(null);
-  const seekRequestRef = useRef(0);
   const startedPlaybackSessionRef = useRef<string | null>(null);
   const playCountRef = useRef(0);
   const [playCount, setPlayCount] = useState(0);
@@ -327,7 +326,6 @@ export default function SentenceItem(sentence: ISentenceItem) {
       return;
     }
 
-    seekRequestRef.current += 1;
     clearRepeatTimer();
     stopWordPreview();
     stopPauseHighlightTracking();
@@ -439,56 +437,6 @@ export default function SentenceItem(sentence: ISentenceItem) {
     startHighlightTracking,
     stopPauseHighlightTracking,
     stopWordPreview,
-  ]);
-
-  const seekAndContinueAtWord = useCallback((offsetSeconds: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const requestId = seekRequestRef.current + 1;
-    seekRequestRef.current = requestId;
-    let resumed = false;
-    const resumeAfterSeek = () => {
-      if (resumed || seekRequestRef.current !== requestId) return;
-      resumed = true;
-      startedAtRef.current = Date.now();
-      setIsPaused(false);
-      void audio.play()
-        .then(() => startHighlightTracking())
-        .catch((error) => {
-          console.error('Audio seek resume failed', error);
-          resetPlaybackState();
-          sentence.onPlayStop(sentence.index);
-        });
-    };
-
-    // Pause first so a browser cannot keep advancing the old position while
-    // the new word position is being applied.
-    audio.pause();
-    stopHighlightTracking();
-    audio.volume = sentence.sound ? 1 : 0;
-    audio.playbackRate = sentence.rate;
-    audio.addEventListener('seeked', resumeAfterSeek, { once: true });
-    try {
-      audio.currentTime = offsetSeconds;
-    } catch {
-      resumeAfterSeek();
-      return;
-    }
-
-    // Some cached audio seeks complete synchronously and do not dispatch a
-    // later event, so resume on the next frame in that case.
-    window.requestAnimationFrame(() => {
-      if (!audio.seeking) resumeAfterSeek();
-    });
-  }, [
-    resetPlaybackState,
-    sentence.index,
-    sentence.onPlayStop,
-    sentence.rate,
-    sentence.sound,
-    startHighlightTracking,
-    stopHighlightTracking,
   ]);
 
   useEffect(() => {
@@ -633,8 +581,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
       return;
     }
 
-    seekAndContinueAtWord(word.offsetMs / 1000);
-  }, [handlePlayCurrentWord, isPaused, isWaite, seekAndContinueAtWord, sentence.playing, setHighlightedWord]);
+    resumeWordOffsetRef.current = word.offsetMs / 1000;
+    void playOnce(1);
+  }, [handlePlayCurrentWord, isPaused, isWaite, playOnce, sentence.playing, setHighlightedWord]);
 
   const handleEnded = () => {
     stopHighlightTracking();

@@ -108,10 +108,8 @@ describe('article word seeking', () => {
       new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
     ).text();
 
-    expect(source).toContain('const seekAndContinueAtWord');
-    expect(source).toContain('audio.pause();\n    stopHighlightTracking();');
-    expect(source).toContain("audio.addEventListener('seeked', resumeAfterSeek, { once: true });");
-    expect(source).toContain('seekAndContinueAtWord(word.offsetMs / 1000);');
+    expect(source).toContain('resumeWordOffsetRef.current = word.offsetMs / 1000;\n    void playOnce(1);');
+    expect(source).toContain('const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;');
     expect(source).toContain('startedPlaybackSessionRef.current !== session');
     expect(source).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');
     expect(source).not.toContain('播放当前单词');
