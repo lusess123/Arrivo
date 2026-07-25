@@ -22,6 +22,10 @@ export const incrementArticlePlayCountInputSchema = z.object({
   id: z.string().min(1)
 });
 
+export const incrementSentencePlayCountInputSchema = z.object({
+  id: z.string().uuid()
+});
+
 export const updateArticleInputSchema = z.object({
   id: z.string().min(1),
   title: z.string().trim().min(1)
@@ -82,6 +86,7 @@ export type SentenceInput = z.infer<typeof sentenceInputSchema>;
 export type CreateArticleInput = z.infer<typeof createArticleInputSchema>;
 export type ArticleDetailQuery = z.infer<typeof articleDetailQuerySchema>;
 export type IncrementArticlePlayCountInput = z.infer<typeof incrementArticlePlayCountInputSchema>;
+export type IncrementSentencePlayCountInput = z.infer<typeof incrementSentencePlayCountInputSchema>;
 export type UpdateArticleInput = z.infer<typeof updateArticleInputSchema>;
 export type DeleteArticleInput = z.infer<typeof deleteArticleInputSchema>;
 export type CreateSentenceInput = z.infer<typeof createSentenceInputSchema>;
@@ -111,6 +116,7 @@ export type ArticleSentenceDto = {
   sortOrder: number;
   parentSentenceId: string | null;
   splitStatus: SentenceSplitStatus;
+  playCount: number;
 };
 
 export type ArticleDto = {

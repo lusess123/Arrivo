@@ -124,6 +124,7 @@ const ArticlePage: React.FC = () => {
   const [listeningFeedback, setListeningFeedback] = useState(false);
   const speechRecognitionRef = useRef<any>(null);
   const playbackSettingsRef = useRef(playbackSettings);
+  const sentencePlayCountQueueRef = useRef<Promise<void>>(Promise.resolve());
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const restoredArticleRef = useRef<string | null>(null);
@@ -391,6 +392,37 @@ const ArticlePage: React.FC = () => {
     setActiveSentenceIndex((currentIndex) =>
       currentIndex === index ? null : currentIndex,
     );
+  }, []);
+
+  const handleSentencePlaybackCompleted = useCallback((sentenceId: string) => {
+    setSentences((current) => current.map((sentence) => (
+      sentence.id === sentenceId
+        ? { ...sentence, playCount: sentence.playCount + 1 }
+        : sentence
+    )));
+
+    sentencePlayCountQueueRef.current = sentencePlayCountQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const [err, res] = await asyncHandle(
+          axios.post("/api/article/incrementSentencePlayCount", { id: sentenceId }),
+        );
+        if (err) {
+          setSentences((current) => current.map((sentence) => (
+            sentence.id === sentenceId
+              ? { ...sentence, playCount: Math.max(0, sentence.playCount - 1) }
+              : sentence
+          )));
+          message.error(err.response?.data?.message || "句子播放量更新失败");
+          return;
+        }
+
+        const playCount = res?.data?.data?.playCount;
+        if (typeof playCount !== "number") return;
+        setSentences((current) => current.map((sentence) => (
+          sentence.id === sentenceId ? { ...sentence, playCount } : sentence
+        )));
+      });
   }, []);
 
   const handleSentencePlayEnd = useCallback(
@@ -1262,6 +1294,7 @@ const ArticlePage: React.FC = () => {
               index={index}
               duration={(sentence as Sentence).duration || 0}
               id={sentence.id}
+              totalPlayCount={sentence.playCount}
               resumePoint={
                 row.playable &&
                 activeSentenceIndex === null &&
@@ -1281,6 +1314,7 @@ const ArticlePage: React.FC = () => {
               onPlayStart={handleSentencePlayStart}
               onPlayStop={handleSentencePlayStop}
               onPlayEnd={handleSentencePlayEnd}
+              onPlaybackCompleted={handleSentencePlaybackCompleted}
               sound={true}
               actions={
                 rootIndex >= 0

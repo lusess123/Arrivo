@@ -53,6 +53,28 @@ describe("article play count route", () => {
     expect((await response.json() as any).data).toEqual({ playCount: 11 });
   });
 
+  test("increments the sentence play count for an authenticated reader", async () => {
+    const response = await requestWithDb(
+      {
+        sentences: {
+          findFirst: async () => ({ id: "019f0000-0000-7000-8000-000000000001" }),
+          update: async () => ({ playCount: 12 })
+        }
+      } as Partial<ArrivoDb>,
+      new Request("http://localhost/api/article/incrementSentencePlayCount", {
+        method: "POST",
+        headers: {
+          Cookie: await authCookie(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ id: "019f0000-0000-7000-8000-000000000001" })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json() as any).data).toEqual({ playCount: 12 });
+  });
+
   test("requires authentication", async () => {
     const response = await requestWithDb(
       {},

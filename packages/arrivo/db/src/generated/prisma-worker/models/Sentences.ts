@@ -28,10 +28,12 @@ export type AggregateSentences = {
 
 export type SentencesAvgAggregateOutputType = {
   sortOrder: number | null
+  playCount: number | null
 }
 
 export type SentencesSumAggregateOutputType = {
   sortOrder: number | null
+  playCount: number | null
 }
 
 export type SentencesMinAggregateOutputType = {
@@ -46,6 +48,7 @@ export type SentencesMinAggregateOutputType = {
   splitAnalyzedAt: Date | null
   splitModel: string | null
   splitVersion: string | null
+  playCount: number | null
   deletedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -69,6 +72,7 @@ export type SentencesMaxAggregateOutputType = {
   splitAnalyzedAt: Date | null
   splitModel: string | null
   splitVersion: string | null
+  playCount: number | null
   deletedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -92,6 +96,7 @@ export type SentencesCountAggregateOutputType = {
   splitAnalyzedAt: number
   splitModel: number
   splitVersion: number
+  playCount: number
   deletedAt: number
   createdAt: number
   updatedAt: number
@@ -107,10 +112,12 @@ export type SentencesCountAggregateOutputType = {
 
 export type SentencesAvgAggregateInputType = {
   sortOrder?: true
+  playCount?: true
 }
 
 export type SentencesSumAggregateInputType = {
   sortOrder?: true
+  playCount?: true
 }
 
 export type SentencesMinAggregateInputType = {
@@ -125,6 +132,7 @@ export type SentencesMinAggregateInputType = {
   splitAnalyzedAt?: true
   splitModel?: true
   splitVersion?: true
+  playCount?: true
   deletedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -148,6 +156,7 @@ export type SentencesMaxAggregateInputType = {
   splitAnalyzedAt?: true
   splitModel?: true
   splitVersion?: true
+  playCount?: true
   deletedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -171,6 +180,7 @@ export type SentencesCountAggregateInputType = {
   splitAnalyzedAt?: true
   splitModel?: true
   splitVersion?: true
+  playCount?: true
   deletedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -281,6 +291,7 @@ export type SentencesGroupByOutputType = {
   splitAnalyzedAt: Date | null
   splitModel: string | null
   splitVersion: string | null
+  playCount: number
   deletedAt: Date | null
   createdAt: Date
   updatedAt: Date
@@ -327,6 +338,7 @@ export type SentencesWhereInput = {
   splitAnalyzedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   splitModel?: Prisma.StringNullableFilter<"Sentences"> | string | null
   splitVersion?: Prisma.StringNullableFilter<"Sentences"> | string | null
+  playCount?: Prisma.IntFilter<"Sentences"> | number
   deletedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
@@ -353,6 +365,7 @@ export type SentencesOrderByWithRelationInput = {
   splitAnalyzedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   splitModel?: Prisma.SortOrderInput | Prisma.SortOrder
   splitVersion?: Prisma.SortOrderInput | Prisma.SortOrder
+  playCount?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -382,6 +395,7 @@ export type SentencesWhereUniqueInput = Prisma.AtLeast<{
   splitAnalyzedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   splitModel?: Prisma.StringNullableFilter<"Sentences"> | string | null
   splitVersion?: Prisma.StringNullableFilter<"Sentences"> | string | null
+  playCount?: Prisma.IntFilter<"Sentences"> | number
   deletedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
@@ -408,6 +422,7 @@ export type SentencesOrderByWithAggregationInput = {
   splitAnalyzedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   splitModel?: Prisma.SortOrderInput | Prisma.SortOrder
   splitVersion?: Prisma.SortOrderInput | Prisma.SortOrder
+  playCount?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -439,6 +454,7 @@ export type SentencesScalarWhereWithAggregatesInput = {
   splitAnalyzedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Sentences"> | Date | string | null
   splitModel?: Prisma.StringNullableWithAggregatesFilter<"Sentences"> | string | null
   splitVersion?: Prisma.StringNullableWithAggregatesFilter<"Sentences"> | string | null
+  playCount?: Prisma.IntWithAggregatesFilter<"Sentences"> | number
   deletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Sentences"> | Date | string
@@ -460,6 +476,7 @@ export type SentencesCreateInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -486,6 +503,7 @@ export type SentencesUncheckedCreateInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -508,6 +526,7 @@ export type SentencesUpdateInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -534,6 +553,7 @@ export type SentencesUncheckedUpdateInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -558,6 +578,7 @@ export type SentencesCreateManyInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -579,6 +600,7 @@ export type SentencesUpdateManyMutationInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -602,6 +624,7 @@ export type SentencesUncheckedUpdateManyInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -640,6 +663,7 @@ export type SentencesCountOrderByAggregateInput = {
   splitAnalyzedAt?: Prisma.SortOrder
   splitModel?: Prisma.SortOrder
   splitVersion?: Prisma.SortOrder
+  playCount?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -653,6 +677,7 @@ export type SentencesCountOrderByAggregateInput = {
 
 export type SentencesAvgOrderByAggregateInput = {
   sortOrder?: Prisma.SortOrder
+  playCount?: Prisma.SortOrder
 }
 
 export type SentencesMaxOrderByAggregateInput = {
@@ -667,6 +692,7 @@ export type SentencesMaxOrderByAggregateInput = {
   splitAnalyzedAt?: Prisma.SortOrder
   splitModel?: Prisma.SortOrder
   splitVersion?: Prisma.SortOrder
+  playCount?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -690,6 +716,7 @@ export type SentencesMinOrderByAggregateInput = {
   splitAnalyzedAt?: Prisma.SortOrder
   splitModel?: Prisma.SortOrder
   splitVersion?: Prisma.SortOrder
+  playCount?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -703,6 +730,7 @@ export type SentencesMinOrderByAggregateInput = {
 
 export type SentencesSumOrderByAggregateInput = {
   sortOrder?: Prisma.SortOrder
+  playCount?: Prisma.SortOrder
 }
 
 export type SentencesCreateNestedManyWithoutArticleInput = {
@@ -815,6 +843,7 @@ export type SentencesCreateWithoutArticleInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -839,6 +868,7 @@ export type SentencesUncheckedCreateWithoutArticleInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -892,6 +922,7 @@ export type SentencesScalarWhereInput = {
   splitAnalyzedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   splitModel?: Prisma.StringNullableFilter<"Sentences"> | string | null
   splitVersion?: Prisma.StringNullableFilter<"Sentences"> | string | null
+  playCount?: Prisma.IntFilter<"Sentences"> | number
   deletedAt?: Prisma.DateTimeNullableFilter<"Sentences"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Sentences"> | Date | string
@@ -913,6 +944,7 @@ export type SentencesCreateWithoutChildrenInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -938,6 +970,7 @@ export type SentencesUncheckedCreateWithoutChildrenInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -964,6 +997,7 @@ export type SentencesCreateWithoutParentSentenceInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -988,6 +1022,7 @@ export type SentencesUncheckedCreateWithoutParentSentenceInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1031,6 +1066,7 @@ export type SentencesUpdateWithoutChildrenInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1056,6 +1092,7 @@ export type SentencesUncheckedUpdateWithoutChildrenInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1094,6 +1131,7 @@ export type SentencesCreateManyArticleInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1115,6 +1153,7 @@ export type SentencesUpdateWithoutArticleInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1139,6 +1178,7 @@ export type SentencesUncheckedUpdateWithoutArticleInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1162,6 +1202,7 @@ export type SentencesUncheckedUpdateManyWithoutArticleInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1184,6 +1225,7 @@ export type SentencesCreateManyParentSentenceInput = {
   splitAnalyzedAt?: Date | string | null
   splitModel?: string | null
   splitVersion?: string | null
+  playCount?: number
   deletedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1205,6 +1247,7 @@ export type SentencesUpdateWithoutParentSentenceInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1229,6 +1272,7 @@ export type SentencesUncheckedUpdateWithoutParentSentenceInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1252,6 +1296,7 @@ export type SentencesUncheckedUpdateManyWithoutParentSentenceInput = {
   splitAnalyzedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   splitModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   splitVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  playCount?: Prisma.IntFieldUpdateOperationsInput | number
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1306,6 +1351,7 @@ export type SentencesSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   splitAnalyzedAt?: boolean
   splitModel?: boolean
   splitVersion?: boolean
+  playCount?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1333,6 +1379,7 @@ export type SentencesSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   splitAnalyzedAt?: boolean
   splitModel?: boolean
   splitVersion?: boolean
+  playCount?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1358,6 +1405,7 @@ export type SentencesSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   splitAnalyzedAt?: boolean
   splitModel?: boolean
   splitVersion?: boolean
+  playCount?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1383,6 +1431,7 @@ export type SentencesSelectScalar = {
   splitAnalyzedAt?: boolean
   splitModel?: boolean
   splitVersion?: boolean
+  playCount?: boolean
   deletedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1394,7 +1443,7 @@ export type SentencesSelectScalar = {
   env?: boolean
 }
 
-export type SentencesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "content" | "articleId" | "originalContent" | "translatedContent" | "sortOrder" | "parentSentenceId" | "splitStatus" | "splitAnalyzedAt" | "splitModel" | "splitVersion" | "deletedAt" | "createdAt" | "updatedAt" | "deletedBy" | "createdBy" | "updatedBy" | "tenantId" | "teamId" | "env", ExtArgs["result"]["sentences"]>
+export type SentencesOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "content" | "articleId" | "originalContent" | "translatedContent" | "sortOrder" | "parentSentenceId" | "splitStatus" | "splitAnalyzedAt" | "splitModel" | "splitVersion" | "playCount" | "deletedAt" | "createdAt" | "updatedAt" | "deletedBy" | "createdBy" | "updatedBy" | "tenantId" | "teamId" | "env", ExtArgs["result"]["sentences"]>
 export type SentencesInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   article?: boolean | Prisma.Sentences$articleArgs<ExtArgs>
   parentSentence?: boolean | Prisma.Sentences$parentSentenceArgs<ExtArgs>
@@ -1429,6 +1478,7 @@ export type $SentencesPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     splitAnalyzedAt: Date | null
     splitModel: string | null
     splitVersion: string | null
+    playCount: number
     deletedAt: Date | null
     createdAt: Date
     updatedAt: Date
@@ -1875,6 +1925,7 @@ export interface SentencesFieldRefs {
   readonly splitAnalyzedAt: Prisma.FieldRef<"Sentences", 'DateTime'>
   readonly splitModel: Prisma.FieldRef<"Sentences", 'String'>
   readonly splitVersion: Prisma.FieldRef<"Sentences", 'String'>
+  readonly playCount: Prisma.FieldRef<"Sentences", 'Int'>
   readonly deletedAt: Prisma.FieldRef<"Sentences", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Sentences", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Sentences", 'DateTime'>

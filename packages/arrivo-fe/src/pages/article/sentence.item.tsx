@@ -19,6 +19,7 @@ interface ISentenceItem {
     index : number,
     duration: number,
     id: string,
+    totalPlayCount: number,
     resumePoint?: boolean,
     times: number,
     // s: string,
@@ -31,6 +32,7 @@ interface ISentenceItem {
     onPlayStart: (index: number) => void,
     onPlayStop: (index: number) => void,
     onPlayEnd: (index: number) => void,
+    onPlaybackCompleted: (id: string) => void,
     sound: boolean,
     actions?: React.ReactNode,
     depth?: number,
@@ -472,6 +474,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const handleEnded = () => {
     stopHighlightTracking();
     setHighlightedWord(-1);
+    sentence.onPlaybackCompleted(sentence.id);
     const audio = audioRef.current;
     const elapsedMs = playbackElapsedMsRef.current + (
       startedAtRef.current ? Date.now() - startedAtRef.current : 0
@@ -573,6 +576,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
         {sentence.playing ? (
           <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
         ) : null}
+        <span className={styles.totalPlayCount}>播放量 {sentence.totalPlayCount}</span>
         {sentence.playing && !isWaite ? (
           isPaused ? <span className={styles.playbackPaused}>已暂停</span> : <SoundOutlined />
         ) : null}

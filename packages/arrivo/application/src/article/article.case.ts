@@ -43,7 +43,8 @@ function getArticleSelect(tenantId: string) {
         translatedContent: true,
         sortOrder: true,
         parentSentenceId: true,
-        splitStatus: true
+        splitStatus: true,
+        playCount: true
       },
       orderBy: sentenceOrderBy
     }
@@ -307,6 +308,32 @@ export async function incrementArticlePlayCount({
     data: {
       playCount: { increment: 1 }
     },
+    select: { playCount: true }
+  });
+}
+
+export async function incrementSentencePlayCount({
+  userId,
+  tenantId: inputTenantId,
+  id
+}: ArticleCaseDeps & { id: string }): Promise<{ playCount: number }> {
+  const tenantId = normalizeTenantId(inputTenantId);
+  const sentence = await db.sentences.findFirst({
+    where: {
+      id,
+      ...activeRecordWhere(tenantId),
+      article: {
+        is: ownOrPublicArticleWhere({ userId, tenantId })
+      }
+    },
+    select: { id: true }
+  });
+
+  if (!sentence) throw httpError.notFound("句子不存在");
+
+  return db.sentences.update({
+    where: { id: sentence.id },
+    data: { playCount: { increment: 1 } },
     select: { playCount: true }
   });
 }

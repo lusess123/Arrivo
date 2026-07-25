@@ -1040,6 +1040,7 @@ export const SentencesScalarFieldEnum = {
   splitAnalyzedAt: 'splitAnalyzedAt',
   splitModel: 'splitModel',
   splitVersion: 'splitVersion',
+  playCount: 'playCount',
   deletedAt: 'deletedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',

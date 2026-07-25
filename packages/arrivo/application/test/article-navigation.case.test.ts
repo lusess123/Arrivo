@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ArrivoDb } from "@arrivo/db";
-import { getArticleDetail, getArticleList, incrementArticlePlayCount, runWithDbClientFactory } from "../src";
+import { getArticleDetail, getArticleList, incrementArticlePlayCount, incrementSentencePlayCount, runWithDbClientFactory } from "../src";
 
 function withDb<T>(mockDb: Partial<ArrivoDb>, run: () => T) {
   return runWithDbClientFactory({
@@ -56,6 +56,28 @@ describe("article navigation", () => {
       incrementArticlePlayCount({ userId: "user-a", tenantId: "tenant-a", id: "private" })
     )).rejects.toMatchObject({ status: 404 });
     expect(writes).toBe(0);
+  });
+
+  test("increments an accessible sentence play count atomically", async () => {
+    let updateArgs: any;
+    const sentences = {
+      findFirst: async () => ({ id: "019f0000-0000-7000-8000-000000000001" }),
+      update: async (args: any) => {
+        updateArgs = args;
+        return { playCount: 4 };
+      }
+    };
+
+    const result = await withDb({ sentences } as Partial<ArrivoDb>, () =>
+      incrementSentencePlayCount({ userId: "user-a", tenantId: "tenant-a", id: "019f0000-0000-7000-8000-000000000001" })
+    );
+
+    expect(result).toEqual({ playCount: 4 });
+    expect(updateArgs).toEqual({
+      where: { id: "019f0000-0000-7000-8000-000000000001" },
+      data: { playCount: { increment: 1 } },
+      select: { playCount: true }
+    });
   });
 
   test("uses a stable createdAt/id order for the article list", async () => {
