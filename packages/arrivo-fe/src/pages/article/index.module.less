@@ -285,6 +285,29 @@
   transition: color 100ms ease, background-color 100ms ease, box-shadow 100ms ease;
 }
 
+.wordButton {
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    color: #176b8d;
+    background: rgba(160, 216, 239, 0.2);
+  }
+}
+
+.previewedWord {
+  text-decoration: underline;
+  text-decoration-color: #4c9fc5;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 .activeWord {
   .word();
   color: #176b8d;

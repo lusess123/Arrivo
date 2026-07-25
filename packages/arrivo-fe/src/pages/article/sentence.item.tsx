@@ -69,11 +69,16 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [wordBoundaries, setWordBoundaries] = useState<TtsWordBoundaryDto[]>([]);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
   const [isWordPreviewing, setIsWordPreviewing] = useState(false);
+  const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(() => new Set());
   const maxCount = Math.max(1, sentence.times || 1);
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
     [sentence.originalContent, wordBoundaries],
   );
+
+  useEffect(() => {
+    setPreviewedWordIndices(new Set());
+  }, [sentence.id, sentence.originalContent]);
 
   const stopWordPreview = useCallback(() => {
     const preview = wordPreviewRef.current;
@@ -487,7 +492,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
   };
 
   const handlePlayCurrentWord = useCallback(() => {
-    const word = wordBoundariesRef.current[activeWordIndexRef.current];
+    const wordIndex = activeWordIndexRef.current;
+    const word = wordBoundariesRef.current[wordIndex];
     if (!word?.text) return;
 
     stopWordPreview();
@@ -502,18 +508,42 @@ export default function SentenceItem(sentence: ISentenceItem) {
     preview.playbackRate = sentence.rate;
     setIsWordPreviewing(true);
 
-    const finish = () => {
+    const finish = (completed = false) => {
       if (wordPreviewRef.current !== preview) return;
       preview.pause();
       preview.removeAttribute('src');
       preview.load();
       wordPreviewRef.current = null;
       setIsWordPreviewing(false);
+      if (completed) {
+        setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
+      }
     };
-    preview.addEventListener('ended', finish, { once: true });
-    preview.addEventListener('error', finish, { once: true });
-    void preview.play().catch(finish);
+    preview.addEventListener('ended', () => finish(true), { once: true });
+    preview.addEventListener('error', () => finish(), { once: true });
+    void preview.play().catch(() => finish());
   }, [sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
+
+  const handleWordClick = useCallback((wordIndex: number) => {
+    const word = wordBoundariesRef.current[wordIndex];
+    if (!sentence.playing || !word) return;
+
+    setHighlightedWord(wordIndex);
+    if (isPaused) {
+      activeWordIndexRef.current = wordIndex;
+      void handlePlayCurrentWord();
+      return;
+    }
+    if (isWaite) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
+    try {
+      audio.currentTime = word.offsetMs / 1000;
+    } catch {
+      // Ignore seek errors while the browser is changing media state.
+    }
+  }, [handlePlayCurrentWord, isPaused, isWaite, sentence.playing, setHighlightedWord]);
 
   const handleEnded = () => {
     stopHighlightTracking();
@@ -591,16 +621,35 @@ export default function SentenceItem(sentence: ISentenceItem) {
       <div className={styles.sentenceContent}>
         {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
         <p className={styles.englishText}>
-          {wordSegments.map((segment, segmentIndex) => segment.wordIndex === undefined ? (
-            <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>
-          ) : (
-            <span
-              className={segment.wordIndex === activeWordIndex ? styles.activeWord : styles.word}
-              key={`word-${segment.wordIndex}`}
-            >
-              {segment.text}
-            </span>
-          ))}
+          {wordSegments.map((segment, segmentIndex) => {
+            if (segment.wordIndex === undefined) {
+              return <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>;
+            }
+
+            const wordIndex = segment.wordIndex;
+            const className = [
+              styles.word,
+              wordIndex === activeWordIndex ? styles.activeWord : '',
+              previewedWordIndices.has(wordIndex) ? styles.previewedWord : '',
+            ].filter(Boolean).join(' ');
+            const selectable = sentence.playing && (!isWaite || isPaused);
+
+            return selectable ? (
+              <button
+                type="button"
+                className={`${styles.wordButton} ${className}`}
+                key={`word-${wordIndex}`}
+                onClick={() => handleWordClick(wordIndex)}
+                aria-label={`定位到单词 ${segment.text}`}
+              >
+                {segment.text}
+              </button>
+            ) : (
+              <span className={className} key={`word-${wordIndex}`}>
+                {segment.text}
+              </span>
+            );
+          })}
         </p>
         <p className={styles.chineseText}>{sentence.translatedContent}</p>
         {sentence.transientContent}
