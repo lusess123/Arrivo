@@ -622,7 +622,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       return;
     }
 
-    console.debug('Article word seek', { wordIndex, word, offsetSeconds: word.offsetMs / 1000 });
+    console.debug(`Article word seek index=${wordIndex} text=${word.text} offsetMs=${word.offsetMs}`);
     void resumeAudioPlayback(word.offsetMs / 1000);
   }, [
     clearRepeatTimer,

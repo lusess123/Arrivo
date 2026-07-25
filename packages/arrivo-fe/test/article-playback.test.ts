@@ -111,7 +111,7 @@ describe('article word seeking', () => {
     expect(source).toContain('void resumeAudioPlayback(word.offsetMs / 1000);');
     expect(source).toContain('const word = wordBoundaries[wordIndex];');
     expect(source).toContain('void handlePlayCurrentWord(word, wordIndex);');
-    expect(source).toContain("console.debug('Article word seek', { wordIndex, word, offsetSeconds: word.offsetMs / 1000 });");
+    expect(source).toContain("console.debug(`Article word seek index=${wordIndex} text=${word.text} offsetMs=${word.offsetMs}`);");
     expect(source).toContain('audio.pause();\n      stopHighlightTracking();\n      await seekAudio(audio, resumeAt);');
     expect(source).toContain('Math.abs(audio.currentTime - seekTo) <= 0.05');
     expect(source).toContain("audio.addEventListener('seeked', handleSeeked);");
