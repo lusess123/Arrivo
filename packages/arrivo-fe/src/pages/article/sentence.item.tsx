@@ -72,7 +72,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [pauseRemaining, setPauseRemaining] = useState(0);
   const [wordBoundaries, setWordBoundaries] = useState<TtsWordBoundaryDto[]>([]);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
-  const [previewLoadingWordIndex, setPreviewLoadingWordIndex] = useState(-1);
+  const [previewingWordIndex, setPreviewingWordIndex] = useState(-1);
   const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(
     () => new Set(sentence.playedWordIndexes),
   );
@@ -94,7 +94,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     preview.removeAttribute('src');
     preview.load();
     wordPreviewRef.current = null;
-    setPreviewLoadingWordIndex(-1);
+    setPreviewingWordIndex(-1);
   }, []);
 
   const stopHighlightTracking = useCallback(() => {
@@ -547,7 +547,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     wordPreviewRef.current = preview;
     preview.volume = sentence.sound ? 1 : 0;
     preview.playbackRate = sentence.rate;
-    setPreviewLoadingWordIndex(wordIndex);
+    setPreviewingWordIndex(wordIndex);
 
     const finish = () => {
       if (wordPreviewRef.current !== preview) return;
@@ -555,14 +555,13 @@ export default function SentenceItem(sentence: ISentenceItem) {
       preview.removeAttribute('src');
       preview.load();
       wordPreviewRef.current = null;
-      setPreviewLoadingWordIndex(-1);
+      setPreviewingWordIndex(-1);
     };
     preview.addEventListener('ended', finish, { once: true });
     preview.addEventListener('error', () => finish(), { once: true });
     void preview.play()
       .then(() => {
         if (wordPreviewRef.current !== preview) return;
-        setPreviewLoadingWordIndex(-1);
         setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
         sentence.onWordPreviewed(sentence.id, wordIndex);
       })
@@ -595,14 +594,13 @@ export default function SentenceItem(sentence: ISentenceItem) {
       return;
     }
 
-    resumeWordOffsetRef.current = word.offsetMs / 1000;
-    void playOnce(1);
+    void resumeAudioPlayback(word.offsetMs / 1000);
   }, [
     clearRepeatTimer,
     handlePlayCurrentWord,
     isPaused,
     isWaite,
-    playOnce,
+    resumeAudioPlayback,
     sentence.playing,
     setHighlightedWord,
     stopPauseHighlightTracking,
@@ -693,7 +691,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
             const className = [
               styles.word,
               wordIndex === activeWordIndex ? styles.activeWord : '',
-              wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
+              wordIndex === previewingWordIndex ? styles.wordPreviewActive : '',
               previewedWordIndices.has(wordIndex) ? styles.previewedWord : '',
             ].filter(Boolean).join(' ');
             return (
@@ -703,7 +701,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 key={`word-${wordIndex}`}
                 onClick={() => handleWordClick(wordIndex)}
                 aria-label={`播放或定位单词 ${segment.text}`}
-                aria-busy={wordIndex === previewLoadingWordIndex}
+                aria-busy={wordIndex === previewingWordIndex}
               >
                 {segment.text}
               </button>

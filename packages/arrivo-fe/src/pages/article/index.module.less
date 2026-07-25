@@ -310,7 +310,7 @@
   text-underline-offset: 3px;
 }
 
-.wordPreviewLoading {
+.wordPreviewActive {
   color: #176b8d;
   background: rgba(160, 216, 239, 0.28);
   animation: wordPreviewPulse 720ms ease-in-out infinite;
@@ -337,8 +337,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wordPreviewLoading,
-  .wordPreviewLoading::after {
+  .wordPreviewActive,
+  .wordPreviewActive::after {
     animation: none;
   }
 }
