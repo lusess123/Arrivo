@@ -3,7 +3,6 @@ import {
   buildWordTextSegments,
   findActiveWordIndex,
   findPauseActiveWordIndex,
-  getWordPlaybackRange,
 } from '../src/pages/article/word-highlight';
 
 const words = [
@@ -42,11 +41,4 @@ describe('word highlight', () => {
     expect(findPauseActiveWordIndex(words, 250, 500, 2)).toBe(1);
   });
 
-  test('returns the exact source-audio range for one word', () => {
-    expect(getWordPlaybackRange(words[1])).toEqual({
-      startSeconds: 0.5,
-      endSeconds: 0.75,
-    });
-    expect(getWordPlaybackRange({ text: 'bad', offsetMs: 0, durationMs: 0 })).toBeNull();
-  });
 });

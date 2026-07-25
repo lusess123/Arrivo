@@ -8,7 +8,6 @@ import {
   buildWordTextSegments,
   findActiveWordIndex,
   findPauseActiveWordIndex,
-  getWordPlaybackRange,
 } from './word-highlight';
 import { articleSentenceElementId } from './article-progress';
 
@@ -488,13 +487,16 @@ export default function SentenceItem(sentence: ISentenceItem) {
   };
 
   const handlePlayCurrentWord = useCallback(() => {
-    const source = audioRef.current?.currentSrc;
     const word = wordBoundariesRef.current[activeWordIndexRef.current];
-    const range = getWordPlaybackRange(word);
-    if (!source || !range) return;
+    if (!word?.text) return;
 
     stopWordPreview();
-    const preview = new Audio(source);
+    const params = new URLSearchParams({
+      s: word.text,
+      v: sentence.v,
+      cv: AUDIO_CACHE_VERSION,
+    });
+    const preview = new Audio(apiUrl(`/api/tts/audio?${params.toString()}`));
     wordPreviewRef.current = preview;
     preview.volume = sentence.sound ? 1 : 0;
     preview.playbackRate = sentence.rate;
@@ -508,18 +510,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
       wordPreviewRef.current = null;
       setIsWordPreviewing(false);
     };
-    const stopAtWordEnd = () => {
-      if (preview.currentTime >= range.endSeconds) finish();
-    };
-
-    preview.addEventListener('timeupdate', stopAtWordEnd);
     preview.addEventListener('ended', finish, { once: true });
     preview.addEventListener('error', finish, { once: true });
-    preview.addEventListener('loadedmetadata', () => {
-      preview.currentTime = range.startSeconds;
-      void preview.play().catch(finish);
-    }, { once: true });
-  }, [sentence.rate, sentence.sound, stopWordPreview]);
+    void preview.play().catch(finish);
+  }, [sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
 
   const handleEnded = () => {
     stopHighlightTracking();
@@ -623,6 +617,17 @@ export default function SentenceItem(sentence: ISentenceItem) {
           />
         )}
         {sentence.auxiliaryControl}
+        {isPaused ? (
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlayCircleOutlined />}
+            onClick={handleTogglePlay}
+            className={styles.resumePlaybackButton}
+          >
+            继续播放
+          </Button>
+        ) : null}
         {isPaused && activeWordIndex >= 0 ? (
           <Button
             type="text"

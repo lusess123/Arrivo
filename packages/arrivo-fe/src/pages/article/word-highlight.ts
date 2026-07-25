@@ -5,14 +5,6 @@ export type WordTextSegment = {
   wordIndex?: number;
 };
 
-export function getWordPlaybackRange(word: TtsWordBoundaryDto | undefined) {
-  if (!word || word.offsetMs < 0 || word.durationMs <= 0) return null;
-  return {
-    startSeconds: word.offsetMs / 1000,
-    endSeconds: (word.offsetMs + word.durationMs) / 1000,
-  };
-}
-
 export function buildWordTextSegments(
   text: string,
   words: TtsWordBoundaryDto[],
