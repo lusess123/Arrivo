@@ -102,6 +102,19 @@ describe('article playback layout', () => {
   });
 });
 
+describe('article word seeking', () => {
+  test('pauses, seeks, then resumes when a word is selected during playback', async () => {
+    const source = await Bun.file(
+      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
+    ).text();
+
+    expect(source).toContain('const seekAndContinueAtWord');
+    expect(source).toContain('audio.pause();\n    stopHighlightTracking();');
+    expect(source).toContain("audio.addEventListener('seeked', resumeAfterSeek, { once: true });");
+    expect(source).toContain('seekAndContinueAtWord(word.offsetMs / 1000);');
+  });
+});
+
 describe('article navigation', () => {
   test('returns to the previous route instead of forcing the home page', async () => {
     const source = await Bun.file(
