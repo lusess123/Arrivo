@@ -72,7 +72,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [pauseRemaining, setPauseRemaining] = useState(0);
   const [wordBoundaries, setWordBoundaries] = useState<TtsWordBoundaryDto[]>([]);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
-  const [previewingWordIndex, setPreviewingWordIndex] = useState(-1);
+  const [previewLoadingWordIndex, setPreviewLoadingWordIndex] = useState(-1);
+  const [previewPlayingWordIndex, setPreviewPlayingWordIndex] = useState(-1);
   const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(
     () => new Set(sentence.playedWordIndexes),
   );
@@ -94,7 +95,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
     preview.removeAttribute('src');
     preview.load();
     wordPreviewRef.current = null;
-    setPreviewingWordIndex(-1);
+    setPreviewLoadingWordIndex(-1);
+    setPreviewPlayingWordIndex(-1);
   }, []);
 
   const stopHighlightTracking = useCallback(() => {
@@ -392,6 +394,25 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsPaused(true);
   }, [stopHighlightTracking]);
 
+  const seekAudio = useCallback((audio: HTMLAudioElement, seekTo: number) => (
+    new Promise<void>((resolve) => {
+      let timer: number | undefined;
+      const finish = () => {
+        audio.removeEventListener('seeked', finish);
+        if (timer !== undefined) window.clearTimeout(timer);
+        resolve();
+      };
+
+      audio.addEventListener('seeked', finish, { once: true });
+      timer = window.setTimeout(finish, 500);
+      try {
+        audio.currentTime = seekTo;
+      } catch {
+        finish();
+      }
+    })
+  ), []);
+
   const resumeAudioPlayback = useCallback(async (resumeAt?: number) => {
     const audio = audioRef.current;
 
@@ -406,11 +427,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
       countdownRemainingMsRef.current = 0;
       setPauseRemaining(0);
       setIsWaite(false);
-      try {
-        audio.currentTime = resumeAt;
-      } catch {
-        // Ignore seek errors while the browser is changing media state.
-      }
+      audio.pause();
+      stopHighlightTracking();
+      await seekAudio(audio, resumeAt);
       resumeWordOffsetRef.current = null;
     }
 
@@ -434,7 +453,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
     sentence.onPlayStop,
     sentence.rate,
     sentence.sound,
+    seekAudio,
     startHighlightTracking,
+    stopHighlightTracking,
     stopPauseHighlightTracking,
     stopWordPreview,
   ]);
@@ -547,7 +568,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     wordPreviewRef.current = preview;
     preview.volume = sentence.sound ? 1 : 0;
     preview.playbackRate = sentence.rate;
-    setPreviewingWordIndex(wordIndex);
+    setPreviewLoadingWordIndex(wordIndex);
 
     const finish = () => {
       if (wordPreviewRef.current !== preview) return;
@@ -555,13 +576,16 @@ export default function SentenceItem(sentence: ISentenceItem) {
       preview.removeAttribute('src');
       preview.load();
       wordPreviewRef.current = null;
-      setPreviewingWordIndex(-1);
+      setPreviewLoadingWordIndex(-1);
+      setPreviewPlayingWordIndex(-1);
     };
     preview.addEventListener('ended', finish, { once: true });
     preview.addEventListener('error', () => finish(), { once: true });
     void preview.play()
       .then(() => {
         if (wordPreviewRef.current !== preview) return;
+        setPreviewLoadingWordIndex(-1);
+        setPreviewPlayingWordIndex(wordIndex);
         setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
         sentence.onWordPreviewed(sentence.id, wordIndex);
       })
@@ -691,7 +715,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
             const className = [
               styles.word,
               wordIndex === activeWordIndex ? styles.activeWord : '',
-              wordIndex === previewingWordIndex ? styles.wordPreviewActive : '',
+              wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
+              wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying : '',
               previewedWordIndices.has(wordIndex) ? styles.previewedWord : '',
             ].filter(Boolean).join(' ');
             return (
@@ -701,7 +726,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 key={`word-${wordIndex}`}
                 onClick={() => handleWordClick(wordIndex)}
                 aria-label={`播放或定位单词 ${segment.text}`}
-                aria-busy={wordIndex === previewingWordIndex}
+                aria-busy={wordIndex === previewLoadingWordIndex}
               >
                 {segment.text}
               </button>

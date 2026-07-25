@@ -109,6 +109,7 @@ describe('article word seeking', () => {
     ).text();
 
     expect(source).toContain('void resumeAudioPlayback(word.offsetMs / 1000);');
+    expect(source).toContain('audio.pause();\n      stopHighlightTracking();\n      await seekAudio(audio, resumeAt);');
     expect(source).toContain('const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;');
     expect(source).toContain('startedPlaybackSessionRef.current !== session');
     expect(source).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');
@@ -123,9 +124,12 @@ describe('article word seeking', () => {
       new URL('../src/pages/article/index.module.less', import.meta.url),
     ).text();
 
-    expect(source).toContain('const [previewingWordIndex, setPreviewingWordIndex] = useState(-1);');
-    expect(source).toContain('wordIndex === previewingWordIndex ? styles.wordPreviewActive');
-    expect(styles).toContain('.wordPreviewActive');
+    expect(source).toContain('const [previewLoadingWordIndex, setPreviewLoadingWordIndex] = useState(-1);');
+    expect(source).toContain('const [previewPlayingWordIndex, setPreviewPlayingWordIndex] = useState(-1);');
+    expect(source).toContain('wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading');
+    expect(source).toContain('wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying');
+    expect(styles).toContain('.wordPreviewLoading');
+    expect(styles).toContain('.wordPreviewPlaying');
   });
 
   test('cancels a pending repeat countdown before previewing a selected word', async () => {
