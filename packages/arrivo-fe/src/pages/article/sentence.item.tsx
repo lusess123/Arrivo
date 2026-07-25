@@ -349,6 +349,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     audio.playbackRate = sentence.rate;
     const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;
     resumeWordOffsetRef.current = null;
+    console.debug('Article play once', { nextCount, resumeAt, currentTime: audio.currentTime });
     try {
       audio.currentTime = resumeAt ?? 0;
     } catch {
@@ -436,6 +437,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       audio.pause();
       stopHighlightTracking();
       await seekAudio(audio, resumeAt);
+      console.debug('Article word seek completed', { resumeAt, currentTime: audio.currentTime });
       resumeWordOffsetRef.current = null;
     }
 

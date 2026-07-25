@@ -115,6 +115,8 @@ describe('article word seeking', () => {
     expect(source).toContain('Math.abs(audio.currentTime - seekTo) <= 0.05');
     expect(source).toContain("audio.addEventListener('seeked', handleSeeked);");
     expect(source).toContain('const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;');
+    expect(source).toContain("console.debug('Article play once', { nextCount, resumeAt, currentTime: audio.currentTime });");
+    expect(source).toContain("console.debug('Article word seek completed', { resumeAt, currentTime: audio.currentTime });");
     expect(source).toContain('startedPlaybackSessionRef.current !== session');
     expect(source).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');
     expect(source).not.toContain('播放当前单词');
