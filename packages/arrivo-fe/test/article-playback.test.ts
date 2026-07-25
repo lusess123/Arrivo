@@ -114,6 +114,16 @@ describe('article word seeking', () => {
     expect(source).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');
     expect(source).not.toContain('播放当前单词');
   });
+
+  test('cancels a pending repeat countdown before previewing a selected word', async () => {
+    const source = await Bun.file(
+      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
+    ).text();
+
+    expect(source).toContain('if (isWaite) {\n      clearRepeatTimer();');
+    expect(source).toContain('countdownCompleteRef.current = null;');
+    expect(source).toContain('setIsWaite(false);\n      setIsPaused(true);');
+  });
 });
 
 describe('article navigation', () => {

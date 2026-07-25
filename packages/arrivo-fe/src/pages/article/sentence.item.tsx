@@ -575,7 +575,21 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     setHighlightedWord(wordIndex);
     activeWordIndexRef.current = wordIndex;
-    if (!sentence.playing || isPaused || isWaite) {
+    if (!sentence.playing || isPaused) {
+      resumeWordOffsetRef.current = word.offsetMs / 1000;
+      void handlePlayCurrentWord();
+      return;
+    }
+
+    if (isWaite) {
+      clearRepeatTimer();
+      stopPauseHighlightTracking();
+      countdownCompleteRef.current = null;
+      countdownEndAtRef.current = 0;
+      countdownRemainingMsRef.current = 0;
+      setPauseRemaining(0);
+      setIsWaite(false);
+      setIsPaused(true);
       resumeWordOffsetRef.current = word.offsetMs / 1000;
       void handlePlayCurrentWord();
       return;
@@ -583,7 +597,16 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     resumeWordOffsetRef.current = word.offsetMs / 1000;
     void playOnce(1);
-  }, [handlePlayCurrentWord, isPaused, isWaite, playOnce, sentence.playing, setHighlightedWord]);
+  }, [
+    clearRepeatTimer,
+    handlePlayCurrentWord,
+    isPaused,
+    isWaite,
+    playOnce,
+    sentence.playing,
+    setHighlightedWord,
+    stopPauseHighlightTracking,
+  ]);
 
   const handleEnded = () => {
     stopHighlightTracking();
