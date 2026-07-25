@@ -508,33 +508,34 @@ export default function SentenceItem(sentence: ISentenceItem) {
     preview.playbackRate = sentence.rate;
     setIsWordPreviewing(true);
 
-    const finish = (completed = false) => {
+    const finish = () => {
       if (wordPreviewRef.current !== preview) return;
       preview.pause();
       preview.removeAttribute('src');
       preview.load();
       wordPreviewRef.current = null;
       setIsWordPreviewing(false);
-      if (completed) {
-        setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
-      }
     };
-    preview.addEventListener('ended', () => finish(true), { once: true });
+    preview.addEventListener('ended', finish, { once: true });
     preview.addEventListener('error', () => finish(), { once: true });
-    void preview.play().catch(() => finish());
+    void preview.play()
+      .then(() => {
+        if (wordPreviewRef.current !== preview) return;
+        setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
+      })
+      .catch(() => finish());
   }, [sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
 
   const handleWordClick = useCallback((wordIndex: number) => {
     const word = wordBoundariesRef.current[wordIndex];
-    if (!sentence.playing || !word) return;
+    if (!word) return;
 
     setHighlightedWord(wordIndex);
-    if (isPaused) {
-      activeWordIndexRef.current = wordIndex;
+    activeWordIndexRef.current = wordIndex;
+    if (!sentence.playing || isPaused || isWaite) {
       void handlePlayCurrentWord();
       return;
     }
-    if (isWaite) return;
 
     const audio = audioRef.current;
     if (!audio) return;
@@ -632,22 +633,16 @@ export default function SentenceItem(sentence: ISentenceItem) {
               wordIndex === activeWordIndex ? styles.activeWord : '',
               previewedWordIndices.has(wordIndex) ? styles.previewedWord : '',
             ].filter(Boolean).join(' ');
-            const selectable = sentence.playing && (!isWaite || isPaused);
-
-            return selectable ? (
+            return (
               <button
                 type="button"
                 className={`${styles.wordButton} ${className}`}
                 key={`word-${wordIndex}`}
                 onClick={() => handleWordClick(wordIndex)}
-                aria-label={`定位到单词 ${segment.text}`}
+                aria-label={`播放或定位单词 ${segment.text}`}
               >
                 {segment.text}
               </button>
-            ) : (
-              <span className={className} key={`word-${wordIndex}`}>
-                {segment.text}
-              </span>
             );
           })}
         </p>
