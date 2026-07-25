@@ -553,10 +553,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
     sentence.onPlayStart(sentence.index);
   };
 
-  const handlePlayCurrentWord = useCallback(() => {
-    const wordIndex = activeWordIndexRef.current;
-    const word = wordBoundariesRef.current[wordIndex];
-    if (!word?.text) return;
+  const handlePlayCurrentWord = useCallback((word: TtsWordBoundaryDto, wordIndex: number) => {
+    if (!word.text) return;
 
     stopWordPreview();
     const params = new URLSearchParams({
@@ -593,14 +591,14 @@ export default function SentenceItem(sentence: ISentenceItem) {
   }, [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
 
   const handleWordClick = useCallback((wordIndex: number) => {
-    const word = wordBoundariesRef.current[wordIndex];
+    const word = wordBoundaries[wordIndex];
     if (!word) return;
 
     setHighlightedWord(wordIndex);
     activeWordIndexRef.current = wordIndex;
     if (!sentence.playing || isPaused) {
       resumeWordOffsetRef.current = word.offsetMs / 1000;
-      void handlePlayCurrentWord();
+      void handlePlayCurrentWord(word, wordIndex);
       return;
     }
 
@@ -614,7 +612,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       setIsWaite(false);
       setIsPaused(true);
       resumeWordOffsetRef.current = word.offsetMs / 1000;
-      void handlePlayCurrentWord();
+      void handlePlayCurrentWord(word, wordIndex);
       return;
     }
 
@@ -628,6 +626,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     sentence.playing,
     setHighlightedWord,
     stopPauseHighlightTracking,
+    wordBoundaries,
   ]);
 
   const handleEnded = () => {
