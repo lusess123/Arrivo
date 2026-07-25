@@ -60,6 +60,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const pauseHighlightSpeechDurationMsRef = useRef(0);
   const wordBoundariesRef = useRef<TtsWordBoundaryDto[]>([]);
   const activeWordIndexRef = useRef(-1);
+  const resumeWordOffsetRef = useRef<number | null>(null);
   const playCountRef = useRef(0);
   const [playCount, setPlayCount] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -193,6 +194,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     countdownRemainingMsRef.current = 0;
     playbackElapsedMsRef.current = 0;
     playCountRef.current = 0;
+    resumeWordOffsetRef.current = null;
     startedAtRef.current = 0;
     setPlayCount(0);
     setPauseRemaining(0);
@@ -320,6 +322,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     }
 
     clearRepeatTimer();
+    stopWordPreview();
     stopPauseHighlightTracking();
     countdownCompleteRef.current = null;
     countdownEndAtRef.current = 0;
@@ -337,8 +340,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     audio.volume = sentence.sound ? 1 : 0;
     audio.playbackRate = sentence.rate;
+    const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;
+    resumeWordOffsetRef.current = null;
     try {
-      audio.currentTime = 0;
+      audio.currentTime = resumeAt ?? 0;
     } catch {
       // Ignore seek errors while the browser is still loading metadata.
     }
@@ -363,6 +368,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     sentence.rate,
     sentence.sound,
     stopPauseHighlightTracking,
+    stopWordPreview,
     startHighlightTracking,
   ]);
 
@@ -381,10 +387,27 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsPaused(true);
   }, [stopHighlightTracking]);
 
-  const resumeAudioPlayback = useCallback(async () => {
+  const resumeAudioPlayback = useCallback(async (resumeAt?: number) => {
     const audio = audioRef.current;
 
     if (!audio) return;
+
+    stopWordPreview();
+    if (resumeAt !== undefined) {
+      clearRepeatTimer();
+      stopPauseHighlightTracking();
+      countdownCompleteRef.current = null;
+      countdownEndAtRef.current = 0;
+      countdownRemainingMsRef.current = 0;
+      setPauseRemaining(0);
+      setIsWaite(false);
+      try {
+        audio.currentTime = resumeAt;
+      } catch {
+        // Ignore seek errors while the browser is changing media state.
+      }
+      resumeWordOffsetRef.current = null;
+    }
 
     audio.volume = sentence.sound ? 1 : 0;
     audio.playbackRate = sentence.rate;
@@ -400,12 +423,15 @@ export default function SentenceItem(sentence: ISentenceItem) {
       sentence.onPlayStop(sentence.index);
     }
   }, [
+    clearRepeatTimer,
     resetPlaybackState,
     sentence.index,
     sentence.onPlayStop,
     sentence.rate,
     sentence.sound,
     startHighlightTracking,
+    stopPauseHighlightTracking,
+    stopWordPreview,
   ]);
 
   useEffect(() => {
@@ -473,7 +499,12 @@ export default function SentenceItem(sentence: ISentenceItem) {
     if (sentence.playing) {
       if (isWaite) {
         if (isPaused) {
-          resumeCountdown();
+          const resumeAt = resumeWordOffsetRef.current;
+          if (resumeAt === null) {
+            resumeCountdown();
+          } else {
+            void resumeAudioPlayback(resumeAt);
+          }
         } else {
           pauseCountdown();
         }
@@ -481,7 +512,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       }
 
       if (isPaused) {
-        void resumeAudioPlayback();
+        void resumeAudioPlayback(resumeWordOffsetRef.current ?? undefined);
       } else {
         pauseAudioPlayback();
       }
@@ -533,6 +564,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setHighlightedWord(wordIndex);
     activeWordIndexRef.current = wordIndex;
     if (!sentence.playing || isPaused || isWaite) {
+      resumeWordOffsetRef.current = word.offsetMs / 1000;
       void handlePlayCurrentWord();
       return;
     }
@@ -661,17 +693,6 @@ export default function SentenceItem(sentence: ISentenceItem) {
           />
         )}
         {sentence.auxiliaryControl}
-        {isPaused ? (
-          <Button
-            type="primary"
-            size="small"
-            icon={<PlayCircleOutlined />}
-            onClick={handleTogglePlay}
-            className={styles.resumePlaybackButton}
-          >
-            继续播放
-          </Button>
-        ) : null}
         {isPaused && activeWordIndex >= 0 ? (
           <Button
             type="text"
