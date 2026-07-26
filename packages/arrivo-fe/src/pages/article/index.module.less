@@ -318,8 +318,7 @@
 }
 
 .sentenceExpandButton,
-.sentenceRegenerateButton,
-.sentenceSplitButton {
+.sentenceRegenerateButton {
   width: 30px;
   height: 30px;
   color: #5f717c;
@@ -344,6 +343,16 @@
 .sentenceSplitButton {
   color: #2786b3;
   background: rgba(160, 216, 239, 0.18);
+}
+
+.sentenceControls .sentenceRegenerateButton {
+  flex: 0 0 auto;
+}
+
+.sentenceControls .sentenceSplitButton {
+  color: #fff;
+  background: #4c9fc5;
+  border-color: #4c9fc5;
 }
 
 .sentenceUtilityControls :global(.ant-btn-loading) {

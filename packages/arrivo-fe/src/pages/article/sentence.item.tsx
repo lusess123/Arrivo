@@ -43,6 +43,7 @@ interface ISentenceItem {
     depth?: number,
     playable?: boolean,
     expandControl?: React.ReactNode,
+    secondaryControl?: React.ReactNode,
     transientContent?: React.ReactNode,
 }
 
@@ -764,6 +765,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
         {sentence.actions}
       </div>
       <div className={styles.sentenceControls}>
+        {sentence.secondaryControl}
         {sentence.playing ? (
           <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
         ) : null}
