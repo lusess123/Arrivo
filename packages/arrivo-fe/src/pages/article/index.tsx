@@ -1105,33 +1105,35 @@ const ArticlePage: React.FC = () => {
     const ui = splitUiBySentence[sentence.id];
     if (ui?.loading || sentence.splitStatus === "SPLITTING") {
       return (
-        <span className={styles.splitControls}>
-          <Button size="small" loading disabled>
-            正在生成
-          </Button>
+        <span className={styles.sentenceUtilityControls}>
+          <Button type="text" shape="circle" size="small" loading disabled aria-label="正在切分句子" />
         </span>
       );
     }
     if (sentence.children.length > 0 || sentence.splitStatus === "SPLIT") {
       return (
-        <span>
+        <span className={styles.sentenceUtilityControls}>
           <Tooltip title={expanded ? "收起子句" : "展开子句"}>
             <Button
               type="text"
+              shape="circle"
               icon={expanded ? <DownOutlined /> : <RightOutlined />}
               onClick={() => void startSentenceSplit(sentence)}
+              className={styles.sentenceExpandButton}
               aria-label={expanded ? "收起子句" : "展开子句"}
             />
           </Tooltip>
           <Tooltip title="提供错误判断并重新生成">
             <Button
               type="text"
+              shape="circle"
               icon={<ReloadOutlined />}
               onClick={() => {
                 setRegeneratingSentence(sentence);
                 setRegenerationFailure(undefined);
                 setRegenerationFeedback("");
               }}
+              className={styles.sentenceRegenerateButton}
               aria-label="重新生成切分"
             />
           </Tooltip>
@@ -1139,12 +1141,15 @@ const ArticlePage: React.FC = () => {
       );
     }
     return (
-      <span className={styles.splitControls}>
+      <span className={styles.sentenceUtilityControls}>
         <Tooltip title="优先忠实切分，必要时自动调整表达并保留原意">
           <Button
-            type="primary"
+            type="text"
+            shape="circle"
             size="small"
             icon={<ThunderboltOutlined />}
+            className={styles.sentenceSplitButton}
+            aria-label="切分句子"
             onClick={() =>
               sentence.splitStatus === "SPLITTABLE"
                 ? void startSentenceSplit(sentence)
@@ -1152,9 +1157,7 @@ const ArticlePage: React.FC = () => {
                     force: { targetCount: "auto", instruction: "" },
                   })
             }
-          >
-            切分句子
-          </Button>
+          />
         </Tooltip>
       </span>
     );
