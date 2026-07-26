@@ -18,6 +18,7 @@ describe('sentence tree playback', () => {
   test('expanded parents are traversed depth first', () => {
     const rows = getSentenceDisplayRows(buildSentenceTree(sentences), new Set(['a', 'a2']));
     expect(rows.map((row) => row.sentence.id)).toEqual(['a', 'a1', 'a2', 'a21', 'b']);
+    expect(rows.map((row) => row.displayNumber)).toEqual(['1', '1.1', '1.2', '1.2.1', '2']);
     expect(getPlayableSentences(rows).map((item) => item.id)).toEqual(['a1', 'a21', 'b']);
   });
 });

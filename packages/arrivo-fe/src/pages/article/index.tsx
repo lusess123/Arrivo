@@ -1324,6 +1324,7 @@ const ArticlePage: React.FC = () => {
               originalContent={sentence.originalContent}
               translatedContent={sentence.translatedContent}
               index={index}
+              displayNumber={row.displayNumber}
               duration={(sentence as Sentence).duration || 0}
               id={sentence.id}
               totalPlayCount={sentence.playCount}
@@ -1357,7 +1358,7 @@ const ArticlePage: React.FC = () => {
               }
               depth={row.depth}
               playable={row.playable}
-              auxiliaryControl={renderSplitControl(sentence, row.expanded)}
+              expandControl={renderSplitControl(sentence, row.expanded)}
               transientContent={renderSplitProgress(sentence)}
             />
           );

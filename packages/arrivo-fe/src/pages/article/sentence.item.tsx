@@ -17,6 +17,7 @@ interface ISentenceItem {
     originalContent: string ,
     translatedContent: string,
     index : number,
+    displayNumber: string,
     duration: number,
     id: string,
     totalPlayCount: number,
@@ -39,7 +40,7 @@ interface ISentenceItem {
     actions?: React.ReactNode,
     depth?: number,
     playable?: boolean,
-    auxiliaryControl?: React.ReactNode,
+    expandControl?: React.ReactNode,
     transientContent?: React.ReactNode,
 }
 
@@ -709,7 +710,20 @@ export default function SentenceItem(sentence: ISentenceItem) {
         onLoadedMetadata={handleLoadedMetadata}
         ref={audioRef}
       />
-      <div className={styles.sentenceIndex}>{sentence.index + 1}</div>
+      <div className={styles.sentenceLeadingControls}>
+        {sentence.playable !== false && (
+          <Button
+            type="text"
+            icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+            onClick={handleTogglePlay}
+            className={styles.sentenceIndex}
+            aria-label={playButtonLabel}
+          >
+            {sentence.displayNumber}
+          </Button>
+        )}
+        {sentence.expandControl}
+      </div>
       <div className={styles.sentenceContent}>
         {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
         <p className={styles.englishText}>
@@ -745,16 +759,6 @@ export default function SentenceItem(sentence: ISentenceItem) {
         {sentence.actions}
       </div>
       <div className={styles.sentenceControls}>
-        {sentence.playable !== false && (
-          <Button
-            type="text"
-            icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-            onClick={handleTogglePlay}
-            className={styles.sentencePlayButton}
-            aria-label={playButtonLabel}
-          />
-        )}
-        {sentence.auxiliaryControl}
         {sentence.playing ? (
           <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
         ) : null}

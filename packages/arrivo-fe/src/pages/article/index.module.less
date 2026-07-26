@@ -250,6 +250,14 @@
   padding: 2px 6px;
 }
 
+.sentenceLeadingControls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  grid-column: 1;
+  grid-row: 1;
+}
+
 .sentenceIndex {
   background: #a0d8ef;
   color: white;
@@ -261,8 +269,21 @@
   justify-content: center;
   font-weight: 600;
   margin-top: 4px;
-  grid-column: 1;
-  grid-row: 1;
+  padding: 0;
+  font-size: 13px;
+
+  :global(.anticon) {
+    position: absolute;
+    opacity: 0;
+  }
+
+  &:hover :global(.anticon) {
+    opacity: 1;
+  }
+
+  &:hover {
+    font-size: 0;
+  }
 }
 
 .sentenceContent {

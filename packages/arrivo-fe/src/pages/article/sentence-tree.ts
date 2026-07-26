@@ -9,6 +9,7 @@ export type SentenceNode = ArticleSentenceDto & {
 export type SentenceDisplayRow = {
   sentence: SentenceNode;
   depth: number;
+  displayNumber: string;
   expanded: boolean;
   playable: boolean;
 };
@@ -48,12 +49,12 @@ export function getSentenceDisplayRows(
   expandedSentenceIds: ReadonlySet<string>,
 ): SentenceDisplayRow[] {
   const rows: SentenceDisplayRow[] = [];
-  const visit = (node: SentenceNode, depth: number) => {
+  const visit = (node: SentenceNode, depth: number, displayNumber: string) => {
     const expanded = node.children.length > 0 && expandedSentenceIds.has(node.id);
-    rows.push({ sentence: node, depth, expanded, playable: !expanded });
-    if (expanded) node.children.forEach((child) => visit(child, depth + 1));
+    rows.push({ sentence: node, depth, displayNumber, expanded, playable: !expanded });
+    if (expanded) node.children.forEach((child, index) => visit(child, depth + 1, `${displayNumber}.${index + 1}`));
   };
-  roots.forEach((root) => visit(root, 0));
+  roots.forEach((root, index) => visit(root, 0, String(index + 1)));
   return rows;
 }
 
