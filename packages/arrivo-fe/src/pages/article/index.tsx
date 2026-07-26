@@ -9,6 +9,7 @@ import React, {
 import { history, useLocation, useNavigate, useParams } from "@umijs/max";
 import {
   Button,
+  Dropdown,
   Form,
   Input,
   message,
@@ -20,19 +21,22 @@ import {
   Tag,
   Tooltip,
 } from "antd";
+import type { MenuProps } from "antd";
 import {
   ArrowDownOutlined,
   AudioOutlined,
   ArrowLeftOutlined,
   ArrowUpOutlined,
+  ApartmentOutlined,
   DeleteOutlined,
   EditOutlined,
   LogoutOutlined,
+  MoreOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   SettingOutlined,
   DownOutlined,
-  RightOutlined,
+  UpOutlined,
   ReloadOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
@@ -1030,74 +1034,116 @@ const ArticlePage: React.FC = () => {
     message.success(successText);
   };
 
-  const renderSentenceActions = (sentence: Sentence, index: number) => {
-    if (!canEdit || sentence.parentSentenceId) return null;
+  const renderSentenceActions = (sentence: SentenceNode, rootIndex: number) => {
+    const splitUi = splitUiBySentence[sentence.id];
+    const items: MenuProps['items'] = [];
+
+    if (!splitUi?.loading && sentence.splitStatus !== "SPLITTING") {
+      if (sentence.children.length > 0 || sentence.splitStatus === "SPLIT") {
+        items.push({
+          key: "regenerate",
+          icon: <ReloadOutlined />,
+          label: "重新生成子句",
+          onClick: () => {
+            setRegeneratingSentence(sentence);
+            setRegenerationFailure(undefined);
+            setRegenerationFeedback("");
+          },
+        });
+      } else {
+        items.push({
+          key: "split",
+          icon: <ThunderboltOutlined />,
+          label: "切分句子",
+          onClick: () =>
+            sentence.splitStatus === "SPLITTABLE"
+              ? void startSentenceSplit(sentence)
+              : void startSentenceSplit(sentence, {
+                  force: { targetCount: "auto", instruction: "" },
+                }),
+        });
+      }
+    }
+
+    if (canEdit && rootIndex >= 0) {
+      items.push(
+        { type: "divider" },
+        {
+          key: "insert-above",
+          icon: <PlusOutlined />,
+          label: "上方插入",
+          onClick: () => openCreateSentence(rootIndex),
+        },
+        {
+          key: "insert-below",
+          icon: <PlusOutlined />,
+          label: "下方插入",
+          onClick: () => openCreateSentence(rootIndex + 1),
+        },
+        {
+          key: "move-up",
+          icon: <ArrowUpOutlined />,
+          label: "上移",
+          disabled: rootIndex === 0,
+          onClick: () => void mutateSentence(
+            "/api/article/moveSentence",
+            { id: sentence.id, direction: "up" },
+            "顺序已更新",
+          ),
+        },
+        {
+          key: "move-down",
+          icon: <ArrowDownOutlined />,
+          label: "下移",
+          disabled: rootIndex === sentenceTree.length - 1,
+          onClick: () => void mutateSentence(
+            "/api/article/moveSentence",
+            { id: sentence.id, direction: "down" },
+            "顺序已更新",
+          ),
+        },
+        {
+          key: "edit",
+          icon: <EditOutlined />,
+          label: "编辑",
+          onClick: () => openEditSentence(sentence),
+        },
+        { type: "divider" },
+        {
+          key: "delete",
+          icon: <DeleteOutlined />,
+          label: "删除",
+          danger: true,
+          onClick: () => {
+            Modal.confirm({
+              title: "删除这个句子？",
+              content: "删除后无法恢复。",
+              okText: "删除",
+              cancelText: "取消",
+              okButtonProps: { danger: true },
+              onOk: () => mutateSentence(
+                "/api/article/deleteSentence",
+                { id: sentence.id },
+                "句子已删除",
+              ),
+            });
+          },
+        },
+      );
+    }
+
+    if (!items.length) return null;
 
     return (
-      <div className={styles.sentenceActions}>
+      <Dropdown menu={{ items }} placement="bottomRight" trigger={["click"]}>
         <Button
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={() => openCreateSentence(index)}
-        >
-          上方插入
-        </Button>
-        <Button
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={() => openCreateSentence(index + 1)}
-        >
-          下方插入
-        </Button>
-        <Button
-          size="small"
-          icon={<ArrowUpOutlined />}
-          disabled={index === 0}
-          onClick={() =>
-            mutateSentence(
-              "/api/article/moveSentence",
-              { id: sentence.id, direction: "up" },
-              "顺序已更新",
-            )
-          }
+          type="text"
+          shape="circle"
+          icon={<MoreOutlined />}
+          className={styles.sentenceMoreButton}
+          aria-label="更多句子操作"
         />
-        <Button
-          size="small"
-          icon={<ArrowDownOutlined />}
-          disabled={index === sentenceTree.length - 1}
-          onClick={() =>
-            mutateSentence(
-              "/api/article/moveSentence",
-              { id: sentence.id, direction: "down" },
-              "顺序已更新",
-            )
-          }
-        />
-        <Button
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => openEditSentence(sentence)}
-        >
-          编辑
-        </Button>
-        <Popconfirm
-          title="删除这个句子？"
-          okText="删除"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-          onConfirm={() =>
-            mutateSentence(
-              "/api/article/deleteSentence",
-              { id: sentence.id },
-              "句子已删除",
-            )
-          }
-        >
-          <Button size="small" danger icon={<DeleteOutlined />}>
-            删除
-          </Button>
-        </Popconfirm>
-      </div>
+      </Dropdown>
     );
   };
 
@@ -1105,72 +1151,34 @@ const ArticlePage: React.FC = () => {
     const ui = splitUiBySentence[sentence.id];
     if (ui?.loading || sentence.splitStatus === "SPLITTING") {
       return (
-        <span className={styles.sentenceUtilityControls}>
-          <Button type="text" shape="circle" size="small" loading disabled aria-label="正在切分句子" />
+        <span className={styles.sentenceHierarchyControl}>
+          <Button type="text" size="small" icon={<ApartmentOutlined />} loading disabled>
+            正在生成子句
+          </Button>
         </span>
       );
     }
     if (sentence.children.length > 0 || sentence.splitStatus === "SPLIT") {
+      const childCount = sentence.children.length;
       return (
-        <span className={styles.sentenceUtilityControls}>
+        <span className={styles.sentenceHierarchyControl}>
           <Tooltip title={expanded ? "收起子句" : "展开子句"}>
             <Button
               type="text"
-              shape="circle"
-              icon={expanded ? <DownOutlined /> : <RightOutlined />}
+              size="small"
+              icon={<ApartmentOutlined />}
               onClick={() => void startSentenceSplit(sentence)}
-              className={styles.sentenceExpandButton}
+              className={styles.sentenceHierarchyButton}
               aria-label={expanded ? "收起子句" : "展开子句"}
-            />
+            >
+              {expanded ? "收起子句" : `展开${childCount ? ` ${childCount} 个` : ''}子句`}
+              {expanded ? <UpOutlined /> : <DownOutlined />}
+            </Button>
           </Tooltip>
         </span>
       );
     }
     return null;
-  };
-
-  const renderSplitActionControl = (sentence: SentenceNode) => {
-    const ui = splitUiBySentence[sentence.id];
-    if (ui?.loading || sentence.splitStatus === "SPLITTING") return null;
-
-    if (sentence.children.length > 0 || sentence.splitStatus === "SPLIT") {
-      return (
-        <Tooltip title="提供错误判断并重新生成">
-          <Button
-            type="text"
-            shape="circle"
-            icon={<ReloadOutlined />}
-            onClick={() => {
-              setRegeneratingSentence(sentence);
-              setRegenerationFailure(undefined);
-              setRegenerationFeedback("");
-            }}
-            className={styles.sentenceRegenerateButton}
-            aria-label="重新生成切分"
-          />
-        </Tooltip>
-      );
-    }
-
-    return (
-      <Tooltip title="优先忠实切分，必要时自动调整表达并保留原意">
-        <Button
-          type="primary"
-          size="small"
-          icon={<ThunderboltOutlined />}
-          className={styles.sentenceSplitButton}
-          onClick={() =>
-            sentence.splitStatus === "SPLITTABLE"
-              ? void startSentenceSplit(sentence)
-              : void startSentenceSplit(sentence, {
-                  force: { targetCount: "auto", instruction: "" },
-                })
-          }
-        >
-          切分句子
-        </Button>
-      </Tooltip>
-    );
   };
 
   const renderSplitProgress = (sentence: SentenceNode) => {
@@ -1364,15 +1372,10 @@ const ArticlePage: React.FC = () => {
               onPlaybackCompleted={handleSentencePlaybackCompleted}
               onWordPreviewed={handleSentenceWordPreviewed}
               sound={true}
-              actions={
-                rootIndex >= 0
-                  ? renderSentenceActions(sentence, rootIndex)
-                  : null
-              }
+              actions={renderSentenceActions(sentence, rootIndex)}
               depth={row.depth}
               playable={row.playable}
-              expandControl={renderSplitControl(sentence, row.expanded)}
-              secondaryControl={renderSplitActionControl(sentence)}
+              hierarchyControl={renderSplitControl(sentence, row.expanded)}
               transientContent={renderSplitProgress(sentence)}
             />
           );

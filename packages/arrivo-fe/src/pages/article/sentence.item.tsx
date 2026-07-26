@@ -42,8 +42,7 @@ interface ISentenceItem {
     actions?: React.ReactNode,
     depth?: number,
     playable?: boolean,
-    expandControl?: React.ReactNode,
-    secondaryControl?: React.ReactNode,
+    hierarchyControl?: React.ReactNode,
     transientContent?: React.ReactNode,
 }
 
@@ -715,20 +714,16 @@ export default function SentenceItem(sentence: ISentenceItem) {
       />
       <div className={styles.sentenceLeadingControls}>
         {sentence.playable !== false && (
-          <>
-            <Button
-              type="text"
-              shape="circle"
-              onClick={handleTogglePlay}
-              className={styles.sentencePlayButton}
-              aria-label={`${playButtonLabel}，第 ${sentence.displayNumber} 句`}
-            >
-              {sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-              <span className={styles.sentenceNumber} aria-hidden="true">{sentence.displayNumber}</span>
-            </Button>
-          </>
+          <Button
+            type="text"
+            shape="circle"
+            icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+            onClick={handleTogglePlay}
+            className={`${styles.sentencePlayButton} ${sentence.playing ? styles.sentencePlayButtonActive : ''}`}
+            aria-label={`${playButtonLabel}，第 ${sentence.displayNumber} 句`}
+          />
         )}
-        {sentence.expandControl}
+        <span className={styles.sentenceNumber} aria-hidden="true">{sentence.displayNumber}</span>
       </div>
       <div className={styles.sentenceContent}>
         {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
@@ -761,19 +756,19 @@ export default function SentenceItem(sentence: ISentenceItem) {
           })}
         </p>
         <p className={styles.chineseText}>{sentence.translatedContent}</p>
+        {sentence.hierarchyControl}
         {sentence.transientContent}
-        {sentence.actions}
-      </div>
-      <div className={styles.sentenceControls}>
-        {sentence.secondaryControl}
-        {sentence.playing ? (
-          <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
-        ) : null}
-        <span className={styles.totalPlayCount}>播放量 {sentence.totalPlayCount}</span>
-        {sentence.playing && !isWaite ? (
-          isPaused ? <span className={styles.playbackPaused}>已暂停</span> : <SoundOutlined />
-        ) : null}
-        {!!duration && <span className={styles.duration}>{duration}秒</span>}
+        <div className={styles.sentenceControls}>
+          {sentence.playing ? (
+            <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
+          ) : null}
+          <span className={styles.totalPlayCount}>播放量 {sentence.totalPlayCount}</span>
+          {sentence.playing && !isWaite ? (
+            isPaused ? <span className={styles.playbackPaused}>已暂停</span> : <SoundOutlined />
+          ) : null}
+          {!!duration && <span className={styles.duration}>{duration}秒</span>}
+          {sentence.actions}
+        </div>
       </div>
       {sentence.playing && isWaite ? (
         <div
