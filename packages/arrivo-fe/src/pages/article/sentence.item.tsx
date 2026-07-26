@@ -11,7 +11,9 @@ import {
 } from './word-highlight';
 import { articleSentenceElementId } from './article-progress';
 
-const AUDIO_CACHE_VERSION = '20260712-words-v1';
+// Previously cached MP3 responses predate byte-range support. Bump the URL version
+// so browsers fetch a seekable audio response instead of reusing that immutable cache.
+const AUDIO_CACHE_VERSION = '20260726-range-v1';
 
 interface ISentenceItem {
     originalContent: string ,
