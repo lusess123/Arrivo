@@ -9,19 +9,16 @@ import React, {
 import { history, useLocation, useNavigate, useParams } from "@umijs/max";
 import {
   Button,
-  Dropdown,
   Form,
   Input,
   message,
   Modal,
-  Popconfirm,
   Select,
   Slider,
   Spin,
   Tag,
   Tooltip,
 } from "antd";
-import type { MenuProps } from "antd";
 import {
   ArrowDownOutlined,
   AudioOutlined,
@@ -31,7 +28,6 @@ import {
   DeleteOutlined,
   EditOutlined,
   LogoutOutlined,
-  MoreOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   SettingOutlined,
@@ -45,7 +41,7 @@ import { asyncHandle } from "@/lib";
 import { buildLoginUrl } from "@/lib/auth-redirect";
 import axios from "axios";
 import ens from "@/data/en.json";
-import SentenceItem from "./sentence.item";
+import SentenceItem, { type SentenceActionItem } from "./sentence.item";
 import { useApp } from "@/hooks";
 import {
   DEFAULT_PLAYBACK_SETTINGS,
@@ -1036,7 +1032,7 @@ const ArticlePage: React.FC = () => {
 
   const renderSentenceActions = (sentence: SentenceNode, rootIndex: number) => {
     const splitUi = splitUiBySentence[sentence.id];
-    const items: MenuProps['items'] = [];
+    const items: SentenceActionItem[] = [];
 
     if (!splitUi?.loading && sentence.splitStatus !== "SPLITTING") {
       if (sentence.children.length > 0 || sentence.splitStatus === "SPLIT") {
@@ -1067,7 +1063,6 @@ const ArticlePage: React.FC = () => {
 
     if (canEdit && rootIndex >= 0) {
       items.push(
-        { type: "divider" },
         {
           key: "insert-above",
           icon: <PlusOutlined />,
@@ -1108,7 +1103,6 @@ const ArticlePage: React.FC = () => {
           label: "编辑",
           onClick: () => openEditSentence(sentence),
         },
-        { type: "divider" },
         {
           key: "delete",
           icon: <DeleteOutlined />,
@@ -1132,19 +1126,7 @@ const ArticlePage: React.FC = () => {
       );
     }
 
-    if (!items.length) return null;
-
-    return (
-      <Dropdown menu={{ items }} placement="bottomRight" trigger={["click"]}>
-        <Button
-          type="text"
-          shape="circle"
-          icon={<MoreOutlined />}
-          className={styles.sentenceMoreButton}
-          aria-label="更多句子操作"
-        />
-      </Dropdown>
-    );
+    return items;
   };
 
   const renderSplitControl = (sentence: SentenceNode, expanded: boolean) => {

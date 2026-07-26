@@ -469,6 +469,49 @@
   }
 }
 
+.sentenceMoreButtonActive {
+  color: #176b8d !important;
+  background: rgba(160, 216, 239, 0.24) !important;
+  border-color: rgba(76, 159, 197, 0.3) !important;
+}
+
+.sentenceActionPanel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid rgba(76, 159, 197, 0.2);
+  border-radius: 8px;
+  background: rgba(243, 250, 253, 0.78);
+}
+
+.sentenceActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  color: #4c6570;
+  font-size: 12px;
+  text-align: left;
+
+  &:hover {
+    color: #176b8d !important;
+    background: rgba(160, 216, 239, 0.26) !important;
+  }
+
+  &:global(.ant-btn-dangerous) {
+    color: #c64c4c;
+
+    &:hover {
+      color: #b33d3d !important;
+      background: rgba(222, 115, 115, 0.12) !important;
+    }
+  }
+}
+
 .emptySentence {
   text-align: center;
   padding: 48px 16px;
@@ -718,6 +761,12 @@
   .sentenceControls .duration,
   .sentenceControls .playbackPaused {
     margin-top: 0;
+  }
+
+  .sentenceActionPanel {
+    gap: 3px;
+    margin-top: 5px;
+    padding: 5px;
   }
 
   .wordPreviewButton {

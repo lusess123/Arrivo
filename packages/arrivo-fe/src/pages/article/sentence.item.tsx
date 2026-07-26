@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { TtsWordBoundaryDto } from '@arrivo/contracts';
 import styles from './index.module.less'
 import { Button } from 'antd';
-import { AudioOutlined, PauseCircleOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
+import { AudioOutlined, MoreOutlined, PauseCircleOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
 import { apiUrl } from '@/lib/api';
 import {
   buildWordTextSegments,
@@ -14,6 +14,15 @@ import { articleSentenceElementId } from './article-progress';
 // Previously cached MP3 responses predate byte-range support. Bump the URL version
 // so browsers fetch a seekable audio response instead of reusing that immutable cache.
 const AUDIO_CACHE_VERSION = '20260726-range-v1';
+
+export interface SentenceActionItem {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  danger?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}
 
 interface ISentenceItem {
     originalContent: string ,
@@ -39,7 +48,7 @@ interface ISentenceItem {
     onPlaybackCompleted: (id: string) => void,
     onWordPreviewed: (id: string, wordIndex: number) => void,
     sound: boolean,
-    actions?: React.ReactNode,
+    actions?: SentenceActionItem[],
     depth?: number,
     playable?: boolean,
     hierarchyControl?: React.ReactNode,
@@ -80,6 +89,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(
     () => new Set(sentence.playedWordIndexes),
   );
+  const [isActionPanelOpen, setIsActionPanelOpen] = useState(false);
   const maxCount = Math.max(1, sentence.times || 1);
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
@@ -89,6 +99,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
   useEffect(() => {
     setPreviewedWordIndices(new Set(sentence.playedWordIndexes));
   }, [sentence.id, sentence.originalContent, sentence.playedWordIndexes]);
+
+  useEffect(() => {
+    setIsActionPanelOpen(false);
+  }, [sentence.id]);
 
   const stopWordPreview = useCallback(() => {
     const preview = wordPreviewRef.current;
@@ -767,8 +781,38 @@ export default function SentenceItem(sentence: ISentenceItem) {
             isPaused ? <span className={styles.playbackPaused}>已暂停</span> : <SoundOutlined />
           ) : null}
           {!!duration && <span className={styles.duration}>{duration}秒</span>}
-          {sentence.actions}
+          {!!sentence.actions?.length && (
+            <Button
+              type="text"
+              shape="circle"
+              icon={<MoreOutlined />}
+              className={`${styles.sentenceMoreButton} ${isActionPanelOpen ? styles.sentenceMoreButtonActive : ''}`}
+              aria-label="更多句子操作"
+              aria-expanded={isActionPanelOpen}
+              onClick={() => setIsActionPanelOpen((open) => !open)}
+            />
+          )}
         </div>
+        {isActionPanelOpen && sentence.actions?.length ? (
+          <div className={styles.sentenceActionPanel} aria-label="句子操作区">
+            {sentence.actions.map((action) => (
+              <Button
+                key={action.key}
+                type="text"
+                icon={action.icon}
+                danger={action.danger}
+                disabled={action.disabled}
+                className={styles.sentenceActionButton}
+                onClick={() => {
+                  setIsActionPanelOpen(false);
+                  action.onClick();
+                }}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
       </div>
       {sentence.playing && isWaite ? (
         <div
