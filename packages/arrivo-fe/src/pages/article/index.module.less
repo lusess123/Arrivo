@@ -260,6 +260,7 @@
 }
 
 .sentencePlayButton {
+  position: relative;
   width: 38px;
   height: 38px;
   color: #fff;
@@ -271,6 +272,7 @@
   justify-content: center;
   padding: 0;
   font-size: 18px;
+  overflow: visible;
   box-shadow: 0 2px 6px rgba(23, 107, 141, 0.2);
   transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
 
@@ -288,13 +290,23 @@
 }
 
 .sentenceNumber {
-  min-width: 30px;
-  padding: 1px 4px;
-  color: #5f717c;
-  font-size: 12px;
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  color: #176b8d;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 16px;
-  text-align: center;
+  line-height: 18px;
+  background: #fff;
+  border: 1px solid rgba(76, 159, 197, 0.5);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(23, 107, 141, 0.12);
   font-variant-numeric: tabular-nums;
 }
 

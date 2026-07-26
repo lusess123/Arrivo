@@ -718,14 +718,13 @@ export default function SentenceItem(sentence: ISentenceItem) {
             <Button
               type="text"
               shape="circle"
-              icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
               onClick={handleTogglePlay}
               className={styles.sentencePlayButton}
-              aria-label={playButtonLabel}
-            />
-            <span className={styles.sentenceNumber} aria-hidden="true">
-              {sentence.displayNumber}
-            </span>
+              aria-label={`${playButtonLabel}，第 ${sentence.displayNumber} 句`}
+            >
+              {sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+              <span className={styles.sentenceNumber} aria-hidden="true">{sentence.displayNumber}</span>
+            </Button>
           </>
         )}
         {sentence.expandControl}
