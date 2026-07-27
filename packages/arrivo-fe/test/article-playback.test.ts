@@ -138,6 +138,23 @@ describe('article word seeking', () => {
     expect(styles).toContain('.wordPreviewPlaying');
   });
 
+  test('supports long-press continuous word preview with a distinct ripple and stop action', async () => {
+    const source = await Bun.file(
+      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
+    ).text();
+    const styles = await Bun.file(
+      new URL('../src/pages/article/index.module.less', import.meta.url),
+    ).text();
+
+    expect(source).toContain('const startContinuousWordPreview = useCallback');
+    expect(source).toContain('Math.round(playbackMs + 1000)');
+    expect(source).toContain('longPressTimerRef.current = window.setTimeout');
+    expect(source).toContain('}, 450);');
+    expect(source).toContain('if (continuousPreviewWordIndexRef.current === wordIndex)');
+    expect(source).toContain('styles.wordPreviewContinuous');
+    expect(styles).toContain('.wordPreviewContinuous');
+  });
+
   test('cancels a pending repeat countdown before previewing a selected word', async () => {
     const source = await Bun.file(
       new URL('../src/pages/article/sentence.item.tsx', import.meta.url),

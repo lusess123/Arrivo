@@ -58,6 +58,10 @@ interface ISentenceItem {
 export default function SentenceItem(sentence: ISentenceItem) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wordPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const continuousPreviewTimerRef = useRef<number | null>(null);
+  const continuousPreviewWordIndexRef = useRef(-1);
+  const longPressTimerRef = useRef<number | null>(null);
+  const suppressNextWordClickRef = useRef(false);
   const itemRef = useRef<HTMLDivElement | null>(null);
   const repeatTimerRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
@@ -86,6 +90,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
   const [previewLoadingWordIndex, setPreviewLoadingWordIndex] = useState(-1);
   const [previewPlayingWordIndex, setPreviewPlayingWordIndex] = useState(-1);
+  const [continuousPreviewWordIndex, setContinuousPreviewWordIndex] = useState(-1);
   const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(
     () => new Set(sentence.playedWordIndexes),
   );
@@ -105,13 +110,19 @@ export default function SentenceItem(sentence: ISentenceItem) {
   }, [sentence.id]);
 
   const stopWordPreview = useCallback(() => {
+    if (continuousPreviewTimerRef.current !== null) {
+      window.clearTimeout(continuousPreviewTimerRef.current);
+      continuousPreviewTimerRef.current = null;
+    }
+    continuousPreviewWordIndexRef.current = -1;
+    setContinuousPreviewWordIndex(-1);
     const preview = wordPreviewRef.current;
-    if (!preview) return;
-
-    preview.pause();
-    preview.removeAttribute('src');
-    preview.load();
-    wordPreviewRef.current = null;
+    if (preview) {
+      preview.pause();
+      preview.removeAttribute('src');
+      preview.load();
+      wordPreviewRef.current = null;
+    }
     setPreviewLoadingWordIndex(-1);
     setPreviewPlayingWordIndex(-1);
   }, []);
@@ -615,7 +626,135 @@ export default function SentenceItem(sentence: ISentenceItem) {
       .catch(() => finish());
   }, [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
 
+  const startContinuousWordPreview = useCallback((word: TtsWordBoundaryDto, wordIndex: number) => {
+    if (!word.text) return;
+
+    stopWordPreview();
+    continuousPreviewWordIndexRef.current = wordIndex;
+    setContinuousPreviewWordIndex(wordIndex);
+
+    const playAgain = () => {
+      if (continuousPreviewWordIndexRef.current !== wordIndex) return;
+
+      const params = new URLSearchParams({
+        s: word.text,
+        v: sentence.v,
+        cv: AUDIO_CACHE_VERSION,
+      });
+      const preview = new Audio(apiUrl(`/api/tts/audio?${params.toString()}`));
+      let playbackStartedAt = 0;
+      wordPreviewRef.current = preview;
+      preview.volume = sentence.sound ? 1 : 0;
+      preview.playbackRate = sentence.rate;
+      setPreviewLoadingWordIndex(wordIndex);
+
+      const discardPreview = () => {
+        preview.pause();
+        preview.removeAttribute('src');
+        preview.load();
+        if (wordPreviewRef.current === preview) {
+          wordPreviewRef.current = null;
+          setPreviewLoadingWordIndex(-1);
+          setPreviewPlayingWordIndex(-1);
+        }
+      };
+
+      preview.addEventListener('ended', () => {
+        if (continuousPreviewWordIndexRef.current !== wordIndex) {
+          discardPreview();
+          return;
+        }
+        const playbackMs = Math.max(0, performance.now() - playbackStartedAt);
+        discardPreview();
+        continuousPreviewTimerRef.current = window.setTimeout(
+          playAgain,
+          Math.round(playbackMs + 1000),
+        );
+      }, { once: true });
+      preview.addEventListener('error', () => {
+        discardPreview();
+        if (continuousPreviewWordIndexRef.current === wordIndex) {
+          continuousPreviewWordIndexRef.current = -1;
+          setContinuousPreviewWordIndex(-1);
+        }
+      }, { once: true });
+      void preview.play()
+        .then(() => {
+          if (wordPreviewRef.current !== preview) return;
+          playbackStartedAt = performance.now();
+          setPreviewLoadingWordIndex(-1);
+          setPreviewPlayingWordIndex(wordIndex);
+          setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
+          sentence.onWordPreviewed(sentence.id, wordIndex);
+        })
+        .catch(() => {
+          discardPreview();
+          if (continuousPreviewWordIndexRef.current === wordIndex) {
+            continuousPreviewWordIndexRef.current = -1;
+            setContinuousPreviewWordIndex(-1);
+          }
+        });
+    };
+
+    playAgain();
+  }, [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
+
+  const cancelWordLongPress = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleWordPointerDown = useCallback((wordIndex: number) => {
+    if (continuousPreviewWordIndexRef.current !== -1) return;
+    const word = wordBoundaries[wordIndex];
+    if (!word) return;
+
+    cancelWordLongPress();
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTimerRef.current = null;
+      suppressNextWordClickRef.current = true;
+      setHighlightedWord(wordIndex);
+      activeWordIndexRef.current = wordIndex;
+      if (sentence.playing) {
+        if (isWaite) {
+          clearRepeatTimer();
+          stopPauseHighlightTracking();
+          countdownCompleteRef.current = null;
+          countdownEndAtRef.current = 0;
+          countdownRemainingMsRef.current = 0;
+          setPauseRemaining(0);
+          setIsWaite(false);
+          setIsPaused(true);
+        } else {
+          pauseAudioPlayback();
+        }
+      }
+      startContinuousWordPreview(word, wordIndex);
+    }, 450);
+  }, [
+    cancelWordLongPress,
+    clearRepeatTimer,
+    isWaite,
+    pauseAudioPlayback,
+    sentence.playing,
+    setHighlightedWord,
+    startContinuousWordPreview,
+    stopPauseHighlightTracking,
+    wordBoundaries,
+  ]);
+
   const handleWordClick = useCallback((wordIndex: number) => {
+    cancelWordLongPress();
+    if (suppressNextWordClickRef.current) {
+      suppressNextWordClickRef.current = false;
+      return;
+    }
+    if (continuousPreviewWordIndexRef.current === wordIndex) {
+      stopWordPreview();
+      return;
+    }
     const word = wordBoundaries[wordIndex];
     if (!word) return;
 
@@ -643,6 +782,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     void resumeAudioPlayback(word.offsetMs / 1000);
   }, [
+    cancelWordLongPress,
     clearRepeatTimer,
     handlePlayCurrentWord,
     isPaused,
@@ -651,6 +791,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     sentence.playing,
     setHighlightedWord,
     stopPauseHighlightTracking,
+    stopWordPreview,
     wordBoundaries,
   ]);
 
@@ -753,6 +894,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
               wordIndex === activeWordIndex ? styles.activeWord : '',
               wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
               wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying : '',
+              wordIndex === continuousPreviewWordIndex ? styles.wordPreviewContinuous : '',
               previewedWordIndices.has(wordIndex) ? styles.previewedWord : '',
             ].filter(Boolean).join(' ');
             return (
@@ -761,8 +903,13 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 className={`${styles.wordButton} ${className}`}
                 key={`word-${wordIndex}`}
                 onClick={() => handleWordClick(wordIndex)}
-                aria-label={`播放或定位单词 ${segment.text}`}
-                aria-busy={wordIndex === previewLoadingWordIndex}
+                onPointerDown={() => handleWordPointerDown(wordIndex)}
+                onPointerUp={cancelWordLongPress}
+                onPointerCancel={cancelWordLongPress}
+                onPointerLeave={cancelWordLongPress}
+                onContextMenu={(event) => event.preventDefault()}
+                aria-label={wordIndex === continuousPreviewWordIndex ? `停止连续播放单词 ${segment.text}` : `播放或定位单词 ${segment.text}`}
+                aria-busy={wordIndex === previewLoadingWordIndex || wordIndex === continuousPreviewWordIndex}
               >
                 {segment.text}
               </button>

@@ -401,6 +401,23 @@
   }
 }
 
+.wordPreviewContinuous {
+  color: #0f6d70;
+  background: rgba(115, 210, 198, 0.2);
+  animation: wordPreviewContinuousPulse 1.8s ease-in-out infinite;
+
+  &::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -0.24em -0.4em;
+    border: 1px solid rgba(47, 159, 150, 0.58);
+    border-radius: 999px;
+    pointer-events: none;
+    animation: wordPreviewContinuousRipple 1.8s ease-out infinite;
+  }
+}
+
 @keyframes wordPreviewPulse {
   50% { background: rgba(160, 216, 239, 0.5); }
 }
@@ -419,11 +436,23 @@
   to { opacity: 0; transform: scale(1.32); }
 }
 
+@keyframes wordPreviewContinuousPulse {
+  50% { background: rgba(115, 210, 198, 0.38); }
+}
+
+@keyframes wordPreviewContinuousRipple {
+  0% { opacity: 0.76; transform: scale(0.88); }
+  62% { opacity: 0; transform: scale(1.5); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wordPreviewLoading,
   .wordPreviewLoading::after,
   .wordPreviewPlaying,
-  .wordPreviewPlaying::after {
+  .wordPreviewPlaying::after,
+  .wordPreviewContinuous,
+  .wordPreviewContinuous::after {
     animation: none;
   }
 }
