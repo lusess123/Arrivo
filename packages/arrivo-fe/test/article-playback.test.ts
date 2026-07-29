@@ -155,6 +155,20 @@ describe('article word seeking', () => {
     expect(styles).toContain('.wordPreviewContinuous');
   });
 
+  test('keeps the screen awake through playback pauses and catches up a throttled word repeat', async () => {
+    const source = await Bun.file(
+      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
+    ).text();
+
+    expect(source).toContain('function useScreenWakeLock(keepScreenAwake: boolean)');
+    expect(source).toContain('const keepScreenAwake = sentence.playing');
+    expect(source).toContain('|| continuousPreviewWordIndex !== -1;');
+    expect(source).toContain("wakeLock.request('screen')");
+    expect(source).toContain("document.addEventListener('visibilitychange', onVisibilityChange);");
+    expect(source).toContain('continuousPreviewDueAtRef.current = Date.now() + delayMs;');
+    expect(source).toContain('resumeContinuousPreviewRef.current?.();');
+  });
+
   test('cancels a pending repeat countdown before previewing a selected word', async () => {
     const source = await Bun.file(
       new URL('../src/pages/article/sentence.item.tsx', import.meta.url),

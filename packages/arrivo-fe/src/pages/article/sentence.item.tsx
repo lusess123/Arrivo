@@ -15,6 +15,61 @@ import { articleSentenceElementId } from './article-progress';
 // so browsers fetch a seekable audio response instead of reusing that immutable cache.
 const AUDIO_CACHE_VERSION = '20260726-range-v1';
 
+type ScreenWakeLockSentinel = {
+  release: () => Promise<void>;
+  addEventListener: (type: 'release', listener: () => void, options?: AddEventListenerOptions) => void;
+};
+
+type WakeLockNavigator = Navigator & {
+  wakeLock?: { request: (type: 'screen') => Promise<ScreenWakeLockSentinel> };
+};
+
+function useScreenWakeLock(keepScreenAwake: boolean) {
+  const sentinelRef = useRef<ScreenWakeLockSentinel | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const release = () => {
+      const sentinel = sentinelRef.current;
+      sentinelRef.current = null;
+      if (sentinel) void sentinel.release().catch(() => undefined);
+    };
+    const sync = async () => {
+      if (!keepScreenAwake || document.hidden) {
+        release();
+        return;
+      }
+      if (sentinelRef.current) return;
+
+      const wakeLock = (navigator as WakeLockNavigator).wakeLock;
+      if (!wakeLock) return;
+      try {
+        const sentinel = await wakeLock.request('screen');
+        if (disposed || !keepScreenAwake || document.hidden) {
+          void sentinel.release().catch(() => undefined);
+          return;
+        }
+        sentinelRef.current = sentinel;
+        sentinel.addEventListener('release', () => {
+          if (sentinelRef.current === sentinel) sentinelRef.current = null;
+        });
+      } catch {
+        // Wake Lock is optional. Playback must still work in browsers without it.
+      }
+    };
+    const onVisibilityChange = () => { void sync(); };
+
+    void sync();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      disposed = true;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      release();
+    };
+  }, [keepScreenAwake]);
+}
+
 export interface SentenceActionItem {
   key: string;
   label: string;
@@ -59,6 +114,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wordPreviewRef = useRef<HTMLAudioElement | null>(null);
   const continuousPreviewTimerRef = useRef<number | null>(null);
+  const continuousPreviewDueAtRef = useRef(0);
+  const resumeContinuousPreviewRef = useRef<(() => void) | null>(null);
   const continuousPreviewWordIndexRef = useRef(-1);
   const longPressTimerRef = useRef<number | null>(null);
   const suppressNextWordClickRef = useRef(false);
@@ -95,6 +152,11 @@ export default function SentenceItem(sentence: ISentenceItem) {
     () => new Set(sentence.playedWordIndexes),
   );
   const [isActionPanelOpen, setIsActionPanelOpen] = useState(false);
+  const keepScreenAwake = sentence.playing
+    || previewLoadingWordIndex !== -1
+    || previewPlayingWordIndex !== -1
+    || continuousPreviewWordIndex !== -1;
+  useScreenWakeLock(keepScreenAwake);
   const maxCount = Math.max(1, sentence.times || 1);
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
@@ -109,11 +171,32 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsActionPanelOpen(false);
   }, [sentence.id]);
 
+  useEffect(() => {
+    const catchUpContinuousPreview = () => {
+      if (
+        document.hidden
+        || continuousPreviewDueAtRef.current === 0
+        || Date.now() < continuousPreviewDueAtRef.current
+      ) return;
+      if (continuousPreviewTimerRef.current !== null) {
+        window.clearTimeout(continuousPreviewTimerRef.current);
+        continuousPreviewTimerRef.current = null;
+      }
+      continuousPreviewDueAtRef.current = 0;
+      resumeContinuousPreviewRef.current?.();
+    };
+
+    document.addEventListener('visibilitychange', catchUpContinuousPreview);
+    return () => document.removeEventListener('visibilitychange', catchUpContinuousPreview);
+  }, []);
+
   const stopWordPreview = useCallback(() => {
     if (continuousPreviewTimerRef.current !== null) {
       window.clearTimeout(continuousPreviewTimerRef.current);
       continuousPreviewTimerRef.current = null;
     }
+    continuousPreviewDueAtRef.current = 0;
+    resumeContinuousPreviewRef.current = null;
     continuousPreviewWordIndexRef.current = -1;
     setContinuousPreviewWordIndex(-1);
     const preview = wordPreviewRef.current;
@@ -635,6 +718,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     const playAgain = () => {
       if (continuousPreviewWordIndexRef.current !== wordIndex) return;
+      continuousPreviewDueAtRef.current = 0;
+      resumeContinuousPreviewRef.current = playAgain;
 
       const params = new URLSearchParams({
         s: word.text,
@@ -666,9 +751,11 @@ export default function SentenceItem(sentence: ISentenceItem) {
         }
         const playbackMs = Math.max(0, performance.now() - playbackStartedAt);
         discardPreview();
+        const delayMs = Math.round(playbackMs + 1000);
+        continuousPreviewDueAtRef.current = Date.now() + delayMs;
         continuousPreviewTimerRef.current = window.setTimeout(
           playAgain,
-          Math.round(playbackMs + 1000),
+          delayMs,
         );
       }, { once: true });
       preview.addEventListener('error', () => {
