@@ -348,6 +348,10 @@
   min-width: 0;
 }
 
+.sentenceTextRegion {
+  min-width: 0;
+}
+
 .englishText {
   font-size: 16px;
   line-height: 1.6;
@@ -822,15 +826,27 @@
   grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
 }
 
-.focusSentenceItem .englishText,
-.focusSentenceItem .chineseText {
-  align-self: center;
+.focusSentenceItem .sentenceTextRegion {
+  display: flex;
+  align-items: center;
   box-sizing: border-box;
   width: 100%;
-  max-height: 100%;
-  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.focusSentenceItem .sentenceTextArea[data-text-overflow="true"] .sentenceTextRegion {
   overflow: auto;
-  scrollbar-width: thin;
+}
+
+.focusSentenceItem .englishText,
+.focusSentenceItem .chineseText {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  white-space: normal;
+  overflow: visible;
 }
 
 .focusSentenceItem .englishText {
@@ -838,17 +854,22 @@
   line-height: 1.18;
   font-weight: 600;
   letter-spacing: -0.018em;
+  overflow-wrap: anywhere;
+}
+
+.focusSentenceItem .wordButton {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .focusSentenceItem .chineseText {
-  padding-top: clamp(10px, 1.5vh, 18px);
   font-size: var(--focus-translation-size);
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.focusSentenceItem .sentenceTextArea[data-layout="columns"] .chineseText {
-  align-self: stretch;
-  padding-top: 0;
+.focusSentenceItem .sentenceTextArea[data-layout="columns"] .translationTextRegion {
   padding-left: clamp(14px, 2vw, 28px);
   border-left: 1px solid rgba(76, 159, 197, 0.18);
 }

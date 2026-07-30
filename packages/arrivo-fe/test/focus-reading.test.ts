@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  doFocusTextRegionsFit,
   findLargestFittingFontSize,
   getAdjacentFocusIndex,
   getFocusFontSizeRange,
@@ -69,15 +70,76 @@ describe('focus reading navigation', () => {
     expect(getFocusTextLayout(1200, 700, false)).toBe('single');
   });
 
-  test('lets large screens use their full text area without a fixed font cap', () => {
-    expect(getFocusFontSizeRange(3840, 2160)).toEqual({
-      min: 16,
-      max: 2160
+  test('uses a comfortable responsive font range instead of the viewport edge', () => {
+    expect(getFocusFontSizeRange(390, 844)).toEqual({
+      min: 1,
+      max: 30
     });
+    expect(getFocusFontSizeRange(844, 390)).toEqual({
+      min: 1,
+      max: 42
+    });
+    expect(getFocusFontSizeRange(1440, 900)).toEqual({
+      min: 1,
+      max: 64
+    });
+  });
+
+  test('requires every visible language region to contain its full text', () => {
+    expect(
+      doFocusTextRegionsFit([
+        {
+          availableWidth: 320,
+          availableHeight: 180,
+          contentWidth: 320,
+          contentHeight: 160
+        },
+        {
+          availableWidth: 320,
+          availableHeight: 100,
+          contentWidth: 320,
+          contentHeight: 124
+        }
+      ])
+    ).toBe(false);
+    expect(
+      doFocusTextRegionsFit([
+        {
+          availableWidth: 320,
+          availableHeight: 180,
+          contentWidth: 320,
+          contentHeight: 160
+        }
+      ])
+    ).toBe(true);
+    expect(
+      doFocusTextRegionsFit([
+        {
+          availableWidth: 320,
+          availableHeight: 180,
+          contentWidth: 348,
+          contentHeight: 160
+        }
+      ])
+    ).toBe(false);
+  });
+
+  test('keeps the range valid even on an unusually short viewport', () => {
     expect(getFocusFontSizeRange(320, 12)).toEqual({
-      min: 16,
-      max: 16
+      min: 1,
+      max: 2
     });
+  });
+
+  test('constrains each language to a wrapping region without hiding overflow behind scrolling', async () => {
+    const styles = await Bun.file(
+      new URL('../src/pages/article/index.module.less', import.meta.url)
+    ).text();
+
+    expect(styles).toContain('.focusSentenceItem .sentenceTextRegion');
+    expect(styles).toContain('overflow: hidden;');
+    expect(styles).toContain('overflow-wrap: anywhere;');
+    expect(styles).toContain('[data-text-overflow="true"] .sentenceTextRegion');
   });
 
   test('chooses the largest whole-pixel font size that fits', () => {
@@ -97,10 +159,17 @@ describe('focus reading navigation', () => {
     ).toBe(384);
     expect(
       findLargestFittingFontSize({
-        min: 16,
+        min: 1,
         max: 2160,
         fits: () => false
       })
-    ).toBe(16);
+    ).toBeNull();
+    expect(
+      findLargestFittingFontSize({
+        min: 1,
+        max: 64,
+        fits: (size) => size <= 7
+      })
+    ).toBe(7);
   });
 });

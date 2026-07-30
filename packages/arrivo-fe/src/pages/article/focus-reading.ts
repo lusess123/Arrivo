@@ -1,5 +1,11 @@
 type FocusSentence = { id: string };
 export type FocusTextLayout = 'single' | 'stack' | 'columns';
+export type FocusTextRegionMetrics = {
+  availableWidth: number;
+  availableHeight: number;
+  contentWidth: number;
+  contentHeight: number;
+};
 
 export function resolveFocusIndex({
   activeIndex,
@@ -34,11 +40,19 @@ export function getFocusTextLayout(width: number, height: number, showTranslatio
 }
 
 export function getFocusFontSizeRange(width: number, height: number) {
-  const min = 16;
+  const min = 1;
+  const responsiveMax = Math.min(Math.max(30, width * 0.05), height * 0.18, 64);
   return {
     min,
-    max: Math.max(min, Math.floor(Math.min(width, height)))
+    max: Math.max(min, Math.round(responsiveMax))
   };
+}
+
+export function doFocusTextRegionsFit(regions: FocusTextRegionMetrics[]) {
+  return regions.every(
+    ({ availableWidth, availableHeight, contentWidth, contentHeight }) =>
+      contentWidth <= availableWidth && contentHeight <= availableHeight
+  );
 }
 
 export function findLargestFittingFontSize({
@@ -52,7 +66,7 @@ export function findLargestFittingFontSize({
 }) {
   let lower = Math.floor(min);
   let upper = Math.floor(max);
-  let result = lower;
+  let result: number | null = null;
 
   while (lower <= upper) {
     const candidate = Math.floor((lower + upper) / 2);

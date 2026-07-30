@@ -1,29 +1,38 @@
 import { useLayoutEffect } from 'react';
 import type { RefObject } from 'react';
 import {
+  doFocusTextRegionsFit,
   findLargestFittingFontSize,
   getFocusFontSizeRange,
   getFocusTextLayout
 } from './focus-reading';
 
+const getTranslationFontSize = (englishSize: number) =>
+  Math.max(1, Math.round(englishSize * 0.55));
+
 export function useFocusTextFit({
   enabled,
   showTranslation,
   containerRef,
+  englishRegionRef,
   englishRef,
+  translationRegionRef,
   translationRef
 }: {
   enabled: boolean;
   showTranslation: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
+  englishRegionRef: RefObject<HTMLDivElement | null>;
   englishRef: RefObject<HTMLParagraphElement | null>;
+  translationRegionRef: RefObject<HTMLDivElement | null>;
   translationRef: RefObject<HTMLParagraphElement | null>;
 }) {
   useLayoutEffect(() => {
     if (!enabled) return;
     const container = containerRef.current;
+    const englishRegion = englishRegionRef.current;
     const english = englishRef.current;
-    if (!container || !english) return;
+    if (!container || !englishRegion || !english) return;
 
     let frame = 0;
     const fitText = () => {
@@ -33,28 +42,43 @@ export function useFocusTextFit({
 
       const layout = getFocusTextLayout(width, height, showTranslation);
       container.dataset.layout = layout;
+      const translationRegion = translationRegionRef.current;
       const translation = translationRef.current;
       const { min: minSize, max: maxSize } = getFocusFontSizeRange(width, height);
       const fits = (englishSize: number) => {
-        const translationSize = Math.max(18, Math.round(englishSize * 0.52));
+        const translationSize = getTranslationFontSize(englishSize);
         container.style.setProperty('--focus-english-size', `${englishSize}px`);
         container.style.setProperty('--focus-translation-size', `${translationSize}px`);
-        const englishFits =
-          english.scrollHeight <= english.clientHeight + 1 && english.scrollWidth <= english.clientWidth + 1;
-        const translationFits =
-          !showTranslation ||
-          !translation ||
-          (translation.scrollHeight <= translation.clientHeight + 1 &&
-            translation.scrollWidth <= translation.clientWidth + 1);
-        return englishFits && translationFits;
+        const regions = [
+          {
+            availableWidth: englishRegion.clientWidth,
+            availableHeight: englishRegion.clientHeight,
+            contentWidth: english.scrollWidth,
+            contentHeight: english.scrollHeight
+          }
+        ];
+        if (showTranslation && translationRegion && translation) {
+          regions.push({
+            availableWidth: translationRegion.clientWidth,
+            availableHeight: translationRegion.clientHeight,
+            contentWidth: translation.scrollWidth,
+            contentHeight: translation.scrollHeight
+          });
+        }
+        return doFocusTextRegionsFit(regions);
       };
       const size = findLargestFittingFontSize({
         min: minSize,
         max: maxSize,
         fits
       });
-      container.style.setProperty('--focus-english-size', `${size}px`);
-      container.style.setProperty('--focus-translation-size', `${Math.max(18, Math.round(size * 0.52))}px`);
+      const fittedSize = size ?? minSize;
+      container.dataset.textOverflow = size === null ? 'true' : 'false';
+      container.style.setProperty('--focus-english-size', `${fittedSize}px`);
+      container.style.setProperty(
+        '--focus-translation-size',
+        `${getTranslationFontSize(fittedSize)}px`
+      );
     };
     const scheduleFit = () => {
       window.cancelAnimationFrame(frame);
@@ -68,5 +92,13 @@ export function useFocusTextFit({
       observer.disconnect();
       window.cancelAnimationFrame(frame);
     };
-  }, [containerRef, enabled, englishRef, showTranslation, translationRef]);
+  }, [
+    containerRef,
+    enabled,
+    englishRef,
+    englishRegionRef,
+    showTranslation,
+    translationRef,
+    translationRegionRef
+  ]);
 }

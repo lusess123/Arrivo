@@ -119,7 +119,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wordPreviewRef = useRef<HTMLAudioElement | null>(null);
   const focusTextAreaRef = useRef<HTMLDivElement | null>(null);
+  const englishTextRegionRef = useRef<HTMLDivElement | null>(null);
   const englishTextRef = useRef<HTMLParagraphElement | null>(null);
+  const translationTextRegionRef = useRef<HTMLDivElement | null>(null);
   const translationTextRef = useRef<HTMLParagraphElement | null>(null);
   const continuousPreviewTimerRef = useRef<number | null>(null);
   const continuousPreviewDueAtRef = useRef(0);
@@ -168,7 +170,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
   useScreenWakeLock(keepScreenAwake);
   const maxCount = Math.max(1, sentence.times || 1);
   const isFocusMode = sentence.variant === 'focus';
-  const showTranslation = sentence.showTranslation !== false;
+  const showTranslation =
+    sentence.showTranslation !== false && Boolean(sentence.translatedContent.trim());
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
     [sentence.originalContent, wordBoundaries]
@@ -177,7 +180,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
     enabled: isFocusMode,
     showTranslation,
     containerRef: focusTextAreaRef,
+    englishRegionRef: englishTextRegionRef,
     englishRef: englishTextRef,
+    translationRegionRef: translationTextRegionRef,
     translationRef: translationTextRef
   });
 
@@ -1030,50 +1035,57 @@ export default function SentenceItem(sentence: ISentenceItem) {
       <div className={styles.sentenceContent}>
         {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
         <div ref={focusTextAreaRef} className={styles.sentenceTextArea}>
-          <p ref={englishTextRef} className={styles.englishText}>
-            {wordSegments.map((segment, segmentIndex) => {
-              if (segment.wordIndex === undefined) {
-                return <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>;
-              }
+          <div ref={englishTextRegionRef} className={styles.sentenceTextRegion}>
+            <p ref={englishTextRef} className={styles.englishText}>
+              {wordSegments.map((segment, segmentIndex) => {
+                if (segment.wordIndex === undefined) {
+                  return <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>;
+                }
 
-              const wordIndex = segment.wordIndex;
-              const className = [
-                styles.word,
-                wordIndex === activeWordIndex ? styles.activeWord : '',
-                wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
-                wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying : '',
-                wordIndex === continuousPreviewWordIndex ? styles.wordPreviewContinuous : '',
-                previewedWordIndices.has(wordIndex) ? styles.previewedWord : ''
-              ]
-                .filter(Boolean)
-                .join(' ');
-              return (
-                <button
-                  type="button"
-                  className={`${styles.wordButton} ${className}`}
-                  key={`word-${wordIndex}`}
-                  onClick={() => handleWordClick(wordIndex)}
-                  onPointerDown={() => handleWordPointerDown(wordIndex)}
-                  onPointerUp={cancelWordLongPress}
-                  onPointerCancel={cancelWordLongPress}
-                  onPointerLeave={cancelWordLongPress}
-                  onContextMenu={(event) => event.preventDefault()}
-                  aria-label={
-                    wordIndex === continuousPreviewWordIndex
-                      ? `停止连续播放单词 ${segment.text}`
-                      : `播放或定位单词 ${segment.text}`
-                  }
-                  aria-busy={wordIndex === previewLoadingWordIndex || wordIndex === continuousPreviewWordIndex}
-                >
-                  {segment.text}
-                </button>
-              );
-            })}
-          </p>
-          {showTranslation ? (
-            <p ref={translationTextRef} className={styles.chineseText}>
-              {sentence.translatedContent}
+                const wordIndex = segment.wordIndex;
+                const className = [
+                  styles.word,
+                  wordIndex === activeWordIndex ? styles.activeWord : '',
+                  wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
+                  wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying : '',
+                  wordIndex === continuousPreviewWordIndex ? styles.wordPreviewContinuous : '',
+                  previewedWordIndices.has(wordIndex) ? styles.previewedWord : ''
+                ]
+                  .filter(Boolean)
+                  .join(' ');
+                return (
+                  <button
+                    type="button"
+                    className={`${styles.wordButton} ${className}`}
+                    key={`word-${wordIndex}`}
+                    onClick={() => handleWordClick(wordIndex)}
+                    onPointerDown={() => handleWordPointerDown(wordIndex)}
+                    onPointerUp={cancelWordLongPress}
+                    onPointerCancel={cancelWordLongPress}
+                    onPointerLeave={cancelWordLongPress}
+                    onContextMenu={(event) => event.preventDefault()}
+                    aria-label={
+                      wordIndex === continuousPreviewWordIndex
+                        ? `停止连续播放单词 ${segment.text}`
+                        : `播放或定位单词 ${segment.text}`
+                    }
+                    aria-busy={wordIndex === previewLoadingWordIndex || wordIndex === continuousPreviewWordIndex}
+                  >
+                    {segment.text}
+                  </button>
+                );
+              })}
             </p>
+          </div>
+          {showTranslation ? (
+            <div
+              ref={translationTextRegionRef}
+              className={`${styles.sentenceTextRegion} ${styles.translationTextRegion}`}
+            >
+              <p ref={translationTextRef} className={styles.chineseText}>
+                {sentence.translatedContent}
+              </p>
+            </div>
           ) : null}
         </div>
         {sentence.hierarchyControl}
