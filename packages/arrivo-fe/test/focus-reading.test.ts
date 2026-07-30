@@ -142,6 +142,16 @@ describe('focus reading navigation', () => {
     expect(styles).toContain('[data-text-overflow="true"] .sentenceTextRegion');
   });
 
+  test('stretches the focused sentence content across the available reading stage', async () => {
+    const styles = await Bun.file(
+      new URL('../src/pages/article/index.module.less', import.meta.url)
+    ).text();
+
+    expect(styles).toMatch(
+      /\.focusSentenceItem\s*\{[^}]*align-items:\s*stretch;/s
+    );
+  });
+
   test('chooses the largest whole-pixel font size that fits', () => {
     expect(
       findLargestFittingFontSize({
