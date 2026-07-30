@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { TtsWordBoundaryDto } from '@arrivo/contracts';
-import styles from './index.module.less'
+import type {
+  PlaybackSettingsDto,
+  TtsWordBoundaryDto
+} from '@arrivo/contracts';
+import styles from './index.module.less';
 import { Button } from 'antd';
 import { AudioOutlined, MoreOutlined, PauseCircleOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
 import { apiUrl } from '@/lib/api';
-import {
-  buildWordTextSegments,
-  findActiveWordIndex,
-  findPauseActiveWordIndex,
-} from './word-highlight';
+import { buildWordTextSegments, findActiveWordIndex, findPauseActiveWordIndex } from './word-highlight';
 import { articleSentenceElementId } from './article-progress';
+import { useFocusTextFit } from './use-focus-text-fit';
 
 // Previously cached MP3 responses predate byte-range support. Bump the URL version
 // so browsers fetch a seekable audio response instead of reusing that immutable cache.
@@ -58,7 +58,9 @@ function useScreenWakeLock(keepScreenAwake: boolean) {
         // Wake Lock is optional. Playback must still work in browsers without it.
       }
     };
-    const onVisibilityChange = () => { void sync(); };
+    const onVisibilityChange = () => {
+      void sync();
+    };
 
     void sync();
     document.addEventListener('visibilitychange', onVisibilityChange);
@@ -80,39 +82,45 @@ export interface SentenceActionItem {
 }
 
 interface ISentenceItem {
-    originalContent: string ,
-    translatedContent: string,
-    index : number,
-    displayNumber: string,
-    duration: number,
-    id: string,
-    totalPlayCount: number,
-    playedWordIndexes: number[],
-    resumePoint?: boolean,
-    times: number,
-    // s: string,
-    v: string,
-    rate: number,
-    delay: number,
-    playing: boolean,
-    hasNext: boolean,
-    playbackKey: number,
-    onPlayStart: (index: number) => void,
-    onPlayStop: (index: number) => void,
-    onPlayEnd: (index: number) => void,
-    onPlaybackCompleted: (id: string) => void,
-    onWordPreviewed: (id: string, wordIndex: number) => void,
-    sound: boolean,
-    actions?: SentenceActionItem[],
-    depth?: number,
-    playable?: boolean,
-    hierarchyControl?: React.ReactNode,
-    transientContent?: React.ReactNode,
+  originalContent: string;
+  translatedContent: string;
+  index: number;
+  displayNumber: string;
+  duration: number;
+  id: string;
+  totalPlayCount: number;
+  playedWordIndexes: number[];
+  resumePoint?: boolean;
+  times: number;
+  // s: string,
+  v: string;
+  rate: number;
+  delay: number;
+  playing: boolean;
+  hasNext: boolean;
+  playbackKey: number;
+  onPlayStart: (index: number) => void;
+  onPlayStop: (index: number) => void;
+  onPlayEnd: (index: number) => void;
+  onPlaybackCompleted: (id: string) => void;
+  onWordPreviewed: (id: string, wordIndex: number) => void;
+  onPauseChange?: (paused: boolean) => void;
+  sound: boolean;
+  actions?: SentenceActionItem[];
+  depth?: number;
+  playable?: boolean;
+  hierarchyControl?: React.ReactNode;
+  transientContent?: React.ReactNode;
+  variant?: PlaybackSettingsDto['readingMode'];
+  showTranslation?: boolean;
 }
 
 export default function SentenceItem(sentence: ISentenceItem) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wordPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const focusTextAreaRef = useRef<HTMLDivElement | null>(null);
+  const englishTextRef = useRef<HTMLParagraphElement | null>(null);
+  const translationTextRef = useRef<HTMLParagraphElement | null>(null);
   const continuousPreviewTimerRef = useRef<number | null>(null);
   const continuousPreviewDueAtRef = useRef(0);
   const resumeContinuousPreviewRef = useRef<(() => void) | null>(null);
@@ -149,19 +157,29 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const [previewPlayingWordIndex, setPreviewPlayingWordIndex] = useState(-1);
   const [continuousPreviewWordIndex, setContinuousPreviewWordIndex] = useState(-1);
   const [previewedWordIndices, setPreviewedWordIndices] = useState<Set<number>>(
-    () => new Set(sentence.playedWordIndexes),
+    () => new Set(sentence.playedWordIndexes)
   );
   const [isActionPanelOpen, setIsActionPanelOpen] = useState(false);
-  const keepScreenAwake = sentence.playing
-    || previewLoadingWordIndex !== -1
-    || previewPlayingWordIndex !== -1
-    || continuousPreviewWordIndex !== -1;
+  const keepScreenAwake =
+    sentence.playing ||
+    previewLoadingWordIndex !== -1 ||
+    previewPlayingWordIndex !== -1 ||
+    continuousPreviewWordIndex !== -1;
   useScreenWakeLock(keepScreenAwake);
   const maxCount = Math.max(1, sentence.times || 1);
+  const isFocusMode = sentence.variant === 'focus';
+  const showTranslation = sentence.showTranslation !== false;
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
-    [sentence.originalContent, wordBoundaries],
+    [sentence.originalContent, wordBoundaries]
   );
+  useFocusTextFit({
+    enabled: isFocusMode,
+    showTranslation,
+    containerRef: focusTextAreaRef,
+    englishRef: englishTextRef,
+    translationRef: translationTextRef
+  });
 
   useEffect(() => {
     setPreviewedWordIndices(new Set(sentence.playedWordIndexes));
@@ -172,12 +190,13 @@ export default function SentenceItem(sentence: ISentenceItem) {
   }, [sentence.id]);
 
   useEffect(() => {
+    if (sentence.playing) sentence.onPauseChange?.(isPaused);
+  }, [isPaused, sentence.onPauseChange, sentence.playing]);
+
+  useEffect(() => {
     const catchUpContinuousPreview = () => {
-      if (
-        document.hidden
-        || continuousPreviewDueAtRef.current === 0
-        || Date.now() < continuousPreviewDueAtRef.current
-      ) return;
+      if (document.hidden || continuousPreviewDueAtRef.current === 0 || Date.now() < continuousPreviewDueAtRef.current)
+        return;
       if (continuousPreviewTimerRef.current !== null) {
         window.clearTimeout(continuousPreviewTimerRef.current);
         continuousPreviewTimerRef.current = null;
@@ -235,10 +254,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
         highlightFrameRef.current = null;
         return;
       }
-      setHighlightedWord(findActiveWordIndex(
-        wordBoundariesRef.current,
-        audio.currentTime * 1000,
-      ));
+      setHighlightedWord(findActiveWordIndex(wordBoundariesRef.current, audio.currentTime * 1000));
       highlightFrameRef.current = window.requestAnimationFrame(update);
     };
     update();
@@ -256,39 +272,40 @@ export default function SentenceItem(sentence: ISentenceItem) {
     const totalMs = pauseHighlightTotalMsRef.current;
     const elapsedMs = Math.min(
       totalMs,
-      pauseHighlightElapsedMsRef.current + Math.max(0, Date.now() - pauseHighlightStartedAtRef.current),
+      pauseHighlightElapsedMsRef.current + Math.max(0, Date.now() - pauseHighlightStartedAtRef.current)
     );
-    setHighlightedWord(findPauseActiveWordIndex(
-      wordBoundariesRef.current,
-      elapsedMs,
-      pauseHighlightSpeechDurationMsRef.current,
-      sentence.rate,
-    ));
+    setHighlightedWord(
+      findPauseActiveWordIndex(
+        wordBoundariesRef.current,
+        elapsedMs,
+        pauseHighlightSpeechDurationMsRef.current,
+        sentence.rate
+      )
+    );
     return { elapsedMs, hasRemaining: elapsedMs < totalMs };
   }, [sentence.rate, setHighlightedWord]);
 
-  const startPauseHighlightTracking = useCallback((
-    totalMs: number,
-    speechDurationMs: number,
-    resume = false,
-  ) => {
-    stopPauseHighlightTracking();
-    if (!resume) {
-      pauseHighlightTotalMsRef.current = totalMs;
-      pauseHighlightElapsedMsRef.current = 0;
-      pauseHighlightSpeechDurationMsRef.current = speechDurationMs;
-    }
-    pauseHighlightStartedAtRef.current = Date.now();
-
-    const update = () => {
-      if (!updatePauseHighlight().hasRemaining) {
-        pauseHighlightFrameRef.current = null;
-        return;
+  const startPauseHighlightTracking = useCallback(
+    (totalMs: number, speechDurationMs: number, resume = false) => {
+      stopPauseHighlightTracking();
+      if (!resume) {
+        pauseHighlightTotalMsRef.current = totalMs;
+        pauseHighlightElapsedMsRef.current = 0;
+        pauseHighlightSpeechDurationMsRef.current = speechDurationMs;
       }
-      pauseHighlightFrameRef.current = window.requestAnimationFrame(update);
-    };
-    update();
-  }, [stopPauseHighlightTracking, updatePauseHighlight]);
+      pauseHighlightStartedAtRef.current = Date.now();
+
+      const update = () => {
+        if (!updatePauseHighlight().hasRemaining) {
+          pauseHighlightFrameRef.current = null;
+          return;
+        }
+        pauseHighlightFrameRef.current = window.requestAnimationFrame(update);
+      };
+      update();
+    },
+    [stopPauseHighlightTracking, updatePauseHighlight]
+  );
 
   const clearRepeatTimer = useCallback(() => {
     if (repeatTimerRef.current !== null) {
@@ -321,52 +338,55 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setHighlightedWord(-1);
   }, [clearRepeatTimer, setHighlightedWord, stopHighlightTracking, stopPauseHighlightTracking, stopWordPreview]);
 
-  const waitBeforeContinue = useCallback((
-    seconds: number,
-    onComplete: () => void,
-    options: { resumeHighlight?: boolean; speechDurationMs?: number } = {},
-  ) => {
-    const { resumeHighlight = false, speechDurationMs = 0 } = options;
-    const waitMs = Math.max(0, Math.round(seconds * 1000));
+  const waitBeforeContinue = useCallback(
+    (
+      seconds: number,
+      onComplete: () => void,
+      options: { resumeHighlight?: boolean; speechDurationMs?: number } = {}
+    ) => {
+      const { resumeHighlight = false, speechDurationMs = 0 } = options;
+      const waitMs = Math.max(0, Math.round(seconds * 1000));
 
-    if (!waitMs) {
-      onComplete();
-      return;
-    }
+      if (!waitMs) {
+        onComplete();
+        return;
+      }
 
-    const updateRemaining = () => {
-      const nextRemainingMs = Math.max(0, countdownEndAtRef.current - Date.now());
-      countdownRemainingMsRef.current = nextRemainingMs;
-      const nextRemaining = nextRemainingMs / 1000;
-      setPauseRemaining(Number(nextRemaining.toFixed(1)));
-    };
+      const updateRemaining = () => {
+        const nextRemainingMs = Math.max(0, countdownEndAtRef.current - Date.now());
+        countdownRemainingMsRef.current = nextRemainingMs;
+        const nextRemaining = nextRemainingMs / 1000;
+        setPauseRemaining(Number(nextRemaining.toFixed(1)));
+      };
 
-    clearRepeatTimer();
-    countdownCompleteRef.current = onComplete;
-    countdownEndAtRef.current = Date.now() + waitMs;
-    countdownRemainingMsRef.current = waitMs;
-    setIsWaite(true);
-    setIsPaused(false);
-    updateRemaining();
-    startPauseHighlightTracking(
-      resumeHighlight ? pauseHighlightTotalMsRef.current : waitMs,
-      resumeHighlight ? pauseHighlightSpeechDurationMsRef.current : speechDurationMs,
-      resumeHighlight,
-    );
-    countdownTimerRef.current = window.setInterval(updateRemaining, 100);
-    repeatTimerRef.current = window.setTimeout(() => {
-      const complete = countdownCompleteRef.current;
       clearRepeatTimer();
-      countdownCompleteRef.current = null;
-      countdownEndAtRef.current = 0;
-      countdownRemainingMsRef.current = 0;
-      setPauseRemaining(0);
-      setIsWaite(false);
+      countdownCompleteRef.current = onComplete;
+      countdownEndAtRef.current = Date.now() + waitMs;
+      countdownRemainingMsRef.current = waitMs;
+      setIsWaite(true);
       setIsPaused(false);
-      stopPauseHighlightTracking();
-      complete?.();
-    }, waitMs);
-  }, [clearRepeatTimer, startPauseHighlightTracking, stopPauseHighlightTracking]);
+      updateRemaining();
+      startPauseHighlightTracking(
+        resumeHighlight ? pauseHighlightTotalMsRef.current : waitMs,
+        resumeHighlight ? pauseHighlightSpeechDurationMsRef.current : speechDurationMs,
+        resumeHighlight
+      );
+      countdownTimerRef.current = window.setInterval(updateRemaining, 100);
+      repeatTimerRef.current = window.setTimeout(() => {
+        const complete = countdownCompleteRef.current;
+        clearRepeatTimer();
+        countdownCompleteRef.current = null;
+        countdownEndAtRef.current = 0;
+        countdownRemainingMsRef.current = 0;
+        setPauseRemaining(0);
+        setIsWaite(false);
+        setIsPaused(false);
+        stopPauseHighlightTracking();
+        complete?.();
+      }, waitMs);
+    },
+    [clearRepeatTimer, startPauseHighlightTracking, stopPauseHighlightTracking]
+  );
 
   const pauseCountdown = useCallback(() => {
     const remainingMs = Math.max(0, countdownEndAtRef.current - Date.now());
@@ -431,65 +451,68 @@ export default function SentenceItem(sentence: ISentenceItem) {
     resetPlaybackState();
   }, [resetPlaybackState]);
 
-  const playOnce = useCallback(async (nextCount: number) => {
-    const audio = audioRef.current;
+  const playOnce = useCallback(
+    async (nextCount: number) => {
+      const audio = audioRef.current;
 
-    if (!audio || !sentence.originalContent.trim()) {
-      sentence.onPlayEnd(sentence.index);
-      return;
-    }
+      if (!audio || !sentence.originalContent.trim()) {
+        sentence.onPlayEnd(sentence.index);
+        return;
+      }
 
-    clearRepeatTimer();
-    stopWordPreview();
-    stopPauseHighlightTracking();
-    countdownCompleteRef.current = null;
-    countdownEndAtRef.current = 0;
-    countdownRemainingMsRef.current = 0;
-    playbackElapsedMsRef.current = 0;
-    playCountRef.current = nextCount;
-    setPlayCount(nextCount);
-    setPauseRemaining(0);
-    setIsWaite(false);
-    setIsPaused(false);
+      clearRepeatTimer();
+      stopWordPreview();
+      stopPauseHighlightTracking();
+      countdownCompleteRef.current = null;
+      countdownEndAtRef.current = 0;
+      countdownRemainingMsRef.current = 0;
+      playbackElapsedMsRef.current = 0;
+      playCountRef.current = nextCount;
+      setPlayCount(nextCount);
+      setPauseRemaining(0);
+      setIsWaite(false);
+      setIsPaused(false);
 
-    if (itemRef.current) {
-      itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+      if (itemRef.current) {
+        itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
 
-    audio.volume = sentence.sound ? 1 : 0;
-    audio.playbackRate = sentence.rate;
-    const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;
-    resumeWordOffsetRef.current = null;
-    console.debug(`Article play once count=${nextCount} resumeAt=${resumeAt} currentTime=${audio.currentTime}`);
-    try {
-      audio.currentTime = resumeAt ?? 0;
-    } catch {
-      // Ignore seek errors while the browser is still loading metadata.
-    }
+      audio.volume = sentence.sound ? 1 : 0;
+      audio.playbackRate = sentence.rate;
+      const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;
+      resumeWordOffsetRef.current = null;
+      console.debug(`Article play once count=${nextCount} resumeAt=${resumeAt} currentTime=${audio.currentTime}`);
+      try {
+        audio.currentTime = resumeAt ?? 0;
+      } catch {
+        // Ignore seek errors while the browser is still loading metadata.
+      }
 
-    startedAtRef.current = Date.now();
+      startedAtRef.current = Date.now();
 
-    try {
-      await audio.play();
-      startHighlightTracking();
-    } catch (error) {
-      console.error('Audio play failed', error);
-      resetPlaybackState();
-      sentence.onPlayStop(sentence.index);
-    }
-  }, [
-    clearRepeatTimer,
-    resetPlaybackState,
-    sentence.index,
-    sentence.onPlayEnd,
-    sentence.onPlayStop,
-    sentence.originalContent,
-    sentence.rate,
-    sentence.sound,
-    stopPauseHighlightTracking,
-    stopWordPreview,
-    startHighlightTracking,
-  ]);
+      try {
+        await audio.play();
+        startHighlightTracking();
+      } catch (error) {
+        console.error('Audio play failed', error);
+        resetPlaybackState();
+        sentence.onPlayStop(sentence.index);
+      }
+    },
+    [
+      clearRepeatTimer,
+      resetPlaybackState,
+      sentence.index,
+      sentence.onPlayEnd,
+      sentence.onPlayStop,
+      sentence.originalContent,
+      sentence.rate,
+      sentence.sound,
+      stopPauseHighlightTracking,
+      stopWordPreview,
+      startHighlightTracking
+    ]
+  );
 
   const pauseAudioPlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -506,78 +529,83 @@ export default function SentenceItem(sentence: ISentenceItem) {
     setIsPaused(true);
   }, [stopHighlightTracking]);
 
-  const seekAudio = useCallback((audio: HTMLAudioElement, seekTo: number) => (
-    new Promise<void>((resolve) => {
-      let timer: number | undefined;
-      const finish = () => {
-        audio.removeEventListener('seeked', handleSeeked);
-        if (timer !== undefined) window.clearTimeout(timer);
-        resolve();
-      };
-      const handleSeeked = () => {
-        if (Math.abs(audio.currentTime - seekTo) <= 0.05) {
+  const seekAudio = useCallback(
+    (audio: HTMLAudioElement, seekTo: number) =>
+      new Promise<void>((resolve) => {
+        let timer: number | undefined;
+        const finish = () => {
+          audio.removeEventListener('seeked', handleSeeked);
+          if (timer !== undefined) window.clearTimeout(timer);
+          resolve();
+        };
+        const handleSeeked = () => {
+          if (Math.abs(audio.currentTime - seekTo) <= 0.05) {
+            finish();
+          }
+        };
+
+        audio.addEventListener('seeked', handleSeeked);
+        timer = window.setTimeout(finish, 500);
+        try {
+          audio.currentTime = seekTo;
+          handleSeeked();
+        } catch {
           finish();
         }
-      };
+      }),
+    []
+  );
 
-      audio.addEventListener('seeked', handleSeeked);
-      timer = window.setTimeout(finish, 500);
-      try {
-        audio.currentTime = seekTo;
-        handleSeeked();
-      } catch {
-        finish();
+  const resumeAudioPlayback = useCallback(
+    async (resumeAt?: number) => {
+      const audio = audioRef.current;
+
+      if (!audio) return;
+
+      stopWordPreview();
+      if (resumeAt !== undefined) {
+        clearRepeatTimer();
+        stopPauseHighlightTracking();
+        countdownCompleteRef.current = null;
+        countdownEndAtRef.current = 0;
+        countdownRemainingMsRef.current = 0;
+        setPauseRemaining(0);
+        setIsWaite(false);
+        audio.pause();
+        stopHighlightTracking();
+        await seekAudio(audio, resumeAt);
+        console.debug(`Article word seek completed resumeAt=${resumeAt} currentTime=${audio.currentTime}`);
+        resumeWordOffsetRef.current = null;
       }
-    })
-  ), []);
 
-  const resumeAudioPlayback = useCallback(async (resumeAt?: number) => {
-    const audio = audioRef.current;
+      audio.volume = sentence.sound ? 1 : 0;
+      audio.playbackRate = sentence.rate;
+      startedAtRef.current = Date.now();
+      setIsPaused(false);
 
-    if (!audio) return;
-
-    stopWordPreview();
-    if (resumeAt !== undefined) {
-      clearRepeatTimer();
-      stopPauseHighlightTracking();
-      countdownCompleteRef.current = null;
-      countdownEndAtRef.current = 0;
-      countdownRemainingMsRef.current = 0;
-      setPauseRemaining(0);
-      setIsWaite(false);
-      audio.pause();
-      stopHighlightTracking();
-      await seekAudio(audio, resumeAt);
-      console.debug(`Article word seek completed resumeAt=${resumeAt} currentTime=${audio.currentTime}`);
-      resumeWordOffsetRef.current = null;
-    }
-
-    audio.volume = sentence.sound ? 1 : 0;
-    audio.playbackRate = sentence.rate;
-    startedAtRef.current = Date.now();
-    setIsPaused(false);
-
-    try {
-      await audio.play();
-      startHighlightTracking();
-    } catch (error) {
-      console.error('Audio resume failed', error);
-      resetPlaybackState();
-      sentence.onPlayStop(sentence.index);
-    }
-  }, [
-    clearRepeatTimer,
-    resetPlaybackState,
-    sentence.index,
-    sentence.onPlayStop,
-    sentence.rate,
-    sentence.sound,
-    seekAudio,
-    startHighlightTracking,
-    stopHighlightTracking,
-    stopPauseHighlightTracking,
-    stopWordPreview,
-  ]);
+      try {
+        await audio.play();
+        startHighlightTracking();
+      } catch (error) {
+        console.error('Audio resume failed', error);
+        resetPlaybackState();
+        sentence.onPlayStop(sentence.index);
+      }
+    },
+    [
+      clearRepeatTimer,
+      resetPlaybackState,
+      sentence.index,
+      sentence.onPlayStop,
+      sentence.rate,
+      sentence.sound,
+      seekAudio,
+      startHighlightTracking,
+      stopHighlightTracking,
+      stopPauseHighlightTracking,
+      stopWordPreview
+    ]
+  );
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -598,7 +626,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     const params = new URLSearchParams({
       s: sentence.originalContent,
       v: sentence.v,
-      cv: AUDIO_CACHE_VERSION,
+      cv: AUDIO_CACHE_VERSION
     });
     audio.src = apiUrl(`/api/tts/audio?${params.toString()}`);
     audio.load();
@@ -607,20 +635,22 @@ export default function SentenceItem(sentence: ISentenceItem) {
     const controller = new AbortController();
     void fetch(apiUrl(`/api/tts/words?${params.toString()}`), {
       credentials: 'include',
-      signal: controller.signal,
-    }).then(async response => {
-      if (!response.ok) throw new Error(`Word timeline failed: ${response.status}`);
-      const body = await response.json() as {
-        data?: { words?: TtsWordBoundaryDto[] };
-      };
-      if (controller.signal.aborted) return;
-      const words = Array.isArray(body.data?.words) ? body.data.words : [];
-      wordBoundariesRef.current = words;
-      setWordBoundaries(words);
-    }).catch(error => {
-      if (controller.signal.aborted) return;
-      console.warn('Word timeline unavailable', error);
-    });
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Word timeline failed: ${response.status}`);
+        const body = (await response.json()) as {
+          data?: { words?: TtsWordBoundaryDto[] };
+        };
+        if (controller.signal.aborted) return;
+        const words = Array.isArray(body.data?.words) ? body.data.words : [];
+        wordBoundariesRef.current = words;
+        setWordBoundaries(words);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.warn('Word timeline unavailable', error);
+      });
 
     return () => controller.abort();
   }, [clearRepeatTimer, resetPlaybackState, sentence.originalContent, sentence.rate, sentence.v]);
@@ -643,7 +673,16 @@ export default function SentenceItem(sentence: ISentenceItem) {
       stopPauseHighlightTracking();
       stopWordPreview();
     };
-  }, [clearRepeatTimer, playOnce, sentence.playbackKey, sentence.playing, stopAudio, stopHighlightTracking, stopPauseHighlightTracking, stopWordPreview]);
+  }, [
+    clearRepeatTimer,
+    playOnce,
+    sentence.playbackKey,
+    sentence.playing,
+    stopAudio,
+    stopHighlightTracking,
+    stopPauseHighlightTracking,
+    stopWordPreview
+  ]);
 
   const handleTogglePlay = () => {
     if (sentence.playing) {
@@ -672,119 +711,132 @@ export default function SentenceItem(sentence: ISentenceItem) {
     sentence.onPlayStart(sentence.index);
   };
 
-  const handlePlayCurrentWord = useCallback((word: TtsWordBoundaryDto, wordIndex: number) => {
-    if (!word.text) return;
+  const handlePlayCurrentWord = useCallback(
+    (word: TtsWordBoundaryDto, wordIndex: number) => {
+      if (!word.text) return;
 
-    stopWordPreview();
-    const params = new URLSearchParams({
-      s: word.text,
-      v: sentence.v,
-      cv: AUDIO_CACHE_VERSION,
-    });
-    const preview = new Audio(apiUrl(`/api/tts/audio?${params.toString()}`));
-    wordPreviewRef.current = preview;
-    preview.volume = sentence.sound ? 1 : 0;
-    preview.playbackRate = sentence.rate;
-    setPreviewLoadingWordIndex(wordIndex);
-
-    const finish = () => {
-      if (wordPreviewRef.current !== preview) return;
-      preview.pause();
-      preview.removeAttribute('src');
-      preview.load();
-      wordPreviewRef.current = null;
-      setPreviewLoadingWordIndex(-1);
-      setPreviewPlayingWordIndex(-1);
-    };
-    preview.addEventListener('ended', finish, { once: true });
-    preview.addEventListener('error', () => finish(), { once: true });
-    void preview.play()
-      .then(() => {
-        if (wordPreviewRef.current !== preview) return;
-        setPreviewLoadingWordIndex(-1);
-        setPreviewPlayingWordIndex(wordIndex);
-        setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
-        sentence.onWordPreviewed(sentence.id, wordIndex);
-      })
-      .catch(() => finish());
-  }, [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
-
-  const startContinuousWordPreview = useCallback((word: TtsWordBoundaryDto, wordIndex: number) => {
-    if (!word.text) return;
-
-    stopWordPreview();
-    continuousPreviewWordIndexRef.current = wordIndex;
-    setContinuousPreviewWordIndex(wordIndex);
-
-    const playAgain = () => {
-      if (continuousPreviewWordIndexRef.current !== wordIndex) return;
-      continuousPreviewDueAtRef.current = 0;
-      resumeContinuousPreviewRef.current = playAgain;
-
+      stopWordPreview();
       const params = new URLSearchParams({
         s: word.text,
         v: sentence.v,
-        cv: AUDIO_CACHE_VERSION,
+        cv: AUDIO_CACHE_VERSION
       });
       const preview = new Audio(apiUrl(`/api/tts/audio?${params.toString()}`));
-      let playbackStartedAt = 0;
       wordPreviewRef.current = preview;
       preview.volume = sentence.sound ? 1 : 0;
       preview.playbackRate = sentence.rate;
       setPreviewLoadingWordIndex(wordIndex);
 
-      const discardPreview = () => {
+      const finish = () => {
+        if (wordPreviewRef.current !== preview) return;
         preview.pause();
         preview.removeAttribute('src');
         preview.load();
-        if (wordPreviewRef.current === preview) {
-          wordPreviewRef.current = null;
-          setPreviewLoadingWordIndex(-1);
-          setPreviewPlayingWordIndex(-1);
-        }
+        wordPreviewRef.current = null;
+        setPreviewLoadingWordIndex(-1);
+        setPreviewPlayingWordIndex(-1);
       };
-
-      preview.addEventListener('ended', () => {
-        if (continuousPreviewWordIndexRef.current !== wordIndex) {
-          discardPreview();
-          return;
-        }
-        const playbackMs = Math.max(0, performance.now() - playbackStartedAt);
-        discardPreview();
-        const delayMs = Math.round(playbackMs + 1000);
-        continuousPreviewDueAtRef.current = Date.now() + delayMs;
-        continuousPreviewTimerRef.current = window.setTimeout(
-          playAgain,
-          delayMs,
-        );
-      }, { once: true });
-      preview.addEventListener('error', () => {
-        discardPreview();
-        if (continuousPreviewWordIndexRef.current === wordIndex) {
-          continuousPreviewWordIndexRef.current = -1;
-          setContinuousPreviewWordIndex(-1);
-        }
-      }, { once: true });
-      void preview.play()
+      preview.addEventListener('ended', finish, { once: true });
+      preview.addEventListener('error', () => finish(), { once: true });
+      void preview
+        .play()
         .then(() => {
           if (wordPreviewRef.current !== preview) return;
-          playbackStartedAt = performance.now();
           setPreviewLoadingWordIndex(-1);
           setPreviewPlayingWordIndex(wordIndex);
           setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
           sentence.onWordPreviewed(sentence.id, wordIndex);
         })
-        .catch(() => {
-          discardPreview();
-          if (continuousPreviewWordIndexRef.current === wordIndex) {
-            continuousPreviewWordIndexRef.current = -1;
-            setContinuousPreviewWordIndex(-1);
-          }
-        });
-    };
+        .catch(() => finish());
+    },
+    [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]
+  );
 
-    playAgain();
-  }, [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]);
+  const startContinuousWordPreview = useCallback(
+    (word: TtsWordBoundaryDto, wordIndex: number) => {
+      if (!word.text) return;
+
+      stopWordPreview();
+      continuousPreviewWordIndexRef.current = wordIndex;
+      setContinuousPreviewWordIndex(wordIndex);
+
+      const playAgain = () => {
+        if (continuousPreviewWordIndexRef.current !== wordIndex) return;
+        continuousPreviewDueAtRef.current = 0;
+        resumeContinuousPreviewRef.current = playAgain;
+
+        const params = new URLSearchParams({
+          s: word.text,
+          v: sentence.v,
+          cv: AUDIO_CACHE_VERSION
+        });
+        const preview = new Audio(apiUrl(`/api/tts/audio?${params.toString()}`));
+        let playbackStartedAt = 0;
+        wordPreviewRef.current = preview;
+        preview.volume = sentence.sound ? 1 : 0;
+        preview.playbackRate = sentence.rate;
+        setPreviewLoadingWordIndex(wordIndex);
+
+        const discardPreview = () => {
+          preview.pause();
+          preview.removeAttribute('src');
+          preview.load();
+          if (wordPreviewRef.current === preview) {
+            wordPreviewRef.current = null;
+            setPreviewLoadingWordIndex(-1);
+            setPreviewPlayingWordIndex(-1);
+          }
+        };
+
+        preview.addEventListener(
+          'ended',
+          () => {
+            if (continuousPreviewWordIndexRef.current !== wordIndex) {
+              discardPreview();
+              return;
+            }
+            const playbackMs = Math.max(0, performance.now() - playbackStartedAt);
+            discardPreview();
+            const delayMs = Math.round(playbackMs + 1000);
+            continuousPreviewDueAtRef.current = Date.now() + delayMs;
+            continuousPreviewTimerRef.current = window.setTimeout(playAgain, delayMs);
+          },
+          { once: true }
+        );
+        preview.addEventListener(
+          'error',
+          () => {
+            discardPreview();
+            if (continuousPreviewWordIndexRef.current === wordIndex) {
+              continuousPreviewWordIndexRef.current = -1;
+              setContinuousPreviewWordIndex(-1);
+            }
+          },
+          { once: true }
+        );
+        void preview
+          .play()
+          .then(() => {
+            if (wordPreviewRef.current !== preview) return;
+            playbackStartedAt = performance.now();
+            setPreviewLoadingWordIndex(-1);
+            setPreviewPlayingWordIndex(wordIndex);
+            setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
+            sentence.onWordPreviewed(sentence.id, wordIndex);
+          })
+          .catch(() => {
+            discardPreview();
+            if (continuousPreviewWordIndexRef.current === wordIndex) {
+              continuousPreviewWordIndexRef.current = -1;
+              setContinuousPreviewWordIndex(-1);
+            }
+          });
+      };
+
+      playAgain();
+    },
+    [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]
+  );
 
   const cancelWordLongPress = useCallback(() => {
     if (longPressTimerRef.current !== null) {
@@ -793,110 +845,114 @@ export default function SentenceItem(sentence: ISentenceItem) {
     }
   }, []);
 
-  const handleWordPointerDown = useCallback((wordIndex: number) => {
-    if (continuousPreviewWordIndexRef.current !== -1) return;
-    const word = wordBoundaries[wordIndex];
-    if (!word) return;
+  const handleWordPointerDown = useCallback(
+    (wordIndex: number) => {
+      if (continuousPreviewWordIndexRef.current !== -1) return;
+      const word = wordBoundaries[wordIndex];
+      if (!word) return;
 
-    cancelWordLongPress();
-    longPressTimerRef.current = window.setTimeout(() => {
-      longPressTimerRef.current = null;
-      suppressNextWordClickRef.current = true;
+      cancelWordLongPress();
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTimerRef.current = null;
+        suppressNextWordClickRef.current = true;
+        setHighlightedWord(wordIndex);
+        activeWordIndexRef.current = wordIndex;
+        if (sentence.playing) {
+          if (isWaite) {
+            clearRepeatTimer();
+            stopPauseHighlightTracking();
+            countdownCompleteRef.current = null;
+            countdownEndAtRef.current = 0;
+            countdownRemainingMsRef.current = 0;
+            setPauseRemaining(0);
+            setIsWaite(false);
+            setIsPaused(true);
+          } else {
+            pauseAudioPlayback();
+          }
+        }
+        startContinuousWordPreview(word, wordIndex);
+      }, 450);
+    },
+    [
+      cancelWordLongPress,
+      clearRepeatTimer,
+      isWaite,
+      pauseAudioPlayback,
+      sentence.playing,
+      setHighlightedWord,
+      startContinuousWordPreview,
+      stopPauseHighlightTracking,
+      wordBoundaries
+    ]
+  );
+
+  const handleWordClick = useCallback(
+    (wordIndex: number) => {
+      cancelWordLongPress();
+      if (suppressNextWordClickRef.current) {
+        suppressNextWordClickRef.current = false;
+        return;
+      }
+      if (continuousPreviewWordIndexRef.current === wordIndex) {
+        stopWordPreview();
+        return;
+      }
+      const word = wordBoundaries[wordIndex];
+      if (!word) return;
+
       setHighlightedWord(wordIndex);
       activeWordIndexRef.current = wordIndex;
-      if (sentence.playing) {
-        if (isWaite) {
-          clearRepeatTimer();
-          stopPauseHighlightTracking();
-          countdownCompleteRef.current = null;
-          countdownEndAtRef.current = 0;
-          countdownRemainingMsRef.current = 0;
-          setPauseRemaining(0);
-          setIsWaite(false);
-          setIsPaused(true);
-        } else {
-          pauseAudioPlayback();
-        }
+      if (!sentence.playing || isPaused) {
+        resumeWordOffsetRef.current = word.offsetMs / 1000;
+        void handlePlayCurrentWord(word, wordIndex);
+        return;
       }
-      startContinuousWordPreview(word, wordIndex);
-    }, 450);
-  }, [
-    cancelWordLongPress,
-    clearRepeatTimer,
-    isWaite,
-    pauseAudioPlayback,
-    sentence.playing,
-    setHighlightedWord,
-    startContinuousWordPreview,
-    stopPauseHighlightTracking,
-    wordBoundaries,
-  ]);
 
-  const handleWordClick = useCallback((wordIndex: number) => {
-    cancelWordLongPress();
-    if (suppressNextWordClickRef.current) {
-      suppressNextWordClickRef.current = false;
-      return;
-    }
-    if (continuousPreviewWordIndexRef.current === wordIndex) {
-      stopWordPreview();
-      return;
-    }
-    const word = wordBoundaries[wordIndex];
-    if (!word) return;
+      if (isWaite) {
+        clearRepeatTimer();
+        stopPauseHighlightTracking();
+        countdownCompleteRef.current = null;
+        countdownEndAtRef.current = 0;
+        countdownRemainingMsRef.current = 0;
+        setPauseRemaining(0);
+        setIsWaite(false);
+        setIsPaused(true);
+        resumeWordOffsetRef.current = word.offsetMs / 1000;
+        void handlePlayCurrentWord(word, wordIndex);
+        return;
+      }
 
-    setHighlightedWord(wordIndex);
-    activeWordIndexRef.current = wordIndex;
-    if (!sentence.playing || isPaused) {
-      resumeWordOffsetRef.current = word.offsetMs / 1000;
-      void handlePlayCurrentWord(word, wordIndex);
-      return;
-    }
-
-    if (isWaite) {
-      clearRepeatTimer();
-      stopPauseHighlightTracking();
-      countdownCompleteRef.current = null;
-      countdownEndAtRef.current = 0;
-      countdownRemainingMsRef.current = 0;
-      setPauseRemaining(0);
-      setIsWaite(false);
-      setIsPaused(true);
-      resumeWordOffsetRef.current = word.offsetMs / 1000;
-      void handlePlayCurrentWord(word, wordIndex);
-      return;
-    }
-
-    void resumeAudioPlayback(word.offsetMs / 1000);
-  }, [
-    cancelWordLongPress,
-    clearRepeatTimer,
-    handlePlayCurrentWord,
-    isPaused,
-    isWaite,
-    resumeAudioPlayback,
-    sentence.playing,
-    setHighlightedWord,
-    stopPauseHighlightTracking,
-    stopWordPreview,
-    wordBoundaries,
-  ]);
+      void resumeAudioPlayback(word.offsetMs / 1000);
+    },
+    [
+      cancelWordLongPress,
+      clearRepeatTimer,
+      handlePlayCurrentWord,
+      isPaused,
+      isWaite,
+      resumeAudioPlayback,
+      sentence.playing,
+      setHighlightedWord,
+      stopPauseHighlightTracking,
+      stopWordPreview,
+      wordBoundaries
+    ]
+  );
 
   const handleEnded = () => {
     stopHighlightTracking();
     setHighlightedWord(-1);
     sentence.onPlaybackCompleted(sentence.id);
     const audio = audioRef.current;
-    const elapsedMs = playbackElapsedMsRef.current + (
-      startedAtRef.current ? Date.now() - startedAtRef.current : 0
-    );
+    const elapsedMs = playbackElapsedMsRef.current + (startedAtRef.current ? Date.now() - startedAtRef.current : 0);
     const elapsedSeconds = elapsedMs / 1000;
-    const metadataSeconds = audio && Number.isFinite(audio.duration) && audio.duration > 0
-      ? audio.duration / Math.max(0.1, sentence.rate || 1)
-      : 0;
-    const playbackSeconds = metadataSeconds || (
-      Number.isFinite(elapsedSeconds) && elapsedSeconds > 0 ? elapsedSeconds : 0
-    );
+    const metadataSeconds =
+      audio && Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration / Math.max(0.1, sentence.rate || 1)
+        : 0;
+    const playbackSeconds =
+      metadataSeconds || (Number.isFinite(elapsedSeconds) && elapsedSeconds > 0 ? elapsedSeconds : 0);
     const pauseSeconds = playbackSeconds + Math.max(0, sentence.delay || 0);
     const currentCount = playCountRef.current;
 
@@ -908,17 +964,25 @@ export default function SentenceItem(sentence: ISentenceItem) {
     }
 
     if (currentCount < maxCount) {
-      waitBeforeContinue(pauseSeconds, () => {
-        void playOnce(currentCount + 1);
-      }, { speechDurationMs: playbackSeconds * 1000 });
+      waitBeforeContinue(
+        pauseSeconds,
+        () => {
+          void playOnce(currentCount + 1);
+        },
+        { speechDurationMs: playbackSeconds * 1000 }
+      );
       return;
     }
 
     if (sentence.hasNext) {
-      waitBeforeContinue(pauseSeconds, () => {
-        resetPlaybackState();
-        sentence.onPlayEnd(sentence.index);
-      }, { speechDurationMs: playbackSeconds * 1000 });
+      waitBeforeContinue(
+        pauseSeconds,
+        () => {
+          resetPlaybackState();
+          sentence.onPlayEnd(sentence.index);
+        },
+        { speechDurationMs: playbackSeconds * 1000 }
+      );
       return;
     }
 
@@ -935,25 +999,19 @@ export default function SentenceItem(sentence: ISentenceItem) {
     }
   };
 
-  const playButtonLabel = !sentence.playing
-    ? '播放句子'
-    : isPaused
-      ? '继续播放'
-      : '暂停播放';
+  const playButtonLabel = !sentence.playing ? '播放句子' : isPaused ? '继续播放' : '暂停播放';
 
   return (
     <div
       id={articleSentenceElementId(sentence.id)}
       key={sentence.id}
-      className={`${styles.sentenceItem} ${sentence.resumePoint ? styles.resumePoint : ''} ${sentence.depth ? styles.nestedSentence : ''}`}
+      className={`${styles.sentenceItem} ${isFocusMode ? styles.focusSentenceItem : ''} ${sentence.resumePoint ? styles.resumePoint : ''} ${sentence.depth ? styles.nestedSentence : ''}`}
       ref={itemRef}
-      style={{ marginLeft: `${Math.min(sentence.depth || 0, 6) * 24}px` }}
+      style={{
+        marginLeft: isFocusMode ? 0 : `${Math.min(sentence.depth || 0, 6) * 24}px`
+      }}
     >
-      <audio
-        onEnded={handleEnded}
-        onLoadedMetadata={handleLoadedMetadata}
-        ref={audioRef}
-      />
+      <audio onEnded={handleEnded} onLoadedMetadata={handleLoadedMetadata} ref={audioRef} />
       <div className={styles.sentenceLeadingControls}>
         {sentence.playable !== false && (
           <Button
@@ -965,54 +1023,74 @@ export default function SentenceItem(sentence: ISentenceItem) {
             aria-label={`${playButtonLabel}，第 ${sentence.displayNumber} 句`}
           />
         )}
-        <span className={styles.sentenceNumber} aria-hidden="true">{sentence.displayNumber}</span>
+        <span className={styles.sentenceNumber} aria-hidden="true">
+          {sentence.displayNumber}
+        </span>
       </div>
       <div className={styles.sentenceContent}>
         {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
-        <p className={styles.englishText}>
-          {wordSegments.map((segment, segmentIndex) => {
-            if (segment.wordIndex === undefined) {
-              return <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>;
-            }
+        <div ref={focusTextAreaRef} className={styles.sentenceTextArea}>
+          <p ref={englishTextRef} className={styles.englishText}>
+            {wordSegments.map((segment, segmentIndex) => {
+              if (segment.wordIndex === undefined) {
+                return <React.Fragment key={`text-${segmentIndex}`}>{segment.text}</React.Fragment>;
+              }
 
-            const wordIndex = segment.wordIndex;
-            const className = [
-              styles.word,
-              wordIndex === activeWordIndex ? styles.activeWord : '',
-              wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
-              wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying : '',
-              wordIndex === continuousPreviewWordIndex ? styles.wordPreviewContinuous : '',
-              previewedWordIndices.has(wordIndex) ? styles.previewedWord : '',
-            ].filter(Boolean).join(' ');
-            return (
-              <button
-                type="button"
-                className={`${styles.wordButton} ${className}`}
-                key={`word-${wordIndex}`}
-                onClick={() => handleWordClick(wordIndex)}
-                onPointerDown={() => handleWordPointerDown(wordIndex)}
-                onPointerUp={cancelWordLongPress}
-                onPointerCancel={cancelWordLongPress}
-                onPointerLeave={cancelWordLongPress}
-                onContextMenu={(event) => event.preventDefault()}
-                aria-label={wordIndex === continuousPreviewWordIndex ? `停止连续播放单词 ${segment.text}` : `播放或定位单词 ${segment.text}`}
-                aria-busy={wordIndex === previewLoadingWordIndex || wordIndex === continuousPreviewWordIndex}
-              >
-                {segment.text}
-              </button>
-            );
-          })}
-        </p>
-        <p className={styles.chineseText}>{sentence.translatedContent}</p>
+              const wordIndex = segment.wordIndex;
+              const className = [
+                styles.word,
+                wordIndex === activeWordIndex ? styles.activeWord : '',
+                wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading : '',
+                wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying : '',
+                wordIndex === continuousPreviewWordIndex ? styles.wordPreviewContinuous : '',
+                previewedWordIndices.has(wordIndex) ? styles.previewedWord : ''
+              ]
+                .filter(Boolean)
+                .join(' ');
+              return (
+                <button
+                  type="button"
+                  className={`${styles.wordButton} ${className}`}
+                  key={`word-${wordIndex}`}
+                  onClick={() => handleWordClick(wordIndex)}
+                  onPointerDown={() => handleWordPointerDown(wordIndex)}
+                  onPointerUp={cancelWordLongPress}
+                  onPointerCancel={cancelWordLongPress}
+                  onPointerLeave={cancelWordLongPress}
+                  onContextMenu={(event) => event.preventDefault()}
+                  aria-label={
+                    wordIndex === continuousPreviewWordIndex
+                      ? `停止连续播放单词 ${segment.text}`
+                      : `播放或定位单词 ${segment.text}`
+                  }
+                  aria-busy={wordIndex === previewLoadingWordIndex || wordIndex === continuousPreviewWordIndex}
+                >
+                  {segment.text}
+                </button>
+              );
+            })}
+          </p>
+          {showTranslation ? (
+            <p ref={translationTextRef} className={styles.chineseText}>
+              {sentence.translatedContent}
+            </p>
+          ) : null}
+        </div>
         {sentence.hierarchyControl}
         {sentence.transientContent}
         <div className={styles.sentenceControls}>
           {sentence.playing ? (
-            <span className={styles.playCount}>第{playCount || 1}/{maxCount}次</span>
+            <span className={styles.playCount}>
+              第{playCount || 1}/{maxCount}次
+            </span>
           ) : null}
           <span className={styles.totalPlayCount}>播放量 {sentence.totalPlayCount}</span>
           {sentence.playing && !isWaite ? (
-            isPaused ? <span className={styles.playbackPaused}>已暂停</span> : <SoundOutlined />
+            isPaused ? (
+              <span className={styles.playbackPaused}>已暂停</span>
+            ) : (
+              <SoundOutlined />
+            )
           ) : null}
           {!!duration && <span className={styles.duration}>{duration}秒</span>}
           {!!sentence.actions?.length && (

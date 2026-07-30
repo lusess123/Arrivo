@@ -51,21 +51,28 @@ export const SUPPORTED_PLAYBACK_VOICES = [
 ] as const;
 
 const supportedPlaybackVoices = new Set<string>(SUPPORTED_PLAYBACK_VOICES);
-const playbackVoiceSchema = z.string().trim().refine(
-  (voice) => supportedPlaybackVoices.has(voice),
-  { message: "不支持该音色" }
-);
+const playbackVoiceSchema = z
+  .string()
+  .trim()
+  .refine((voice) => supportedPlaybackVoices.has(voice), {
+    message: "不支持该音色"
+  });
 
-const extraPauseSecondsSchema = z.number().min(0).max(10).refine(
-  (value) => Number.isInteger(value * 2),
-  { message: "额外停顿必须以 0.5 秒为步进" }
-);
+const extraPauseSecondsSchema = z
+  .number()
+  .min(0)
+  .max(10)
+  .refine((value) => Number.isInteger(value * 2), {
+    message: "额外停顿必须以 0.5 秒为步进"
+  });
 
 export const playbackSettingsInputSchema = z.object({
   voice: playbackVoiceSchema,
   playbackRate: z.number().min(0.5).max(2),
   repeatCount: z.number().int().min(1).max(10),
-  extraPauseSeconds: extraPauseSecondsSchema
+  extraPauseSeconds: extraPauseSecondsSchema,
+  showTranslation: z.boolean().default(true),
+  readingMode: z.enum(["list", "focus"]).default("list")
 });
 
 export type PlaybackSettingsInput = z.infer<typeof playbackSettingsInputSchema>;
@@ -75,5 +82,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettingsDto = {
   voice: "en-AU-NatashaNeural",
   playbackRate: 1,
   repeatCount: 1,
-  extraPauseSeconds: 0
+  extraPauseSeconds: 0,
+  showTranslation: true,
+  readingMode: "list"
 };

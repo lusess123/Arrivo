@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ArrivoDb } from "@arrivo/db";
-import {
-  getPlaybackSettings,
-  runWithDbClientFactory,
-  updatePlaybackSettings
-} from "../src";
+import { getPlaybackSettings, runWithDbClientFactory, updatePlaybackSettings } from "../src";
 
 function withDb<T>(mockDb: Partial<ArrivoDb>, run: () => T) {
   return runWithDbClientFactory({
@@ -33,26 +29,40 @@ describe("playback settings", () => {
       }
     };
 
-    const [userA, userB] = await withDb({ config } as Partial<ArrivoDb>, async () => Promise.all([
-      getPlaybackSettings({ userId: "user-a", tenantId: "tenant-a" }),
-      getPlaybackSettings({ userId: "user-b", tenantId: "tenant-a" })
-    ]));
+    const [userA, userB] = await withDb({ config } as Partial<ArrivoDb>, async () =>
+      Promise.all([
+        getPlaybackSettings({ userId: "user-a", tenantId: "tenant-a" }),
+        getPlaybackSettings({ userId: "user-b", tenantId: "tenant-a" })
+      ])
+    );
 
     expect(userA).toEqual({
       voice: "en-GB-SoniaNeural",
       playbackRate: 1.25,
       repeatCount: 3,
-      extraPauseSeconds: 1.5
+      extraPauseSeconds: 1.5,
+      showTranslation: true,
+      readingMode: "list"
     });
     expect(userB).toEqual({
       voice: "en-AU-NatashaNeural",
       playbackRate: 1,
       repeatCount: 1,
-      extraPauseSeconds: 0
+      extraPauseSeconds: 0,
+      showTranslation: true,
+      readingMode: "list"
     });
     expect(calls.map((call) => call.where)).toEqual([
-      { tenantId: "tenant-a", deletedAt: null, key: "user-playback-settings:user-a" },
-      { tenantId: "tenant-a", deletedAt: null, key: "user-playback-settings:user-b" }
+      {
+        tenantId: "tenant-a",
+        deletedAt: null,
+        key: "user-playback-settings:user-a"
+      },
+      {
+        tenantId: "tenant-a",
+        deletedAt: null,
+        key: "user-playback-settings:user-b"
+      }
     ]);
   });
 
@@ -69,7 +79,9 @@ describe("playback settings", () => {
       voice: "en-AU-NatashaNeural",
       playbackRate: 1,
       repeatCount: 1,
-      extraPauseSeconds: 0
+      extraPauseSeconds: 0,
+      showTranslation: true,
+      readingMode: "list"
     });
   });
 
@@ -85,7 +97,9 @@ describe("playback settings", () => {
       voice: "en-GB-RyanNeural",
       playbackRate: 1.5,
       repeatCount: 4,
-      extraPauseSeconds: 2.5
+      extraPauseSeconds: 2.5,
+      showTranslation: false,
+      readingMode: "focus" as const
     };
 
     const result = await withDb({ config } as Partial<ArrivoDb>, () =>

@@ -21,7 +21,11 @@ const user: AuthUserDto = {
 };
 
 async function authCookie() {
-  const token = await signUserJwt({ user, secret: JWT_SECRET, expiresSeconds: 60 });
+  const token = await signUserJwt({
+    user,
+    secret: JWT_SECRET,
+    expiresSeconds: 60
+  });
   return `Authentication=${token}`;
 }
 
@@ -56,11 +60,13 @@ describe("playback settings routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect((await response.json() as any).data).toEqual({
+    expect(((await response.json()) as any).data).toEqual({
       voice: "en-GB-SoniaNeural",
       playbackRate: 1.25,
       repeatCount: 2,
-      extraPauseSeconds: 1
+      extraPauseSeconds: 1,
+      showTranslation: true,
+      readingMode: "list"
     });
     expect(where).toEqual({
       tenantId: "tenant-a",
@@ -139,7 +145,9 @@ describe("playback settings routes", () => {
       voice: "en-GB-RyanNeural",
       playbackRate: 1.5,
       repeatCount: 3,
-      extraPauseSeconds: 2.5
+      extraPauseSeconds: 2.5,
+      showTranslation: false,
+      readingMode: "focus"
     };
     const response = await requestWithDb(
       { config } as Partial<ArrivoDb>,
@@ -154,7 +162,7 @@ describe("playback settings routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect((await response.json() as any).data).toEqual(input);
+    expect(((await response.json()) as any).data).toEqual(input);
     expect(upsertArgs.where).toEqual({
       tenantId_key: {
         tenantId: "tenant-a",

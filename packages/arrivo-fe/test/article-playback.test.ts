@@ -6,23 +6,30 @@ import {
   playbackSettingsStorageKey,
   readCachedPlaybackSettings,
   resolvePlaybackCompletion,
-  writeCachedPlaybackSettings,
+  writeCachedPlaybackSettings
 } from '../src/pages/article/playback';
 
 const defaultVoice = 'en-AU-NatashaNeural';
 
 describe('article playback settings', () => {
   test('normalizes server and cached values to the supported UI range', () => {
-    expect(normalizePlaybackSettings({
-      voice: '',
-      playbackRate: 2.8,
-      repeatCount: 2.7,
-      extraPauseSeconds: 3.3,
-    }, defaultVoice)).toEqual({
+    expect(
+      normalizePlaybackSettings(
+        {
+          voice: '',
+          playbackRate: 2.8,
+          repeatCount: 2.7,
+          extraPauseSeconds: 3.3
+        },
+        defaultVoice
+      )
+    ).toEqual({
       voice: defaultVoice,
       playbackRate: 2,
       repeatCount: 3,
       extraPauseSeconds: 3.5,
+      showTranslation: true,
+      readingMode: 'list'
     });
     expect(normalizePlaybackSettings({ voice: 'not-a-real-voice' }, defaultVoice).voice).toBe(defaultVoice);
   });
@@ -35,14 +42,17 @@ describe('article playback settings', () => {
     const values = new Map<string, string>();
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
+      setItem: (key: string, value: string) => values.set(key, value)
     };
-    const settings = normalizePlaybackSettings({
-      voice: 'en-US-JennyNeural',
-      playbackRate: 1.2,
-      repeatCount: 3,
-      extraPauseSeconds: 1.5,
-    }, defaultVoice);
+    const settings = normalizePlaybackSettings(
+      {
+        voice: 'en-US-JennyNeural',
+        playbackRate: 1.2,
+        repeatCount: 3,
+        extraPauseSeconds: 1.5
+      },
+      defaultVoice
+    );
 
     writeCachedPlaybackSettings('user-a', settings, storage);
 
@@ -50,49 +60,81 @@ describe('article playback settings', () => {
     expect(readCachedPlaybackSettings('user-a', defaultVoice, storage)).toEqual(settings);
     expect(readCachedPlaybackSettings('user-b', defaultVoice, storage)).toBeNull();
   });
+
+  test('normalizes account-wide reading preferences', () => {
+    expect(
+      normalizePlaybackSettings(
+        {
+          showTranslation: false,
+          readingMode: 'focus'
+        },
+        defaultVoice
+      )
+    ).toMatchObject({
+      showTranslation: false,
+      readingMode: 'focus'
+    });
+    expect(
+      normalizePlaybackSettings(
+        {
+          readingMode: 'unsupported' as any
+        },
+        defaultVoice
+      )
+    ).toMatchObject({
+      showTranslation: true,
+      readingMode: 'list'
+    });
+  });
 });
 
 describe('article continuous playback', () => {
   test('continues through sentences before considering another article', () => {
-    expect(resolvePlaybackCompletion({
-      sentenceIndex: 0,
-      sentenceCount: 2,
-      nextArticleId: 'article-2',
-      continuous: true,
-    })).toEqual({ type: 'next-sentence', sentenceIndex: 1 });
+    expect(
+      resolvePlaybackCompletion({
+        sentenceIndex: 0,
+        sentenceCount: 2,
+        nextArticleId: 'article-2',
+        continuous: true
+      })
+    ).toEqual({ type: 'next-sentence', sentenceIndex: 1 });
   });
 
   test('only crosses the article boundary in continuous playback mode', () => {
-    expect(resolvePlaybackCompletion({
-      sentenceIndex: 1,
-      sentenceCount: 2,
-      nextArticleId: 'article-2',
-      continuous: false,
-    })).toEqual({ type: 'stop' });
+    expect(
+      resolvePlaybackCompletion({
+        sentenceIndex: 1,
+        sentenceCount: 2,
+        nextArticleId: 'article-2',
+        continuous: false
+      })
+    ).toEqual({ type: 'stop' });
 
-    expect(resolvePlaybackCompletion({
-      sentenceIndex: 1,
-      sentenceCount: 2,
-      nextArticleId: 'article-2',
-      continuous: true,
-    })).toEqual({ type: 'next-article', articleId: 'article-2' });
+    expect(
+      resolvePlaybackCompletion({
+        sentenceIndex: 1,
+        sentenceCount: 2,
+        nextArticleId: 'article-2',
+        continuous: true
+      })
+    ).toEqual({ type: 'next-article', articleId: 'article-2' });
   });
 
   test('reports completion after the last article', () => {
-    expect(resolvePlaybackCompletion({
-      sentenceIndex: 0,
-      sentenceCount: 1,
-      nextArticleId: null,
-      continuous: true,
-    })).toEqual({ type: 'all-complete' });
+    expect(
+      resolvePlaybackCompletion({
+        sentenceIndex: 0,
+        sentenceCount: 1,
+        nextArticleId: null,
+        continuous: true
+      })
+    ).toEqual({ type: 'all-complete' });
   });
 });
 
 describe('article playback layout', () => {
   test('keeps the header fixed and the countdown numerically stable', async () => {
-    const styles = await Bun.file(
-      new URL('../src/pages/article/index.module.less', import.meta.url),
-    ).text();
+    const styles = await Bun.file(new URL('../src/pages/article/index.module.less', import.meta.url)).text();
 
     expect(styles).toContain('position: fixed;');
     expect(styles).toContain('env(safe-area-inset-top)');
@@ -104,87 +146,80 @@ describe('article playback layout', () => {
 
 describe('article word seeking', () => {
   test('pauses, seeks, then resumes when a word is selected during playback', async () => {
-    const source = await Bun.file(
-      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
-    ).text();
+    const source = await Bun.file(new URL('../src/pages/article/sentence.item.tsx', import.meta.url)).text();
+    const normalizedSource = source.replaceAll('"', "'").replace(/\s+/g, ' ');
 
-    expect(source).toContain('void resumeAudioPlayback(word.offsetMs / 1000);');
-    expect(source).toContain('const word = wordBoundaries[wordIndex];');
-    expect(source).toContain('void handlePlayCurrentWord(word, wordIndex);');
-    expect(source).toContain('audio.pause();\n      stopHighlightTracking();\n      await seekAudio(audio, resumeAt);');
-    expect(source).toContain('Math.abs(audio.currentTime - seekTo) <= 0.05');
-    expect(source).toContain("audio.addEventListener('seeked', handleSeeked);");
-    expect(source).toContain('const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;');
-    expect(source).toContain('Article play once count=${nextCount} resumeAt=${resumeAt} currentTime=${audio.currentTime}');
-    expect(source).toContain('Article word seek completed resumeAt=${resumeAt} currentTime=${audio.currentTime}');
-    expect(source).toContain('startedPlaybackSessionRef.current !== session');
-    expect(source).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');
-    expect(source).not.toContain('播放当前单词');
+    expect(normalizedSource).toContain('void resumeAudioPlayback(word.offsetMs / 1000);');
+    expect(normalizedSource).toContain('const word = wordBoundaries[wordIndex];');
+    expect(normalizedSource).toContain('void handlePlayCurrentWord(word, wordIndex);');
+    expect(normalizedSource).toContain('audio.pause(); stopHighlightTracking(); await seekAudio(audio, resumeAt);');
+    expect(normalizedSource).toContain('Math.abs(audio.currentTime - seekTo) <= 0.05');
+    expect(normalizedSource).toContain("audio.addEventListener('seeked', handleSeeked);");
+    expect(normalizedSource).toContain('const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;');
+    expect(normalizedSource).toContain(
+      'Article play once count=${nextCount} resumeAt=${resumeAt} currentTime=${audio.currentTime}'
+    );
+    expect(normalizedSource).toContain(
+      'Article word seek completed resumeAt=${resumeAt} currentTime=${audio.currentTime}'
+    );
+    expect(normalizedSource).toContain('startedPlaybackSessionRef.current !== session');
+    expect(normalizedSource).toContain('sentence.onWordPreviewed(sentence.id, wordIndex);');
+    expect(normalizedSource).not.toContain('播放当前单词');
   });
 
   test('keeps the word ripple visible while its preview audio is playing', async () => {
-    const source = await Bun.file(
-      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
-    ).text();
-    const styles = await Bun.file(
-      new URL('../src/pages/article/index.module.less', import.meta.url),
-    ).text();
+    const source = await Bun.file(new URL('../src/pages/article/sentence.item.tsx', import.meta.url)).text();
+    const normalizedSource = source.replaceAll('"', "'").replace(/\s+/g, ' ');
+    const styles = await Bun.file(new URL('../src/pages/article/index.module.less', import.meta.url)).text();
 
-    expect(source).toContain('const [previewLoadingWordIndex, setPreviewLoadingWordIndex] = useState(-1);');
-    expect(source).toContain('const [previewPlayingWordIndex, setPreviewPlayingWordIndex] = useState(-1);');
-    expect(source).toContain('wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading');
-    expect(source).toContain('wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying');
+    expect(normalizedSource).toContain('const [previewLoadingWordIndex, setPreviewLoadingWordIndex] = useState(-1);');
+    expect(normalizedSource).toContain('const [previewPlayingWordIndex, setPreviewPlayingWordIndex] = useState(-1);');
+    expect(normalizedSource).toContain('wordIndex === previewLoadingWordIndex ? styles.wordPreviewLoading');
+    expect(normalizedSource).toContain('wordIndex === previewPlayingWordIndex ? styles.wordPreviewPlaying');
     expect(styles).toContain('.wordPreviewLoading');
     expect(styles).toContain('.wordPreviewPlaying');
   });
 
   test('supports long-press continuous word preview with a distinct ripple and stop action', async () => {
-    const source = await Bun.file(
-      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
-    ).text();
-    const styles = await Bun.file(
-      new URL('../src/pages/article/index.module.less', import.meta.url),
-    ).text();
+    const source = await Bun.file(new URL('../src/pages/article/sentence.item.tsx', import.meta.url)).text();
+    const normalizedSource = source.replaceAll('"', "'").replace(/\s+/g, ' ');
+    const styles = await Bun.file(new URL('../src/pages/article/index.module.less', import.meta.url)).text();
 
-    expect(source).toContain('const startContinuousWordPreview = useCallback');
-    expect(source).toContain('Math.round(playbackMs + 1000)');
-    expect(source).toContain('longPressTimerRef.current = window.setTimeout');
-    expect(source).toContain('}, 450);');
-    expect(source).toContain('if (continuousPreviewWordIndexRef.current === wordIndex)');
-    expect(source).toContain('styles.wordPreviewContinuous');
+    expect(normalizedSource).toContain('const startContinuousWordPreview = useCallback');
+    expect(normalizedSource).toContain('Math.round(playbackMs + 1000)');
+    expect(normalizedSource).toContain('longPressTimerRef.current = window.setTimeout');
+    expect(normalizedSource).toContain('}, 450);');
+    expect(normalizedSource).toContain('if (continuousPreviewWordIndexRef.current === wordIndex)');
+    expect(normalizedSource).toContain('styles.wordPreviewContinuous');
     expect(styles).toContain('.wordPreviewContinuous');
   });
 
   test('keeps the screen awake through playback pauses and catches up a throttled word repeat', async () => {
-    const source = await Bun.file(
-      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
-    ).text();
+    const source = await Bun.file(new URL('../src/pages/article/sentence.item.tsx', import.meta.url)).text();
+    const normalizedSource = source.replaceAll('"', "'").replace(/\s+/g, ' ');
 
-    expect(source).toContain('function useScreenWakeLock(keepScreenAwake: boolean)');
-    expect(source).toContain('const keepScreenAwake = sentence.playing');
-    expect(source).toContain('|| continuousPreviewWordIndex !== -1;');
-    expect(source).toContain("wakeLock.request('screen')");
-    expect(source).toContain("document.addEventListener('visibilitychange', onVisibilityChange);");
-    expect(source).toContain('continuousPreviewDueAtRef.current = Date.now() + delayMs;');
-    expect(source).toContain('resumeContinuousPreviewRef.current?.();');
+    expect(normalizedSource).toContain('function useScreenWakeLock(keepScreenAwake: boolean)');
+    expect(normalizedSource).toContain('const keepScreenAwake = sentence.playing');
+    expect(normalizedSource).toContain('|| continuousPreviewWordIndex !== -1;');
+    expect(normalizedSource).toContain("wakeLock.request('screen')");
+    expect(normalizedSource).toContain("document.addEventListener('visibilitychange', onVisibilityChange);");
+    expect(normalizedSource).toContain('continuousPreviewDueAtRef.current = Date.now() + delayMs;');
+    expect(normalizedSource).toContain('resumeContinuousPreviewRef.current?.();');
   });
 
   test('cancels a pending repeat countdown before previewing a selected word', async () => {
-    const source = await Bun.file(
-      new URL('../src/pages/article/sentence.item.tsx', import.meta.url),
-    ).text();
+    const source = await Bun.file(new URL('../src/pages/article/sentence.item.tsx', import.meta.url)).text();
+    const normalizedSource = source.replaceAll('"', "'").replace(/\s+/g, ' ');
 
-    expect(source).toContain('if (isWaite) {\n      clearRepeatTimer();');
-    expect(source).toContain('countdownCompleteRef.current = null;');
-    expect(source).toContain('setIsWaite(false);\n      setIsPaused(true);');
+    expect(normalizedSource).toContain('if (isWaite) { clearRepeatTimer();');
+    expect(normalizedSource).toContain('countdownCompleteRef.current = null;');
+    expect(normalizedSource).toContain('setIsWaite(false); setIsPaused(true);');
   });
 });
 
 describe('article navigation', () => {
   test('returns to the previous route instead of forcing the home page', async () => {
-    const source = await Bun.file(
-      new URL('../src/pages/article/index.tsx', import.meta.url),
-    ).text();
+    const source = await Bun.file(new URL('../src/pages/article/index.tsx', import.meta.url)).text();
 
     expect(source).toContain('router(-1);');
     expect(source).not.toContain("const handleGoBack = () => {\n    router('/');");

@@ -7,22 +7,28 @@ import {
 
 describe("playbackSettingsInputSchema", () => {
   test("accepts the documented boundaries and normalizes the voice", () => {
-    expect(playbackSettingsInputSchema.parse({
-      voice: "  en-AU-NatashaNeural  ",
-      playbackRate: 0.5,
-      repeatCount: 10,
-      extraPauseSeconds: 10
-    })).toEqual({
+    expect(
+      playbackSettingsInputSchema.parse({
+        voice: "  en-AU-NatashaNeural  ",
+        playbackRate: 0.5,
+        repeatCount: 10,
+        extraPauseSeconds: 10
+      })
+    ).toEqual({
       voice: "en-AU-NatashaNeural",
       playbackRate: 0.5,
       repeatCount: 10,
-      extraPauseSeconds: 10
+      extraPauseSeconds: 10,
+      showTranslation: true,
+      readingMode: "list"
     });
     expect(DEFAULT_PLAYBACK_SETTINGS).toEqual({
       voice: "en-AU-NatashaNeural",
       playbackRate: 1,
       repeatCount: 1,
-      extraPauseSeconds: 0
+      extraPauseSeconds: 0,
+      showTranslation: true,
+      readingMode: "list"
     });
     expect(SUPPORTED_PLAYBACK_VOICES).toContain(DEFAULT_PLAYBACK_SETTINGS.voice);
   });
@@ -38,9 +44,31 @@ describe("playbackSettingsInputSchema", () => {
     { extraPauseSeconds: 0.25 },
     { voice: "not-a-real-voice" }
   ])("rejects invalid setting %o", (override) => {
-    expect(playbackSettingsInputSchema.safeParse({
-      ...DEFAULT_PLAYBACK_SETTINGS,
-      ...override
-    }).success).toBe(false);
+    expect(
+      playbackSettingsInputSchema.safeParse({
+        ...DEFAULT_PLAYBACK_SETTINGS,
+        ...override
+      }).success
+    ).toBe(false);
+  });
+
+  test("accepts account-wide reading preferences", () => {
+    expect(
+      playbackSettingsInputSchema.parse({
+        voice: "en-AU-NatashaNeural",
+        playbackRate: 1,
+        repeatCount: 1,
+        extraPauseSeconds: 0,
+        showTranslation: false,
+        readingMode: "focus"
+      })
+    ).toEqual({
+      voice: "en-AU-NatashaNeural",
+      playbackRate: 1,
+      repeatCount: 1,
+      extraPauseSeconds: 0,
+      showTranslation: false,
+      readingMode: "focus"
+    });
   });
 });

@@ -1,11 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { history, useLocation, useNavigate, useParams } from "@umijs/max";
 import {
   Button,
@@ -13,11 +6,13 @@ import {
   Input,
   message,
   Modal,
+  Segmented,
   Select,
   Slider,
   Spin,
+  Switch,
   Tag,
-  Tooltip,
+  Tooltip
 } from "antd";
 import {
   ArrowDownOutlined,
@@ -27,6 +22,8 @@ import {
   ApartmentOutlined,
   DeleteOutlined,
   EditOutlined,
+  FullscreenOutlined,
+  LeftOutlined,
   LogoutOutlined,
   PlayCircleOutlined,
   PlusOutlined,
@@ -34,7 +31,9 @@ import {
   DownOutlined,
   UpOutlined,
   ReloadOutlined,
+  RightOutlined,
   ThunderboltOutlined,
+  UnorderedListOutlined
 } from "@ant-design/icons";
 import styles from "./index.module.less";
 import { asyncHandle } from "@/lib";
@@ -49,21 +48,20 @@ import {
   readCachedPlaybackSettings,
   resolvePlaybackCompletion,
   writeCachedPlaybackSettings,
-  type PlaybackSettings,
+  type PlaybackSettings
 } from "./playback";
 import { articleSentenceElementId } from "./article-progress";
 import { useArticleProgress } from "./use-article-progress";
 import { apiUrl } from "@/lib/api";
+import { getAdjacentFocusIndex, resolveFocusIndex } from "./focus-reading";
 import {
   buildSentenceTree,
   getPlayableSentences,
   getSentenceDisplayRows,
-  type SentenceNode,
+  type SentenceDisplayRow,
+  type SentenceNode
 } from "./sentence-tree";
-import type {
-  ArticleSentenceDto,
-  SentenceSplitStatus,
-} from "@arrivo/contracts";
+import type { ArticleSentenceDto, SentenceSplitStatus } from "@arrivo/contracts";
 
 interface Sentence extends ArticleSentenceDto {
   duration?: number;
@@ -95,32 +93,22 @@ const ArticlePage: React.FC = () => {
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
   const [sentenceModalOpen, setSentenceModalOpen] = useState(false);
   const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
-  const [sentenceInsertIndex, setSentenceInsertIndex] = useState<number | null>(
-    null,
-  );
+  const [sentenceInsertIndex, setSentenceInsertIndex] = useState<number | null>(null);
   const [savingSentence, setSavingSentence] = useState(false);
-  const [playbackSettings, setPlaybackSettings] = useState<PlaybackSettings>(
-    () => ({
-      ...DEFAULT_PLAYBACK_SETTINGS,
-      voice: ens[0].name,
-    }),
-  );
-  const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(
-    null,
-  );
+  const [playbackSettings, setPlaybackSettings] = useState<PlaybackSettings>(() => ({
+    ...DEFAULT_PLAYBACK_SETTINGS,
+    voice: ens[0].name
+  }));
+  const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(null);
+  const [selectedFocusSentenceId, setSelectedFocusSentenceId] = useState<string | null>(null);
+  const [sentencePaused, setSentencePaused] = useState(false);
   const [playbackSession, setPlaybackSession] = useState(0);
   const [continuousPlayback, setContinuousPlayback] = useState(false);
-  const [expandedSentenceIds, setExpandedSentenceIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [splitUiBySentence, setSplitUiBySentence] = useState<
-    Record<string, SplitUiState>
-  >({});
-  const [regeneratingSentence, setRegeneratingSentence] =
-    useState<SentenceNode | null>(null);
+  const [expandedSentenceIds, setExpandedSentenceIds] = useState<Set<string>>(new Set());
+  const [splitUiBySentence, setSplitUiBySentence] = useState<Record<string, SplitUiState>>({});
+  const [regeneratingSentence, setRegeneratingSentence] = useState<SentenceNode | null>(null);
   const [regenerationFeedback, setRegenerationFeedback] = useState("");
-  const [regenerationFailure, setRegenerationFailure] =
-    useState<SplitUiState["error"]>();
+  const [regenerationFailure, setRegenerationFailure] = useState<SplitUiState["error"]>();
   const [listeningFeedback, setListeningFeedback] = useState(false);
   const speechRecognitionRef = useRef<any>(null);
   const playbackSettingsRef = useRef(playbackSettings);
@@ -133,30 +121,30 @@ const ArticlePage: React.FC = () => {
   const sentenceTree = useMemo(() => buildSentenceTree(sentences), [sentences]);
   const displayRows = useMemo(
     () => getSentenceDisplayRows(sentenceTree, expandedSentenceIds),
-    [expandedSentenceIds, sentenceTree],
+    [expandedSentenceIds, sentenceTree]
   );
-  const playableSentences = useMemo(
-    () => getPlayableSentences(displayRows),
-    [displayRows],
+  const playableSentences = useMemo(() => getPlayableSentences(displayRows), [displayRows]);
+  const displayRowBySentenceId = useMemo(
+    () => new Map(displayRows.map((row) => [row.sentence.id, row])),
+    [displayRows]
   );
   const sentenceIds = useMemo(
     () => playableSentences.map((sentence) => sentence.id),
-    [playableSentences],
+    [playableSentences]
   );
   const sentenceById = useMemo(
     () => new Map(sentences.map((sentence) => [sentence.id, sentence])),
-    [sentences],
+    [sentences]
   );
   const {
     loaded: progressLoaded,
     resumeIndex: directResumeIndex,
     resumeSentenceId,
     save: saveArticleProgress,
-    clear: clearArticleProgress,
+    clear: clearArticleProgress
   } = useArticleProgress({ articleId: id, userId: currentUserId, sentenceIds });
   const resumeIndex = useMemo(() => {
-    if (directResumeIndex !== null || !resumeSentenceId)
-      return directResumeIndex;
+    if (directResumeIndex !== null || !resumeSentenceId) return directResumeIndex;
     let current = sentenceById.get(resumeSentenceId);
     while (current?.parentSentenceId) {
       const parentIndex = sentenceIds.indexOf(current.parentSentenceId);
@@ -165,34 +153,42 @@ const ArticlePage: React.FC = () => {
     }
     return null;
   }, [directResumeIndex, resumeSentenceId, sentenceById, sentenceIds]);
-  const canEdit = useMemo(
+  const focusIndex = useMemo(
     () =>
-      Boolean(article && article.userId === currentUserId && !article.isPublic),
-    [article, currentUserId],
+      resolveFocusIndex({
+        activeIndex: activeSentenceIndex,
+        selectedSentenceId: selectedFocusSentenceId,
+        resumeIndex,
+        sentences: playableSentences
+      }),
+    [activeSentenceIndex, playableSentences, resumeIndex, selectedFocusSentenceId]
   );
+  const focusedSentence = focusIndex === null ? null : playableSentences[focusIndex];
+  const focusedRow = focusedSentence
+    ? (displayRowBySentenceId.get(focusedSentence.id) ?? null)
+    : null;
+  const canEdit = useMemo(
+    () => Boolean(article && article.userId === currentUserId && !article.isPublic),
+    [article, currentUserId]
+  );
+  const isFocusMode = playbackSettings.readingMode === "focus";
 
-  const updatePlaybackSettings = useCallback(
-    (patch: Partial<PlaybackSettings>) => {
-      const nextSettings = normalizePlaybackSettings(
-        { ...playbackSettingsRef.current, ...patch },
-        ens[0].name,
-      );
-      settingsTouchedRef.current = true;
-      playbackSettingsRef.current = nextSettings;
-      setPlaybackSettings(nextSettings);
-      return nextSettings;
-    },
-    [],
-  );
+  const updatePlaybackSettings = useCallback((patch: Partial<PlaybackSettings>) => {
+    const nextSettings = normalizePlaybackSettings(
+      { ...playbackSettingsRef.current, ...patch },
+      ens[0].name
+    );
+    settingsTouchedRef.current = true;
+    playbackSettingsRef.current = nextSettings;
+    setPlaybackSettings(nextSettings);
+    return nextSettings;
+  }, []);
 
-  const applyLoadedPlaybackSettings = useCallback(
-    (settings: PlaybackSettings) => {
-      if (settingsTouchedRef.current) return;
-      playbackSettingsRef.current = settings;
-      setPlaybackSettings(settings);
-    },
-    [],
-  );
+  const applyLoadedPlaybackSettings = useCallback((settings: PlaybackSettings) => {
+    if (settingsTouchedRef.current) return;
+    playbackSettingsRef.current = settings;
+    setPlaybackSettings(settings);
+  }, []);
 
   const persistPlaybackSettings = useCallback(
     (settings: PlaybackSettings) => {
@@ -202,9 +198,7 @@ const ArticlePage: React.FC = () => {
       settingsSaveQueueRef.current = settingsSaveQueueRef.current
         .catch(() => undefined)
         .then(async () => {
-          const [err] = await asyncHandle(
-            axios.put("/api/user/playback-settings", settings),
-          );
+          const [err] = await asyncHandle(axios.put("/api/user/playback-settings", settings));
           if (err) {
             if (err.response?.status !== 401) {
               message.error(err.response?.data?.message || "播放设置保存失败");
@@ -215,7 +209,7 @@ const ArticlePage: React.FC = () => {
           writeCachedPlaybackSettings(userId, settings);
         });
     },
-    [currentUserId],
+    [currentUserId]
   );
 
   const applyArticleData = useCallback((articleData: any) => {
@@ -229,10 +223,12 @@ const ArticlePage: React.FC = () => {
         splitStatus: (sentence.splitStatus || "UNKNOWN") as SentenceSplitStatus,
         playedWordIndexes: Array.isArray(sentence.playedWordIndexes)
           ? sentence.playedWordIndexes
-          : [],
-      })),
+          : []
+      }))
     );
     setActiveSentenceIndex(null);
+    setSelectedFocusSentenceId(null);
+    setSentencePaused(false);
   }, []);
 
   const fetchArticle = useCallback(async () => {
@@ -242,9 +238,9 @@ const ArticlePage: React.FC = () => {
     const [err, res] = await asyncHandle(
       axios.get(`/api/article/getArticleDetail`, {
         params: {
-          id,
-        },
-      }),
+          id
+        }
+      })
     );
 
     if (err) {
@@ -282,16 +278,12 @@ const ArticlePage: React.FC = () => {
   useEffect(() => {
     if (!id || currentUserId === undefined || currentUserId === null) return;
     const controller = new AbortController();
-    void fetch(
-      apiUrl(`/api/user/articles/${encodeURIComponent(id)}/sentence-expansion`),
-      {
-        credentials: "include",
-        signal: controller.signal,
-      },
-    )
+    void fetch(apiUrl(`/api/user/articles/${encodeURIComponent(id)}/sentence-expansion`), {
+      credentials: "include",
+      signal: controller.signal
+    })
       .then(async (response) => {
-        if (!response.ok)
-          throw new Error(`Expansion state failed: ${response.status}`);
+        if (!response.ok) throw new Error(`Expansion state failed: ${response.status}`);
         const body = (await response.json()) as {
           data?: { expandedSentenceIds?: string[] };
         };
@@ -306,12 +298,7 @@ const ArticlePage: React.FC = () => {
   }, [currentUserId, id]);
 
   useLayoutEffect(() => {
-    if (
-      !id ||
-      loading ||
-      !progressLoaded ||
-      restoredArticleRef.current === id
-    ) {
+    if (!id || loading || !progressLoaded || restoredArticleRef.current === id) {
       return;
     }
 
@@ -320,12 +307,10 @@ const ArticlePage: React.FC = () => {
     if (!sentence) return;
     restoredArticleRef.current = id;
 
-    document
-      .getElementById(articleSentenceElementId(sentence.id))
-      ?.scrollIntoView({
-        behavior: "auto",
-        block: "center",
-      });
+    document.getElementById(articleSentenceElementId(sentence.id))?.scrollIntoView({
+      behavior: "auto",
+      block: "center"
+    });
   }, [id, loading, playableSentences, progressLoaded, resumeIndex]);
 
   useEffect(() => {
@@ -338,10 +323,7 @@ const ArticlePage: React.FC = () => {
     if (currentUserId === undefined || currentUserId === null) return;
 
     settingsTouchedRef.current = false;
-    const cachedSettings = readCachedPlaybackSettings(
-      currentUserId,
-      ens[0].name,
-    );
+    const cachedSettings = readCachedPlaybackSettings(currentUserId, ens[0].name);
     if (cachedSettings) {
       applyLoadedPlaybackSettings(cachedSettings);
     }
@@ -350,8 +332,8 @@ const ArticlePage: React.FC = () => {
     void (async () => {
       const [err, res] = await asyncHandle(
         axios.get("/api/user/playback-settings", {
-          signal: controller.signal,
-        }),
+          signal: controller.signal
+        })
       );
       if (controller.signal.aborted) return;
 
@@ -363,10 +345,7 @@ const ArticlePage: React.FC = () => {
       }
 
       if (settingsTouchedRef.current) return;
-      const serverSettings = normalizePlaybackSettings(
-        res?.data?.data,
-        ens[0].name,
-      );
+      const serverSettings = normalizePlaybackSettings(res?.data?.data, ens[0].name);
       writeCachedPlaybackSettings(currentUserId, serverSettings);
       applyLoadedPlaybackSettings(serverSettings);
     })();
@@ -386,61 +365,122 @@ const ArticlePage: React.FC = () => {
     setIsSettingsModalVisible(false);
   };
 
-  const handleSentencePlayStart = useCallback((index: number) => {
-    setContinuousPlayback(false);
-    setActiveSentenceIndex(index);
-  }, []);
+  const changeReadingMode = useCallback(
+    (mode: PlaybackSettings["readingMode"]) => {
+      const sentenceId = focusedSentence?.id ?? null;
+      if (sentenceId) setSelectedFocusSentenceId(sentenceId);
+      const nextSettings = updatePlaybackSettings({ readingMode: mode });
+      persistPlaybackSettings(nextSettings);
+
+      if (mode === "list" && sentenceId) {
+        window.requestAnimationFrame(() => {
+          document
+            .getElementById(articleSentenceElementId(sentenceId))
+            ?.scrollIntoView({ behavior: "auto", block: "center" });
+        });
+      }
+    },
+    [focusedSentence?.id, persistPlaybackSettings, updatePlaybackSettings]
+  );
+
+  const handleFocusNavigate = useCallback(
+    (direction: -1 | 1) => {
+      if (focusIndex === null) return;
+      const nextIndex = getAdjacentFocusIndex(focusIndex, direction, playableSentences.length);
+      if (nextIndex === null) return;
+      const nextSentence = playableSentences[nextIndex];
+      if (!nextSentence) return;
+
+      setSelectedFocusSentenceId(nextSentence.id);
+      if (activeSentenceIndex !== null && !sentencePaused) {
+        setSentencePaused(false);
+        setActiveSentenceIndex(nextIndex);
+        return;
+      }
+      if (activeSentenceIndex !== null) {
+        setActiveSentenceIndex(null);
+        setSentencePaused(false);
+      }
+    },
+    [activeSentenceIndex, focusIndex, playableSentences, sentencePaused]
+  );
+
+  const handleSentencePlayStart = useCallback(
+    (index: number) => {
+      setContinuousPlayback(false);
+      setSentencePaused(false);
+      setSelectedFocusSentenceId(playableSentences[index]?.id ?? null);
+      setActiveSentenceIndex(index);
+    },
+    [playableSentences]
+  );
 
   const handleSentencePlayStop = useCallback((index: number) => {
     setContinuousPlayback(false);
-    setActiveSentenceIndex((currentIndex) =>
-      currentIndex === index ? null : currentIndex,
-    );
+    setSentencePaused(false);
+    setActiveSentenceIndex((currentIndex) => (currentIndex === index ? null : currentIndex));
   }, []);
 
   const handleSentencePlaybackCompleted = useCallback((sentenceId: string) => {
-    setSentences((current) => current.map((sentence) => (
-      sentence.id === sentenceId
-        ? { ...sentence, playCount: sentence.playCount + 1 }
-        : sentence
-    )));
+    setSentences((current) =>
+      current.map((sentence) =>
+        sentence.id === sentenceId ? { ...sentence, playCount: sentence.playCount + 1 } : sentence
+      )
+    );
 
     sentencePlayCountQueueRef.current = sentencePlayCountQueueRef.current
       .catch(() => undefined)
       .then(async () => {
         const [err, res] = await asyncHandle(
-          axios.post("/api/article/incrementSentencePlayCount", { id: sentenceId }),
+          axios.post("/api/article/incrementSentencePlayCount", {
+            id: sentenceId
+          })
         );
         if (err) {
-          setSentences((current) => current.map((sentence) => (
-            sentence.id === sentenceId
-              ? { ...sentence, playCount: Math.max(0, sentence.playCount - 1) }
-              : sentence
-          )));
+          setSentences((current) =>
+            current.map((sentence) =>
+              sentence.id === sentenceId
+                ? {
+                    ...sentence,
+                    playCount: Math.max(0, sentence.playCount - 1)
+                  }
+                : sentence
+            )
+          );
           message.error(err.response?.data?.message || "句子播放量更新失败");
           return;
         }
 
         const playCount = res?.data?.data?.playCount;
         if (typeof playCount !== "number") return;
-        setSentences((current) => current.map((sentence) => (
-          sentence.id === sentenceId ? { ...sentence, playCount } : sentence
-        )));
+        setSentences((current) =>
+          current.map((sentence) =>
+            sentence.id === sentenceId ? { ...sentence, playCount } : sentence
+          )
+        );
       });
   }, []);
 
   const handleSentenceWordPreviewed = useCallback((sentenceId: string, wordIndex: number) => {
-    setSentences((current) => current.map((sentence) => (
-      sentence.id === sentenceId && !sentence.playedWordIndexes.includes(wordIndex)
-        ? { ...sentence, playedWordIndexes: [...sentence.playedWordIndexes, wordIndex] }
-        : sentence
-    )));
+    setSentences((current) =>
+      current.map((sentence) =>
+        sentence.id === sentenceId && !sentence.playedWordIndexes.includes(wordIndex)
+          ? {
+              ...sentence,
+              playedWordIndexes: [...sentence.playedWordIndexes, wordIndex]
+            }
+          : sentence
+      )
+    );
 
     sentenceWordPlayQueueRef.current = sentenceWordPlayQueueRef.current
       .catch(() => undefined)
       .then(async () => {
         const [err, res] = await asyncHandle(
-          axios.post("/api/article/recordSentenceWordPlay", { id: sentenceId, wordIndex }),
+          axios.post("/api/article/recordSentenceWordPlay", {
+            id: sentenceId,
+            wordIndex
+          })
         );
         if (err) {
           if (err.response?.status !== 401) {
@@ -451,9 +491,11 @@ const ArticlePage: React.FC = () => {
 
         const playedWordIndexes = res?.data?.data?.playedWordIndexes;
         if (!Array.isArray(playedWordIndexes)) return;
-        setSentences((current) => current.map((sentence) => (
-          sentence.id === sentenceId ? { ...sentence, playedWordIndexes } : sentence
-        )));
+        setSentences((current) =>
+          current.map((sentence) =>
+            sentence.id === sentenceId ? { ...sentence, playedWordIndexes } : sentence
+          )
+        );
       });
   }, []);
 
@@ -465,21 +507,23 @@ const ArticlePage: React.FC = () => {
         sentenceIndex: index,
         sentenceCount: playableSentences.length,
         nextArticleId: article?.nextArticleId,
-        continuous: continuousPlayback,
+        continuous: continuousPlayback
       });
 
       if (completion.type === "next-sentence") {
+        setSentencePaused(false);
         setActiveSentenceIndex(completion.sentenceIndex);
         return;
       }
 
       setActiveSentenceIndex(null);
+      setSentencePaused(false);
       setContinuousPlayback(false);
 
       if (completion.type === "next-article") {
         clearArticleProgress();
         router(`/article/${encodeURIComponent(completion.articleId)}`, {
-          state: { autoPlay: true } satisfies ArticleNavigationState,
+          state: { autoPlay: true } satisfies ArticleNavigationState
         });
         return;
       }
@@ -495,8 +539,8 @@ const ArticlePage: React.FC = () => {
       clearArticleProgress,
       continuousPlayback,
       playableSentences.length,
-      router,
-    ],
+      router
+    ]
   );
 
   const startContinuousPlayback = useCallback(
@@ -508,9 +552,10 @@ const ArticlePage: React.FC = () => {
 
       setPlaybackSession((session) => session + 1);
       setContinuousPlayback(true);
+      setSentencePaused(false);
       setActiveSentenceIndex(sentenceIndex);
     },
-    [playableSentences.length],
+    [playableSentences.length]
   );
 
   const handleContinuePlayback = useCallback(() => {
@@ -535,7 +580,7 @@ const ArticlePage: React.FC = () => {
 
     router(`${location.pathname}${location.search}${location.hash}`, {
       replace: true,
-      state: null,
+      state: null
     });
 
     if (!playableSentences.length) {
@@ -557,21 +602,21 @@ const ArticlePage: React.FC = () => {
     playableSentences.length,
     progressLoaded,
     resumeIndex,
-    router,
+    router
   ]);
 
   const persistExpansion = useCallback(
     async (sentenceId: string, expanded: boolean) => {
       if (!id) return;
       const [err] = await asyncHandle(
-        axios.patch(
-          `/api/user/articles/${encodeURIComponent(id)}/sentence-expansion`,
-          { sentenceId, expanded },
-        ),
+        axios.patch(`/api/user/articles/${encodeURIComponent(id)}/sentence-expansion`, {
+          sentenceId,
+          expanded
+        })
       );
       if (err) message.warning("展开状态暂未同步");
     },
-    [id],
+    [id]
   );
 
   const setSentenceExpanded = useCallback(
@@ -586,7 +631,7 @@ const ArticlePage: React.FC = () => {
       });
       void persistExpansion(sentenceId, expanded);
     },
-    [persistExpansion],
+    [persistExpansion]
   );
 
   const updateSplitUi = useCallback(
@@ -597,12 +642,12 @@ const ArticlePage: React.FC = () => {
           current[sentenceId] || {
             analysis: "",
             temporaryChildren: [],
-            loading: false,
-          },
-        ),
+            loading: false
+          }
+        )
       }));
     },
-    [],
+    []
   );
 
   const handleSplitEvent = useCallback(
@@ -611,7 +656,7 @@ const ArticlePage: React.FC = () => {
         updateSplitUi(sentenceId, (state) => ({
           ...state,
           loading: true,
-          error: undefined,
+          error: undefined
         }));
         return;
       }
@@ -619,7 +664,7 @@ const ArticlePage: React.FC = () => {
         updateSplitUi(sentenceId, () => ({
           analysis: "",
           temporaryChildren: [],
-          loading: true,
+          loading: true
         }));
         message.info(payload.message || "结果不合格，正在自动重新生成");
         return;
@@ -627,7 +672,7 @@ const ArticlePage: React.FC = () => {
       if (eventName === "analysis_delta") {
         updateSplitUi(sentenceId, (state) => ({
           ...state,
-          analysis: state.analysis + (payload.text || ""),
+          analysis: state.analysis + (payload.text || "")
         }));
         return;
       }
@@ -636,10 +681,7 @@ const ArticlePage: React.FC = () => {
           ...state,
           temporaryChildren: state.temporaryChildren[payload.index]
             ? state.temporaryChildren
-            : [
-                ...state.temporaryChildren,
-                { originalContent: "", translatedContent: "" },
-              ],
+            : [...state.temporaryChildren, { originalContent: "", translatedContent: "" }]
         }));
         window.setTimeout(() => {
           updateSplitUi(sentenceId, (state) => ({ ...state, analysis: "" }));
@@ -651,18 +693,13 @@ const ArticlePage: React.FC = () => {
           const temporaryChildren = [...state.temporaryChildren];
           const child = temporaryChildren[payload.index] || {
             originalContent: "",
-            translatedContent: "",
+            translatedContent: ""
           };
           temporaryChildren[payload.index] = {
             ...child,
-            [eventName === "original_delta"
-              ? "originalContent"
-              : "translatedContent"]:
-              child[
-                eventName === "original_delta"
-                  ? "originalContent"
-                  : "translatedContent"
-              ] + (payload.text || ""),
+            [eventName === "original_delta" ? "originalContent" : "translatedContent"]:
+              child[eventName === "original_delta" ? "originalContent" : "translatedContent"] +
+              (payload.text || "")
           };
           return { ...state, temporaryChildren };
         });
@@ -685,8 +722,7 @@ const ArticlePage: React.FC = () => {
             for (const item of current) {
               if (
                 item.parentSentenceId === sentenceId ||
-                (item.parentSentenceId &&
-                  descendants.has(item.parentSentenceId))
+                (item.parentSentenceId && descendants.has(item.parentSentenceId))
               ) {
                 if (!descendants.has(item.id)) {
                   descendants.add(item.id);
@@ -700,20 +736,16 @@ const ArticlePage: React.FC = () => {
             .map((item) =>
               item.id === sentenceId
                 ? { ...item, splitStatus: "SPLIT" as SentenceSplitStatus }
-                : item,
+                : item
             );
-          const children: Sentence[] = (payload.children || []).map(
-            (child: any) => ({
-              id: child.id,
-              originalContent: child.originalContent || "",
-              translatedContent: child.translatedContent || "",
-              parentSentenceId: sentenceId,
-              sortOrder: child.sortOrder,
-              splitStatus: (child.splittable
-                ? "SPLITTABLE"
-                : "UNSPLITTABLE") as SentenceSplitStatus,
-            }),
-          );
+          const children: Sentence[] = (payload.children || []).map((child: any) => ({
+            id: child.id,
+            originalContent: child.originalContent || "",
+            translatedContent: child.translatedContent || "",
+            parentSentenceId: sentenceId,
+            sortOrder: child.sortOrder,
+            splitStatus: (child.splittable ? "SPLITTABLE" : "UNSPLITTABLE") as SentenceSplitStatus
+          }));
           return [...retained, ...children];
         });
         setExpandedSentenceIds((current) => new Set(current).add(sentenceId));
@@ -721,7 +753,7 @@ const ArticlePage: React.FC = () => {
         updateSplitUi(sentenceId, () => ({
           analysis: "",
           temporaryChildren: [],
-          loading: false,
+          loading: false
         }));
         return;
       }
@@ -734,8 +766,7 @@ const ArticlePage: React.FC = () => {
             for (const item of current) {
               if (
                 item.parentSentenceId === sentenceId ||
-                (item.parentSentenceId &&
-                  descendants.has(item.parentSentenceId))
+                (item.parentSentenceId && descendants.has(item.parentSentenceId))
               ) {
                 if (!descendants.has(item.id)) {
                   descendants.add(item.id);
@@ -750,9 +781,9 @@ const ArticlePage: React.FC = () => {
               item.id === sentenceId
                 ? {
                     ...item,
-                    splitStatus: "UNSPLITTABLE" as SentenceSplitStatus,
+                    splitStatus: "UNSPLITTABLE" as SentenceSplitStatus
                   }
-                : item,
+                : item
             );
         });
         setExpandedSentenceIds((current) => {
@@ -763,7 +794,7 @@ const ArticlePage: React.FC = () => {
         updateSplitUi(sentenceId, () => ({
           analysis: "",
           temporaryChildren: [],
-          loading: false,
+          loading: false
         }));
         message.info("这个句子已经不适合继续切分");
         return;
@@ -775,13 +806,12 @@ const ArticlePage: React.FC = () => {
           error: {
             message: payload.message || "句子切分失败",
             failedOutput: payload.failedOutput || "",
-            validationError:
-              payload.validationError || payload.message || "句子切分失败",
-          },
+            validationError: payload.validationError || payload.message || "句子切分失败"
+          }
         }));
       }
     },
-    [persistExpansion, updateSplitUi],
+    [persistExpansion, updateSplitUi]
   );
 
   const startSentenceSplit = useCallback(
@@ -795,13 +825,10 @@ const ArticlePage: React.FC = () => {
           failedOutput?: string;
           validationError?: string;
         };
-      },
+      }
     ) => {
       if (!id) return;
-      if (
-        !options &&
-        (sentence.children.length > 0 || sentence.splitStatus === "SPLIT")
-      ) {
+      if (!options && (sentence.children.length > 0 || sentence.splitStatus === "SPLIT")) {
         setSentenceExpanded(sentence.id, !expandedSentenceIds.has(sentence.id));
         return;
       }
@@ -810,7 +837,7 @@ const ArticlePage: React.FC = () => {
         analysis: "",
         temporaryChildren: [],
         loading: true,
-        error: undefined,
+        error: undefined
       }));
       try {
         const action = options?.feedback
@@ -820,7 +847,7 @@ const ArticlePage: React.FC = () => {
             : "split-stream";
         const response = await fetch(
           apiUrl(
-            `/api/articles/${encodeURIComponent(id)}/sentences/${encodeURIComponent(sentence.id)}/${action}`,
+            `/api/articles/${encodeURIComponent(id)}/sentences/${encodeURIComponent(sentence.id)}/${action}`
           ),
           {
             method: "POST",
@@ -829,19 +856,15 @@ const ArticlePage: React.FC = () => {
               ? {
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify(
-                    options.feedback
-                      ? { feedback: options.feedback }
-                      : options.force,
-                  ),
+                    options.feedback ? { feedback: options.feedback } : options.force
+                  )
                 }
-              : {}),
-          },
+              : {})
+          }
         );
         if (!response.ok || !response.body)
           throw new Error(`句子切分请求失败 (${response.status})`);
-        const reader = response.body
-          .pipeThrough(new TextDecoderStream())
-          .getReader();
+        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
         let buffer = "";
         while (true) {
           const { done, value } = await reader.read();
@@ -853,32 +876,24 @@ const ArticlePage: React.FC = () => {
             buffer = buffer.slice(boundary + 2);
             const eventName = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
             const data = block.match(/^data:\s*(.+)$/m)?.[1];
-            if (eventName && data)
-              handleSplitEvent(sentence.id, eventName, JSON.parse(data));
+            if (eventName && data) handleSplitEvent(sentence.id, eventName, JSON.parse(data));
             boundary = buffer.indexOf("\n\n");
           }
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "句子切分失败";
+        const errorMessage = error instanceof Error ? error.message : "句子切分失败";
         updateSplitUi(sentence.id, (state) => ({
           ...state,
           loading: false,
           error: {
             message: errorMessage,
             failedOutput: JSON.stringify(state.temporaryChildren),
-            validationError: errorMessage,
-          },
+            validationError: errorMessage
+          }
         }));
       }
     },
-    [
-      expandedSentenceIds,
-      handleSplitEvent,
-      id,
-      setSentenceExpanded,
-      updateSplitUi,
-    ],
+    [expandedSentenceIds, handleSplitEvent, id, setSentenceExpanded, updateSplitUi]
   );
 
   const submitRegeneration = useCallback(() => {
@@ -896,18 +911,13 @@ const ArticlePage: React.FC = () => {
           targetCount: "auto",
           instruction: feedback,
           failedOutput: failure.failedOutput,
-          validationError: failure.validationError,
-        },
+          validationError: failure.validationError
+        }
       });
     } else {
       void startSentenceSplit(sentence, { feedback });
     }
-  }, [
-    regeneratingSentence,
-    regenerationFailure,
-    regenerationFeedback,
-    startSentenceSplit,
-  ]);
+  }, [regeneratingSentence, regenerationFailure, regenerationFeedback, startSentenceSplit]);
 
   const toggleFeedbackSpeech = useCallback(() => {
     if (listeningFeedback) {
@@ -915,8 +925,7 @@ const ArticlePage: React.FC = () => {
       return;
     }
     const Recognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!Recognition) return;
     const recognition = new Recognition();
     recognition.lang = "zh-CN";
@@ -947,7 +956,7 @@ const ArticlePage: React.FC = () => {
     setSentenceInsertIndex(insertIndex);
     sentenceForm.setFieldsValue({
       original: "",
-      translation: "",
+      translation: ""
     });
     setSentenceModalOpen(true);
   };
@@ -958,7 +967,7 @@ const ArticlePage: React.FC = () => {
     setSentenceInsertIndex(null);
     sentenceForm.setFieldsValue({
       original: sentence.originalContent,
-      translation: sentence.translatedContent,
+      translation: sentence.translatedContent
     });
     setSentenceModalOpen(true);
   };
@@ -991,13 +1000,13 @@ const ArticlePage: React.FC = () => {
         ? {
             id: editingSentence.id,
             original,
-            translation,
+            translation
           }
         : {
             articleId: id,
             original,
             translation,
-            insertIndex: sentenceInsertIndex ?? sentenceTree.length,
+            insertIndex: sentenceInsertIndex ?? sentenceTree.length
           };
       const [err, res] = await asyncHandle(axios.post(endpoint, payload));
 
@@ -1017,7 +1026,7 @@ const ArticlePage: React.FC = () => {
   const mutateSentence = async (
     endpoint: string,
     payload: Record<string, any>,
-    successText: string,
+    successText: string
   ) => {
     const [err, res] = await asyncHandle(axios.post(endpoint, payload));
 
@@ -1044,7 +1053,7 @@ const ArticlePage: React.FC = () => {
             setRegeneratingSentence(sentence);
             setRegenerationFailure(undefined);
             setRegenerationFeedback("");
-          },
+          }
         });
       } else {
         items.push({
@@ -1055,8 +1064,8 @@ const ArticlePage: React.FC = () => {
             sentence.splitStatus === "SPLITTABLE"
               ? void startSentenceSplit(sentence)
               : void startSentenceSplit(sentence, {
-                  force: { targetCount: "auto", instruction: "" },
-                }),
+                  force: { targetCount: "auto", instruction: "" }
+                })
         });
       }
     }
@@ -1067,41 +1076,43 @@ const ArticlePage: React.FC = () => {
           key: "insert-above",
           icon: <PlusOutlined />,
           label: "上方插入",
-          onClick: () => openCreateSentence(rootIndex),
+          onClick: () => openCreateSentence(rootIndex)
         },
         {
           key: "insert-below",
           icon: <PlusOutlined />,
           label: "下方插入",
-          onClick: () => openCreateSentence(rootIndex + 1),
+          onClick: () => openCreateSentence(rootIndex + 1)
         },
         {
           key: "move-up",
           icon: <ArrowUpOutlined />,
           label: "上移",
           disabled: rootIndex === 0,
-          onClick: () => void mutateSentence(
-            "/api/article/moveSentence",
-            { id: sentence.id, direction: "up" },
-            "顺序已更新",
-          ),
+          onClick: () =>
+            void mutateSentence(
+              "/api/article/moveSentence",
+              { id: sentence.id, direction: "up" },
+              "顺序已更新"
+            )
         },
         {
           key: "move-down",
           icon: <ArrowDownOutlined />,
           label: "下移",
           disabled: rootIndex === sentenceTree.length - 1,
-          onClick: () => void mutateSentence(
-            "/api/article/moveSentence",
-            { id: sentence.id, direction: "down" },
-            "顺序已更新",
-          ),
+          onClick: () =>
+            void mutateSentence(
+              "/api/article/moveSentence",
+              { id: sentence.id, direction: "down" },
+              "顺序已更新"
+            )
         },
         {
           key: "edit",
           icon: <EditOutlined />,
           label: "编辑",
-          onClick: () => openEditSentence(sentence),
+          onClick: () => openEditSentence(sentence)
         },
         {
           key: "delete",
@@ -1115,14 +1126,11 @@ const ArticlePage: React.FC = () => {
               okText: "删除",
               cancelText: "取消",
               okButtonProps: { danger: true },
-              onOk: () => mutateSentence(
-                "/api/article/deleteSentence",
-                { id: sentence.id },
-                "句子已删除",
-              ),
+              onOk: () =>
+                mutateSentence("/api/article/deleteSentence", { id: sentence.id }, "句子已删除")
             });
-          },
-        },
+          }
+        }
       );
     }
 
@@ -1153,7 +1161,7 @@ const ArticlePage: React.FC = () => {
               className={styles.sentenceHierarchyButton}
               aria-label={expanded ? "收起子句" : "展开子句"}
             >
-              {expanded ? "收起子句" : `展开${childCount ? ` ${childCount} 个` : ''}子句`}
+              {expanded ? "收起子句" : `展开${childCount ? ` ${childCount} 个` : ""}子句`}
               {expanded ? <UpOutlined /> : <DownOutlined />}
             </Button>
           </Tooltip>
@@ -1166,18 +1174,11 @@ const ArticlePage: React.FC = () => {
   const renderSplitProgress = (sentence: SentenceNode) => {
     const sentenceId = sentence.id;
     const state = splitUiBySentence[sentenceId];
-    if (
-      !state?.loading &&
-      !state?.analysis &&
-      !state?.temporaryChildren.length &&
-      !state?.error
-    )
+    if (!state?.loading && !state?.analysis && !state?.temporaryChildren.length && !state?.error)
       return null;
     return (
       <>
-        {state.analysis && (
-          <div className={styles.splitAnalysis}>{state.analysis}</div>
-        )}
+        {state.analysis && <div className={styles.splitAnalysis}>{state.analysis}</div>}
         {!!state.temporaryChildren.length && (
           <div className={styles.temporaryChildren}>
             {state.temporaryChildren.map((child, index) => (
@@ -1211,7 +1212,7 @@ const ArticlePage: React.FC = () => {
                     analysis: "",
                     temporaryChildren: [],
                     loading: false,
-                    error: undefined,
+                    error: undefined
                   }))
                 }
               >
@@ -1221,6 +1222,58 @@ const ArticlePage: React.FC = () => {
           </div>
         )}
       </>
+    );
+  };
+
+  const renderSentenceItem = (
+    row: SentenceDisplayRow,
+    displayIndex: number,
+    variant: PlaybackSettings["readingMode"]
+  ) => {
+    const sentence = row.sentence;
+    const playableIndex = playableSentences.findIndex((item) => item.id === sentence.id);
+    const index = playableIndex >= 0 ? playableIndex : displayIndex;
+    const rootIndex = sentence.parentSentenceId
+      ? -1
+      : sentenceTree.findIndex((item) => item.id === sentence.id);
+
+    return (
+      <SentenceItem
+        key={sentence.id}
+        originalContent={sentence.originalContent}
+        translatedContent={sentence.translatedContent}
+        index={index}
+        displayNumber={row.displayNumber}
+        duration={(sentence as Sentence).duration || 0}
+        id={sentence.id}
+        totalPlayCount={sentence.playCount}
+        playedWordIndexes={sentence.playedWordIndexes}
+        resumePoint={row.playable && activeSentenceIndex === null && resumeIndex === playableIndex}
+        times={playbackSettings.repeatCount}
+        v={playbackSettings.voice}
+        rate={playbackSettings.playbackRate}
+        delay={playbackSettings.extraPauseSeconds}
+        playing={row.playable && activeSentenceIndex === playableIndex}
+        hasNext={
+          (playableIndex >= 0 && playableIndex < playableSentences.length - 1) ||
+          Boolean(continuousPlayback && article?.nextArticleId)
+        }
+        playbackKey={playbackSession}
+        onPlayStart={handleSentencePlayStart}
+        onPlayStop={handleSentencePlayStop}
+        onPlayEnd={handleSentencePlayEnd}
+        onPlaybackCompleted={handleSentencePlaybackCompleted}
+        onWordPreviewed={handleSentenceWordPreviewed}
+        onPauseChange={setSentencePaused}
+        sound={true}
+        actions={renderSentenceActions(sentence, rootIndex)}
+        depth={row.depth}
+        playable={row.playable}
+        hierarchyControl={renderSplitControl(sentence, row.expanded)}
+        transientContent={renderSplitProgress(sentence)}
+        variant={variant}
+        showTranslation={playbackSettings.showTranslation}
+      />
     );
   };
 
@@ -1234,7 +1287,7 @@ const ArticlePage: React.FC = () => {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${isFocusMode ? styles.focusContainer : ""}`}>
       <div className={styles.header}>
         <div className={styles.leftControls}>
           <Button
@@ -1245,30 +1298,46 @@ const ArticlePage: React.FC = () => {
           >
             返回
           </Button>
-          <Button
-            type="primary"
-            icon={<PlayCircleOutlined />}
-            onClick={handleContinuePlayback}
-            disabled={!progressLoaded}
-            className={styles.playButton}
-          >
-            {resumeIndex === null ? "朗读" : "继续"}
-          </Button>
-          {canEdit && (
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => openCreateSentence(sentenceTree.length)}
-              className={styles.addSentenceButton}
-            >
-              添加句子
-            </Button>
-          )}
+          {!isFocusMode ? (
+            <>
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                onClick={handleContinuePlayback}
+                disabled={!progressLoaded}
+                className={styles.playButton}
+              >
+                {resumeIndex === null ? "朗读" : "继续"}
+              </Button>
+              {canEdit ? (
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={() => openCreateSentence(sentenceTree.length)}
+                  className={styles.addSentenceButton}
+                >
+                  添加句子
+                </Button>
+              ) : null}
+            </>
+          ) : null}
         </div>
         <h1 className={styles.title}>
-          <span>{article?.title}</span>
+          <span>
+            {isFocusMode && focusIndex !== null
+              ? `${focusIndex + 1} / ${playableSentences.length}`
+              : article?.title}
+          </span>
           {article?.isPublic && <Tag color="blue">公共</Tag>}
         </h1>
         <div className={styles.rightControls}>
+          <Button
+            type="text"
+            icon={isFocusMode ? <UnorderedListOutlined /> : <FullscreenOutlined />}
+            onClick={() => changeReadingMode(isFocusMode ? "list" : "focus")}
+            className={styles.readingModeButton}
+          >
+            <span className={styles.readingModeLabel}>{isFocusMode ? "列表" : "专注"}</span>
+          </Button>
           <Button
             type="text"
             icon={<SettingOutlined />}
@@ -1285,7 +1354,7 @@ const ArticlePage: React.FC = () => {
       </div>
 
       <div className={styles.content}>
-        {resumeIndex !== null && activeSentenceIndex === null && (
+        {!isFocusMode && resumeIndex !== null && activeSentenceIndex === null && (
           <div className={styles.resumeNotice} role="status">
             <span>上次停在第 {resumeIndex + 1} 句</span>
             <Button type="link" onClick={handleContinuePlayback}>
@@ -1302,66 +1371,49 @@ const ArticlePage: React.FC = () => {
           <div className={styles.emptySentence}>
             <p>暂无句子</p>
             {canEdit && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => openCreateSentence(0)}
-              >
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateSentence(0)}>
                 添加第一句
               </Button>
             )}
           </div>
         )}
-        {displayRows.map((row, displayIndex) => {
-          const sentence = row.sentence;
-          const playableIndex = playableSentences.findIndex(
-            (item) => item.id === sentence.id,
-          );
-          const index = playableIndex >= 0 ? playableIndex : displayIndex;
-          const rootIndex = sentence.parentSentenceId
-            ? -1
-            : sentenceTree.findIndex((item) => item.id === sentence.id);
-          return (
-            <SentenceItem
-              key={sentence.id}
-              originalContent={sentence.originalContent}
-              translatedContent={sentence.translatedContent}
-              index={index}
-              displayNumber={row.displayNumber}
-              duration={(sentence as Sentence).duration || 0}
-              id={sentence.id}
-              totalPlayCount={sentence.playCount}
-              playedWordIndexes={sentence.playedWordIndexes}
-              resumePoint={
-                row.playable &&
-                activeSentenceIndex === null &&
-                resumeIndex === playableIndex
-              }
-              times={playbackSettings.repeatCount}
-              v={playbackSettings.voice}
-              rate={playbackSettings.playbackRate}
-              delay={playbackSettings.extraPauseSeconds}
-              playing={row.playable && activeSentenceIndex === playableIndex}
-              hasNext={
-                (playableIndex >= 0 &&
-                  playableIndex < playableSentences.length - 1) ||
-                Boolean(continuousPlayback && article?.nextArticleId)
-              }
-              playbackKey={playbackSession}
-              onPlayStart={handleSentencePlayStart}
-              onPlayStop={handleSentencePlayStop}
-              onPlayEnd={handleSentencePlayEnd}
-              onPlaybackCompleted={handleSentencePlaybackCompleted}
-              onWordPreviewed={handleSentenceWordPreviewed}
-              sound={true}
-              actions={renderSentenceActions(sentence, rootIndex)}
-              depth={row.depth}
-              playable={row.playable}
-              hierarchyControl={renderSplitControl(sentence, row.expanded)}
-              transientContent={renderSplitProgress(sentence)}
-            />
-          );
-        })}
+        {!isFocusMode ? (
+          displayRows.map((row, displayIndex) => renderSentenceItem(row, displayIndex, "list"))
+        ) : focusedRow && focusIndex !== null ? (
+          <div className={styles.focusViewport}>
+            <div className={styles.focusStage}>
+              {renderSentenceItem(
+                focusedRow,
+                displayRows.findIndex((row) => row.sentence.id === focusedRow.sentence.id),
+                "focus"
+              )}
+            </div>
+            <nav className={styles.focusNavigation} aria-label="专注阅读句子导航">
+              <Button
+                type="text"
+                icon={<LeftOutlined />}
+                disabled={focusIndex === 0}
+                onClick={() => handleFocusNavigate(-1)}
+                className={styles.focusNavigationButton}
+              >
+                上一句
+              </Button>
+              <span className={styles.focusNavigationProgress}>
+                {focusIndex + 1} / {playableSentences.length}
+              </span>
+              <Button
+                type="text"
+                icon={<RightOutlined />}
+                iconPosition="end"
+                disabled={focusIndex === playableSentences.length - 1}
+                onClick={() => handleFocusNavigate(1)}
+                className={styles.focusNavigationButton}
+              >
+                下一句
+              </Button>
+            </nav>
+          </div>
+        ) : null}
       </div>
 
       <Modal
@@ -1377,9 +1429,7 @@ const ArticlePage: React.FC = () => {
         okText={regenerationFeedback.trim() ? "按建议重新生成" : "直接重新生成"}
         cancelText="取消"
       >
-        <p>
-          可以直接重新生成，也可以补充修改建议。旧结果和已有校验错误会自动发送给模型。
-        </p>
+        <p>可以直接重新生成，也可以补充修改建议。旧结果和已有校验错误会自动发送给模型。</p>
         <Input.TextArea
           value={regenerationFeedback}
           onChange={(event) => setRegenerationFeedback(event.target.value)}
@@ -1389,10 +1439,7 @@ const ArticlePage: React.FC = () => {
           showCount
         />
         {typeof window !== "undefined" &&
-          Boolean(
-            (window as any).SpeechRecognition ||
-            (window as any).webkitSpeechRecognition,
-          ) && (
+          Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
             <Button
               className={styles.feedbackSpeechButton}
               icon={<AudioOutlined />}
@@ -1405,12 +1452,38 @@ const ArticlePage: React.FC = () => {
       </Modal>
 
       <Modal
-        title="设置"
+        title="阅读设置"
         open={isSettingsModalVisible}
         onCancel={handleCloseSettings}
         className={styles.settingsModal + " max-w-[600px]"}
         footer={null}
       >
+        <div className={`${styles.settingItem} ${styles.settingSwitchItem}`}>
+          <label>显示中文翻译</label>
+          <Switch
+            checked={playbackSettings.showTranslation}
+            checkedChildren="显示"
+            unCheckedChildren="隐藏"
+            onChange={(checked) => {
+              const nextSettings = updatePlaybackSettings({
+                showTranslation: checked
+              });
+              persistPlaybackSettings(nextSettings);
+            }}
+          />
+        </div>
+        <div className={styles.settingItem}>
+          <label>阅读模式:</label>
+          <Segmented
+            block
+            value={playbackSettings.readingMode}
+            options={[
+              { label: "列表", value: "list" },
+              { label: "专注", value: "focus" }
+            ]}
+            onChange={(value) => changeReadingMode(value as PlaybackSettings["readingMode"])}
+          />
+        </div>
         <div className={styles.settingItem}>
           <label>音色:</label>
           <Select
@@ -1422,7 +1495,7 @@ const ArticlePage: React.FC = () => {
             style={{ width: "100%" }}
             options={ens.map((item) => ({
               label: item["中文"],
-              value: item.name,
+              value: item.name
             }))}
           />
         </div>
@@ -1433,17 +1506,13 @@ const ArticlePage: React.FC = () => {
             max={2}
             step={0.1}
             value={playbackSettings.playbackRate}
-            onChange={(value) =>
-              updatePlaybackSettings({ playbackRate: value })
-            }
-            onChangeComplete={() =>
-              persistPlaybackSettings(playbackSettingsRef.current)
-            }
+            onChange={(value) => updatePlaybackSettings({ playbackRate: value })}
+            onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
               0.5: "慢",
               1: "正常",
               1.5: "快",
-              2: "非常快",
+              2: "非常快"
             }}
           />
         </div>
@@ -1455,16 +1524,14 @@ const ArticlePage: React.FC = () => {
             step={1}
             value={playbackSettings.repeatCount}
             onChange={(value) => updatePlaybackSettings({ repeatCount: value })}
-            onChangeComplete={() =>
-              persistPlaybackSettings(playbackSettingsRef.current)
-            }
+            onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
               1: "1次",
               2: "2次",
               3: "3次",
               4: "4次",
               5: "5次",
-              10: "10次",
+              10: "10次"
             }}
           />
         </div>
@@ -1475,16 +1542,12 @@ const ArticlePage: React.FC = () => {
             max={10}
             step={0.5}
             value={playbackSettings.extraPauseSeconds}
-            onChange={(value) =>
-              updatePlaybackSettings({ extraPauseSeconds: value })
-            }
-            onChangeComplete={() =>
-              persistPlaybackSettings(playbackSettingsRef.current)
-            }
+            onChange={(value) => updatePlaybackSettings({ extraPauseSeconds: value })}
+            onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
               0: "0秒",
               5: "5秒",
-              10: "10秒",
+              10: "10秒"
             }}
           />
         </div>
