@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe("AI gateway text client", () => {
-  test("does not abort a long sentence split at the old 90-second boundary", async () => {
+  test("keeps an extra-long multilingual sentence split alive beyond 180 seconds", async () => {
     jest.useFakeTimers();
     let requestSignal: AbortSignal | undefined;
     let resolveFetch!: (response: Response) => void;
@@ -27,7 +27,7 @@ describe("AI gateway text client", () => {
     }).generateText({ system: "split", prompt: "one long Finnish sentence" });
     await Promise.resolve();
 
-    jest.advanceTimersByTime(90_000);
+    jest.advanceTimersByTime(180_000);
     expect(requestSignal?.aborted).toBe(false);
 
     resolveFetch(new Response(JSON.stringify({

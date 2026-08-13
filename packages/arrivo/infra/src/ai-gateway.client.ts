@@ -10,7 +10,7 @@ type AiGatewayConfig = {
   timeoutMs?: number;
 };
 
-const DEFAULT_AI_GATEWAY_TIMEOUT_MS = 180_000;
+const DEFAULT_AI_GATEWAY_TIMEOUT_MS = 300_000;
 
 export function createAiGatewayTextClient(config: AiGatewayConfig): AiGatewayTextClient {
   const endpoint = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
