@@ -10,35 +10,48 @@ type AiGatewayConfig = {
   timeoutMs?: number;
 };
 
+const DEFAULT_AI_GATEWAY_TIMEOUT_MS = 180_000;
+
 export function createAiGatewayTextClient(config: AiGatewayConfig): AiGatewayTextClient {
   const endpoint = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
 
   async function request(input: { system: string; prompt: string; stream: boolean }) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config.timeoutMs ?? 90_000);
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "cf-aig-authorization": `Bearer ${config.gatewayToken}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        model: config.model,
-        stream: input.stream,
-        temperature: 0.2,
-        messages: [
-          { role: "system", content: input.system },
-          { role: "user", content: input.prompt }
-        ]
-      }),
-      signal: controller.signal
-    });
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs ?? DEFAULT_AI_GATEWAY_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "cf-aig-authorization": `Bearer ${config.gatewayToken}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          model: config.model,
+          stream: input.stream,
+          temperature: 0.2,
+          messages: [
+            { role: "system", content: input.system },
+            { role: "user", content: input.prompt }
+          ]
+        }),
+        signal: controller.signal
+      });
+    } catch (error) {
+      clearTimeout(timeout);
+      if (controller.signal.aborted) throw new Error("AI 生成超时，请重新生成");
+      throw error;
+    }
 
     if (!response.ok) {
       clearTimeout(timeout);
       throw new Error(`AI Gateway 请求失败 (${response.status})`);
     }
-    return { response, stopTimeout: () => clearTimeout(timeout) };
+    return {
+      response,
+      wasAborted: () => controller.signal.aborted,
+      stopTimeout: () => clearTimeout(timeout)
+    };
   }
 
   return {
@@ -47,6 +60,9 @@ export function createAiGatewayTextClient(config: AiGatewayConfig): AiGatewayTex
       try {
         const body = await requestResult.response.json() as { choices?: Array<{ message?: { content?: string } }> };
         return body.choices?.[0]?.message?.content ?? "";
+      } catch (error) {
+        if (requestResult.wasAborted()) throw new Error("AI 生成超时，请重新生成");
+        throw error;
       } finally {
         requestResult.stopTimeout();
       }
@@ -78,6 +94,9 @@ export function createAiGatewayTextClient(config: AiGatewayConfig): AiGatewayTex
             if (text) yield text;
           }
         }
+      } catch (error) {
+        if (requestResult.wasAborted()) throw new Error("AI 生成超时，请重新生成");
+        throw error;
       } finally {
         requestResult.stopTimeout();
         reader.releaseLock();
