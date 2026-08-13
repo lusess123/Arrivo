@@ -1,4 +1,5 @@
 export * from "./article/article.case";
+export * from "./article/article-language.case";
 export * from "./article/sentence-split.case";
 export * from "./auth/auth.case";
 export * from "./health/health.case";

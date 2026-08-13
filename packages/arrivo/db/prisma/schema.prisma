@@ -80,6 +80,8 @@ model Sentences {
   article           Articles?   @relation(fields: [articleId], references: [id])
   originalContent   String?
   translatedContent String?
+  languageCode      String      @default("en") @db.VarChar(10)
+  sentenceGroupId   String      @db.Uuid
   sortOrder         Int         @default(0)
   parentSentenceId  String?     @db.Uuid
   parentSentence    Sentences?  @relation("SentenceChildren", fields: [parentSentenceId], references: [id], onDelete: Cascade)
@@ -102,6 +104,8 @@ model Sentences {
 
   @@index([tenantId, articleId, createdAt])
   @@index([tenantId, articleId, sortOrder])
+  @@index([tenantId, articleId, languageCode, sortOrder])
+  @@index([tenantId, sentenceGroupId, languageCode])
   @@index([tenantId, parentSentenceId, sortOrder])
   @@index([tenantId, deletedAt])
 }

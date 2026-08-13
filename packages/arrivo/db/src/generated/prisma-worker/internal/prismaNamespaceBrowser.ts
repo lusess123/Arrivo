@@ -135,6 +135,8 @@ export const SentencesScalarFieldEnum = {
   articleId: 'articleId',
   originalContent: 'originalContent',
   translatedContent: 'translatedContent',
+  languageCode: 'languageCode',
+  sentenceGroupId: 'sentenceGroupId',
   sortOrder: 'sortOrder',
   parentSentenceId: 'parentSentenceId',
   splitStatus: 'splitStatus',

@@ -1,4 +1,11 @@
-import { DEFAULT_PLAYBACK_SETTINGS, SUPPORTED_PLAYBACK_VOICES, type PlaybackSettingsDto } from '@arrivo/contracts';
+import {
+  DEFAULT_PLAYBACK_SETTINGS,
+  DEFAULT_VOICE_BY_LANGUAGE,
+  LEARNING_LANGUAGES,
+  SUPPORTED_PLAYBACK_VOICES,
+  type LearningLanguageCode,
+  type PlaybackSettingsDto
+} from '@arrivo/contracts';
 
 export { DEFAULT_PLAYBACK_SETTINGS };
 export type PlaybackSettings = PlaybackSettingsDto;
@@ -15,14 +22,39 @@ const normalizeNumber = (value: unknown, fallback: number, min: number, max: num
 };
 
 export function normalizePlaybackSettings(
-  value: Partial<PlaybackSettings> | null | undefined,
-  defaultVoice = DEFAULT_PLAYBACK_SETTINGS.voice
+  value: (Partial<PlaybackSettings> & { voice?: unknown }) | null | undefined,
+  defaultVoice = DEFAULT_VOICE_BY_LANGUAGE.en
 ): PlaybackSettings {
+  const learningLanguages = Array.isArray(value?.learningLanguages)
+    ? [...new Set(value.learningLanguages.filter(
+        (language): language is LearningLanguageCode => LEARNING_LANGUAGES.includes(language as LearningLanguageCode)
+      ))]
+    : [...DEFAULT_PLAYBACK_SETTINGS.learningLanguages];
+  if (!learningLanguages.length) learningLanguages.push('en');
+  const activeLanguage = learningLanguages.includes(value?.activeLanguage as LearningLanguageCode)
+    ? value!.activeLanguage as LearningLanguageCode
+    : learningLanguages[0];
+  const storedVoices = value?.voices && typeof value.voices === 'object' ? value.voices : {};
+  const legacyEnglishVoice = typeof value?.voice === 'string' ? value.voice.trim() : '';
+  const voices = Object.fromEntries(LEARNING_LANGUAGES.map((languageCode) => {
+    const candidate = languageCode === 'en' && legacyEnglishVoice
+      ? legacyEnglishVoice
+      : storedVoices[languageCode];
+    const fallback = languageCode === 'en' ? defaultVoice : DEFAULT_VOICE_BY_LANGUAGE[languageCode];
+    return [
+      languageCode,
+      typeof candidate === 'string'
+        && candidate.startsWith(`${languageCode}-`)
+        && supportedPlaybackVoices.has(candidate)
+        ? candidate
+        : fallback
+    ];
+  })) as PlaybackSettings['voices'];
+
   return {
-    voice:
-      typeof value?.voice === 'string' && supportedPlaybackVoices.has(value.voice.trim())
-        ? value.voice.trim()
-        : defaultVoice,
+    learningLanguages,
+    activeLanguage,
+    voices,
     playbackRate: normalizeNumber(value?.playbackRate, 1, 0.5, 2, 0.1),
     repeatCount: normalizeNumber(value?.repeatCount, 1, 1, 10, 1),
     extraPauseSeconds: normalizeNumber(value?.extraPauseSeconds, 0, 0, 10, 0.5),

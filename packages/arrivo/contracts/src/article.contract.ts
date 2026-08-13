@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { learningLanguageCodeSchema } from "./playback-settings.contract";
 
 export const sentenceInputSchema = z.object({
   sentence: z.string().optional(),
   phonetic: z.string().optional(),
   translation: z.string().trim().optional(),
   original: z.string().trim().optional(),
+  languageCode: learningLanguageCodeSchema.optional().default("en"),
   delay: z.number().optional()
 });
 
@@ -16,6 +18,11 @@ export const createArticleInputSchema = z.object({
 
 export const articleDetailQuerySchema = z.object({
   id: z.string().min(1)
+});
+
+export const articleLanguageParamSchema = z.object({
+  articleId: z.string().uuid(),
+  languageCode: learningLanguageCodeSchema
 });
 
 export const incrementArticlePlayCountInputSchema = z.object({
@@ -42,11 +49,16 @@ export const deleteArticleInputSchema = z.object({
 
 export const createSentenceInputSchema = z.object({
   articleId: z.string().min(1),
+  languageCode: learningLanguageCodeSchema.optional().default("en"),
+  sentenceGroupId: z.string().uuid().optional(),
   original: z.string().trim().optional(),
   translation: z.string().trim().optional(),
   insertIndex: z.number().int().min(0).optional()
 }).refine((input) => Boolean(input.original || input.translation), {
   message: "句子内容不能为空"
+}).refine((input) => Boolean(input.sentenceGroupId) || input.languageCode === "en", {
+  path: ["languageCode"],
+  message: "新句子组必须先添加英语内容"
 });
 
 export const updateSentenceInputSchema = z.object({
@@ -119,6 +131,8 @@ export type ArticleSentenceDto = {
   id: string;
   originalContent: string | null;
   translatedContent: string | null;
+  languageCode: string;
+  sentenceGroupId: string;
   sortOrder: number;
   parentSentenceId: string | null;
   splitStatus: SentenceSplitStatus;
@@ -134,6 +148,7 @@ export type ArticleDto = {
   playCount: number;
   createdAt: Date | string | null;
   updatedAt: Date | string | null;
+  availableLanguages: string[];
   Sentences: ArticleSentenceDto[];
 };
 

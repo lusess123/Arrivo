@@ -6,31 +6,38 @@ import {
 } from "../src";
 
 describe("playbackSettingsInputSchema", () => {
-  test("accepts the documented boundaries and normalizes the voice", () => {
+  test("accepts three selected languages with language-specific voices", () => {
     expect(
       playbackSettingsInputSchema.parse({
-        voice: "  en-AU-NatashaNeural  ",
+        learningLanguages: ["en", "vi", "fi"],
+        activeLanguage: "vi",
+        voices: {
+          en: "  en-AU-NatashaNeural  ",
+          vi: "vi-VN-HoaiMyNeural",
+          fi: "fi-FI-NooraNeural"
+        },
         playbackRate: 0.5,
         repeatCount: 10,
         extraPauseSeconds: 10
       })
     ).toEqual({
-      voice: "en-AU-NatashaNeural",
+      learningLanguages: ["en", "vi", "fi"],
+      activeLanguage: "vi",
+      voices: {
+        en: "en-AU-NatashaNeural",
+        vi: "vi-VN-HoaiMyNeural",
+        fi: "fi-FI-NooraNeural"
+      },
       playbackRate: 0.5,
       repeatCount: 10,
       extraPauseSeconds: 10,
       showTranslation: true,
       readingMode: "list"
     });
-    expect(DEFAULT_PLAYBACK_SETTINGS).toEqual({
-      voice: "en-AU-NatashaNeural",
-      playbackRate: 1,
-      repeatCount: 1,
-      extraPauseSeconds: 0,
-      showTranslation: true,
-      readingMode: "list"
-    });
-    expect(SUPPORTED_PLAYBACK_VOICES).toContain(DEFAULT_PLAYBACK_SETTINGS.voice);
+    expect(DEFAULT_PLAYBACK_SETTINGS.learningLanguages).toEqual(["en"]);
+    expect(SUPPORTED_PLAYBACK_VOICES).toContain(DEFAULT_PLAYBACK_SETTINGS.voices.en);
+    expect(SUPPORTED_PLAYBACK_VOICES).toContain(DEFAULT_PLAYBACK_SETTINGS.voices.vi);
+    expect(SUPPORTED_PLAYBACK_VOICES).toContain(DEFAULT_PLAYBACK_SETTINGS.voices.fi);
   });
 
   test.each([
@@ -42,7 +49,10 @@ describe("playbackSettingsInputSchema", () => {
     { extraPauseSeconds: -0.5 },
     { extraPauseSeconds: 10.5 },
     { extraPauseSeconds: 0.25 },
-    { voice: "not-a-real-voice" }
+    { voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, en: "not-a-real-voice" } },
+    { learningLanguages: [] },
+    { learningLanguages: ["en"], activeLanguage: "vi" },
+    { voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, vi: "en-US-JennyNeural" } }
   ])("rejects invalid setting %o", (override) => {
     expect(
       playbackSettingsInputSchema.safeParse({
@@ -55,7 +65,7 @@ describe("playbackSettingsInputSchema", () => {
   test("accepts account-wide reading preferences", () => {
     expect(
       playbackSettingsInputSchema.parse({
-        voice: "en-AU-NatashaNeural",
+        ...DEFAULT_PLAYBACK_SETTINGS,
         playbackRate: 1,
         repeatCount: 1,
         extraPauseSeconds: 0,
@@ -63,7 +73,9 @@ describe("playbackSettingsInputSchema", () => {
         readingMode: "focus"
       })
     ).toEqual({
-      voice: "en-AU-NatashaNeural",
+      learningLanguages: ["en"],
+      activeLanguage: "en",
+      voices: DEFAULT_PLAYBACK_SETTINGS.voices,
       playbackRate: 1,
       repeatCount: 1,
       extraPauseSeconds: 0,

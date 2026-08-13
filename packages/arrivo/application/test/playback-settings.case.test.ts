@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ArrivoDb } from "@arrivo/db";
+import { DEFAULT_PLAYBACK_SETTINGS } from "@arrivo/contracts";
 import { getPlaybackSettings, runWithDbClientFactory, updatePlaybackSettings } from "../src";
 
 function withDb<T>(mockDb: Partial<ArrivoDb>, run: () => T) {
@@ -37,21 +38,13 @@ describe("playback settings", () => {
     );
 
     expect(userA).toEqual({
-      voice: "en-GB-SoniaNeural",
+      ...DEFAULT_PLAYBACK_SETTINGS,
+      voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, en: "en-GB-SoniaNeural" },
       playbackRate: 1.25,
       repeatCount: 3,
-      extraPauseSeconds: 1.5,
-      showTranslation: true,
-      readingMode: "list"
+      extraPauseSeconds: 1.5
     });
-    expect(userB).toEqual({
-      voice: "en-AU-NatashaNeural",
-      playbackRate: 1,
-      repeatCount: 1,
-      extraPauseSeconds: 0,
-      showTranslation: true,
-      readingMode: "list"
-    });
+    expect(userB).toEqual(DEFAULT_PLAYBACK_SETTINGS);
     expect(calls.map((call) => call.where)).toEqual([
       {
         tenantId: "tenant-a",
@@ -75,14 +68,7 @@ describe("playback settings", () => {
       getPlaybackSettings({ userId: "user-a", tenantId: "tenant-a" })
     );
 
-    expect(result).toEqual({
-      voice: "en-AU-NatashaNeural",
-      playbackRate: 1,
-      repeatCount: 1,
-      extraPauseSeconds: 0,
-      showTranslation: true,
-      readingMode: "list"
-    });
+    expect(result).toEqual(DEFAULT_PLAYBACK_SETTINGS);
   });
 
   test("upserts only the current user's tenant-scoped config with audit fields", async () => {
@@ -94,7 +80,10 @@ describe("playback settings", () => {
       }
     };
     const input = {
-      voice: "en-GB-RyanNeural",
+      ...DEFAULT_PLAYBACK_SETTINGS,
+      learningLanguages: ["en", "vi"] as const,
+      activeLanguage: "vi" as const,
+      voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, en: "en-GB-RyanNeural" },
       playbackRate: 1.5,
       repeatCount: 4,
       extraPauseSeconds: 2.5,

@@ -3,6 +3,7 @@ import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
 import {
   articleDetailQuerySchema,
+  articleLanguageParamSchema,
   createArticleInputSchema,
   createSentenceInputSchema,
   deleteArticleInputSchema,
@@ -23,6 +24,7 @@ import {
   createSentence,
   deleteArticle,
   deleteSentence,
+  ensureArticleLanguage,
   getArticleDetail,
   getArticleList,
   incrementArticlePlayCount,
@@ -53,6 +55,25 @@ function getSentenceSplitAi(c: { env: AppEnv["Bindings"] }) {
 }
 
 export function registerArticleRoutes(app: Hono<AppEnv>, prefix = "") {
+  app.post(
+    route(prefix, "/articles/:articleId/languages/:languageCode/generate"),
+    requireUser,
+    zValidator("param", articleLanguageParamSchema),
+    async (c) => {
+      const user = c.get("user");
+      if (!user) throw httpError.unauthorized();
+      const { articleId, languageCode } = c.req.valid("param");
+      const { ai } = getSentenceSplitAi(c);
+      return ok(c, await ensureArticleLanguage({
+        userId: user.id,
+        tenantId: user.tenant,
+        articleId,
+        languageCode,
+        ai
+      }));
+    }
+  );
+
   app.post(
     route(prefix, "/articles/:articleId/sentences/:sentenceId/split-stream"),
     requireUser,

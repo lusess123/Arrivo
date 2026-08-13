@@ -3,7 +3,7 @@ import { httpError } from "@arrivo/runtime";
 import { activeRecordWhere, createRecordBase, normalizeTenantId, updateRecordBase } from "../runtime/data-scope";
 import { db } from "../runtime/db";
 
-const SPLIT_VERSION = "20260718-v1";
+const SPLIT_VERSION = "20260813-multilingual-v1";
 const ORDER_STEP = 1000;
 
 type SplitDeps = {
@@ -38,41 +38,47 @@ export type SentenceSplitEvent =
   | { type: "committed"; parentSentenceId: string; children: Array<SplitChild & { id: string; sortOrder: number }> }
   | { type: "failed"; message: string; failedOutput: string; validationError: string };
 
-const systemPrompt = `你负责把英语学习文章中的长句切成更适合独立朗读的短句。
+const languageNames: Record<string, string> = {
+  en: "英语",
+  vi: "越南语",
+  fi: "芬兰语"
+};
+
+const systemPrompt = (languageCode: string) => `你负责把${languageNames[languageCode] ?? "目标语言"}学习文章中的长句切成更适合独立朗读的短句。
 先给出一句简短的结构分析摘要，再输出子句。不要输出详细思维过程。
-不得改写、概括或遗漏英文内容；中英文子句必须一一对应。
+不得改写、概括或遗漏目标语言内容；目标语言与中文子句必须一一对应。
 严格逐行输出：
 ANALYSIS: 一句简短摘要
 RESULT: SPLIT 或 UNSPLITTABLE
 如果 RESULT 是 UNSPLITTABLE，下一行直接输出 DONE，不要输出任何子句。
 如果 RESULT 是 SPLIT，只输出切分后的直接子句，绝对不要再次输出输入的完整原句：
-ORIGINAL: 英文子句
+ORIGINAL: 目标语言子句
 TRANSLATION: 中文子句
 SPLITTABLE: true 或 false
 END_CHILD
 每个子句都必须以 END_CHILD 结束；全部子句输出后，单独输出一行 DONE。
-所有 ORIGINAL 按顺序拼接后必须与输入英文完全一致，不得增加、删除、重复或改写单词。
+所有 ORIGINAL 按顺序拼接后必须与输入目标语言原句完全一致，不得增加、删除、重复或改写单词。
 无法产生至少两个合格子句时，必须返回 RESULT: UNSPLITTABLE。
 splittable 只有在拆分后的每一部分都能脱离上下文独立理解和朗读时才为 true。
 判断每个输出子句的 splittable 时，必须对该子句重新应用完全相同的切分标准；只有它还能产生至少两个合格子句才为 true。
 短简单句（例如 “Thank you very much.”）以及仅包含重复表达、但不能形成两个完整子句的句子，必须为 false。
-切分后的每个英文子句至少应有 5 个单词和两个有实际含义的核心词；不要为了切分而产生过短、学习价值很低的片段。
+切分后的每个目标语言子句至少应有 5 个单词和两个有实际含义的核心词；不要为了切分而产生过短、学习价值很低的片段。
 除祈使句、感叹句等本身完整的表达外，每个子句必须有自己的主语和限定谓语。
 禁止把介词短语、不定式短语、分词结构、连接词、话语标记、重复语或不完整从句单独切出。
 例如 “I want to thank the American people for the extraordinary honor ...” 不能切成 “I want to thank the American people” 和 “for the extraordinary honor ...”，因为后者是依赖主句的介词短语；应返回 RESULT: UNSPLITTABLE。
 除这些行外不要输出任何内容。`;
 
-const forceSystemPrompt = `你负责把英语学习文章中的长句改写成更适合独立朗读的多个短句。
+const forceSystemPrompt = (languageCode: string) => `你负责把${languageNames[languageCode] ?? "目标语言"}学习文章中的长句改写成更适合独立朗读的多个短句。
 先输出一句简短结构摘要，再只输出改写后的子句。不要输出详细思维过程。
 允许调整语序、补充必要主语和连接方式，但核心单词、人物、数字、事实、语气和完整含义必须保持不变，不得增加新事实。
-所有子句必须表达不同的内容，禁止输出两个相同或仅大小写、空格、标点不同的英文或中文子句。
-每个英文子句至少应有 5 个单词和两个有实际含义的核心词，禁止生成过短、信息不足的片段。
-每个英文子句都必须语法完整、可脱离其他子句独立理解和朗读；中文必须逐句对应。
+所有子句必须表达不同的内容，禁止输出两个相同或仅大小写、空格、标点不同的目标语言或中文子句。
+每个目标语言子句至少应有 5 个单词和两个有实际含义的核心词，禁止生成过短、信息不足的片段。
+每个目标语言子句都必须语法完整、可脱离其他子句独立理解和朗读；中文必须逐句对应。
 SPLITTABLE 必须按“不改写原文、只在原有边界切分”的普通标准判断；只有还能产生至少两个完整子句时才为 true，不能依赖再次改写。
 严格逐行输出：
 ANALYSIS: 一句简短摘要
 RESULT: SPLIT
-ORIGINAL: 英文子句
+ORIGINAL: 目标语言子句
 TRANSLATION: 中文子句
 SPLITTABLE: true 或 false
 END_CHILD
@@ -81,9 +87,10 @@ END_CHILD
 function splitPrompt(
   originalContent: string,
   translatedContent: string,
+  languageCode: string,
   regeneration?: { feedback: string; previousChildren: SplitChild[] }
 ) {
-  const base = `英文原句：${originalContent}\n中文释义：${translatedContent}`;
+  const base = `${languageNames[languageCode] ?? "目标语言"}原句：${originalContent}\n中文释义：${translatedContent}`;
   if (!regeneration) return `${base}\n请切成至少两个可独立朗读的语义片段。`;
   return `${base}
 上一次错误结果：${JSON.stringify(regeneration.previousChildren)}
@@ -91,9 +98,14 @@ function splitPrompt(
 请根据错误判断重新生成，避免重复旧结果中的问题。`;
 }
 
-function forcePrompt(originalContent: string, translatedContent: string, force: NonNullable<SplitDeps["forceSplit"]>) {
+function forcePrompt(
+  originalContent: string,
+  translatedContent: string,
+  languageCode: string,
+  force: NonNullable<SplitDeps["forceSplit"]>
+) {
   const count = force.targetCount === "auto" ? "自动决定两个或多个" : `恰好 ${force.targetCount} 个`;
-  return `英文原句：${originalContent}\n中文释义：${translatedContent}\n请改写成${count}完整短句。${force.instruction ? `\n额外要求：${force.instruction}` : ""}${force.failedOutput ? `\n上一次错误输出：${force.failedOutput}` : ""}${force.validationError ? `\n上一次校验错误：${force.validationError}\n请修正该错误，不要重复上一次的问题。` : ""}`;
+  return `${languageNames[languageCode] ?? "目标语言"}原句：${originalContent}\n中文释义：${translatedContent}\n请改写成${count}完整短句。${force.instruction ? `\n额外要求：${force.instruction}` : ""}${force.failedOutput ? `\n上一次错误输出：${force.failedOutput}` : ""}${force.validationError ? `\n上一次校验错误：${force.validationError}\n请修正该错误，不要重复上一次的问题。` : ""}`;
 }
 
 function normalizeComparable(text: string) {
@@ -108,7 +120,7 @@ const functionWords = new Set([
 
 function validateUsefulChildren(children: SplitChild[]) {
   for (const child of children) {
-    const words = child.originalContent.toLocaleLowerCase().match(/[a-z]+(?:'[a-z]+)?/g) || [];
+    const words = child.originalContent.toLocaleLowerCase().match(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)?/gu) || [];
     const contentWords = words.filter((word) => word.length > 2 && !functionWords.has(word));
     if (words.length < 5 || new Set(contentWords).size < 2) {
       throw new Error(`子句过短或缺少有效内容：${child.originalContent}`);
@@ -119,10 +131,10 @@ function validateUsefulChildren(children: SplitChild[]) {
 export function validateSplitChildren(original: string, children: SplitChild[]) {
   if (children.length < 2) throw new Error("至少需要两个子句");
   if (children.some((child) => !child.originalContent.trim() || !child.translatedContent.trim())) {
-    throw new Error("子句的英文和中文不能为空");
+    throw new Error("子句的目标语言和中文不能为空");
   }
   const joined = normalizeComparable(children.map((child) => child.originalContent).join(""));
-  if (joined !== normalizeComparable(original)) throw new Error("切分结果遗漏或改写了英文原句");
+  if (joined !== normalizeComparable(original)) throw new Error("切分结果遗漏或改写了目标语言原句");
   validateUsefulChildren(children);
 }
 
@@ -130,7 +142,7 @@ export function validateForcedChildren(original: string, children: SplitChild[],
   if (children.length < 2) throw new Error("强制切分至少需要两个子句");
   if (targetCount !== "auto" && children.length !== targetCount) throw new Error(`强制切分必须生成 ${targetCount} 个子句`);
   if (children.some((child) => !child.originalContent.trim() || !child.translatedContent.trim())) {
-    throw new Error("子句的英文和中文不能为空");
+    throw new Error("子句的目标语言和中文不能为空");
   }
   const normalizedOriginals = children.map((child) => normalizeComparable(child.originalContent));
   const normalizedTranslations = children.map((child) => normalizeComparable(child.translatedContent));
@@ -138,8 +150,8 @@ export function validateForcedChildren(original: string, children: SplitChild[],
     throw new Error("强制切分生成了重复子句");
   }
   validateUsefulChildren(children);
-  const sourceTokens = original.toLocaleLowerCase().match(/[a-z]+|\d+/g) || [];
-  const outputTokens = new Set(children.flatMap((child) => child.originalContent.toLocaleLowerCase().match(/[a-z]+|\d+/g) || []));
+  const sourceTokens = original.toLocaleLowerCase().match(/[\p{L}\p{M}]+|\d+/gu) || [];
+  const outputTokens = new Set(children.flatMap((child) => child.originalContent.toLocaleLowerCase().match(/[\p{L}\p{M}]+|\d+/gu) || []));
   const important = sourceTokens.filter((token) => token.length >= 4 || /^\d+$/.test(token));
   const retained = important.filter((token) => outputTokens.has(token)).length;
   if (important.length && retained / important.length < 0.7) throw new Error("强制切分改动了过多核心单词");
@@ -154,9 +166,18 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
       ...activeRecordWhere(tenantId),
       article: { is: { ...activeRecordWhere(tenantId), OR: [{ userId: input.userId }, { isPublic: true }] } }
     },
-    select: { id: true, originalContent: true, translatedContent: true, splitStatus: true }
+    select: {
+      id: true,
+      originalContent: true,
+      translatedContent: true,
+      languageCode: true,
+      sentenceGroupId: true,
+      splitStatus: true
+    }
   });
   if (!sentence) throw httpError.notFound("句子不存在");
+  const languageCode = sentence.languageCode || "en";
+  const sentenceGroupId = sentence.sentenceGroupId || sentence.id;
 
   const isRegeneration = input.regenerationFeedback !== undefined;
   const isForced = Boolean(input.forceSplit);
@@ -226,14 +247,16 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
 
   try {
     for await (const chunk of input.ai.streamText({
-      system: isForced ? forceSystemPrompt : systemPrompt,
+      system: isForced ? forceSystemPrompt(languageCode) : systemPrompt(languageCode),
       prompt: isForced ? forcePrompt(
         sentence.originalContent ?? "",
         sentence.translatedContent ?? "",
+        languageCode,
         input.forceSplit!
       ) : splitPrompt(
         sentence.originalContent ?? "",
         sentence.translatedContent ?? "",
+        languageCode,
         isRegeneration ? {
           feedback: input.regenerationFeedback!,
           previousChildren: previousChildren.map((child) => ({
@@ -387,6 +410,8 @@ export async function* streamSentenceSplit(input: SplitDeps): AsyncGenerator<Sen
     const created = children.map((child, index) => ({
       ...createRecordBase({ userId: input.userId, tenantId, now }),
       articleId: input.articleId,
+      sentenceGroupId,
+      languageCode,
       parentSentenceId: sentence.id,
       content: child.originalContent,
       originalContent: child.originalContent,
@@ -494,7 +519,7 @@ export async function analyzeSentenceBatch({
   const statuses = retryFailed ? ["UNKNOWN", "FAILED"] : ["UNKNOWN"];
   const sentences = await db.sentences.findMany({
     where: { splitStatus: { in: statuses }, ...activeRecordWhere(tenantId) },
-    select: { id: true, originalContent: true },
+    select: { id: true, originalContent: true, languageCode: true },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limit
   });
@@ -503,11 +528,12 @@ export async function analyzeSentenceBatch({
   }
 
   const result = await ai.generateText({
-    system: `判断每个英文句子能否拆成至少两个仍然语义完整、适合独立朗读的片段，并且每个片段至少有 5 个英文单词和两个有实际含义的核心词。
+    system: `判断每个目标语言句子能否拆成至少两个仍然语义完整、适合独立朗读的片段，并且每个片段至少有 5 个单词和两个有实际含义的核心词。
 只输出 JSON 数组，不要解释或使用 Markdown。每项格式为 {"id":"原始 ID","splittable":true}。
 必须原样返回所有 ID，每个 ID 恰好出现一次。`,
     prompt: JSON.stringify(sentences.map((sentence) => ({
       id: sentence.id,
+      languageCode: sentence.languageCode,
       originalContent: sentence.originalContent ?? ""
     })))
   });

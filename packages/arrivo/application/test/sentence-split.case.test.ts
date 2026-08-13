@@ -12,6 +12,7 @@ async function runStreamResponse({
   translated = "译文一。译文二。",
   response,
   chunkSize = 1,
+  languageCode = "en",
   regenerationFeedback,
   forceSplit
 }: {
@@ -19,6 +20,7 @@ async function runStreamResponse({
   translated?: string;
   response: string | string[];
   chunkSize?: number;
+  languageCode?: "en" | "vi" | "fi";
   regenerationFeedback?: string;
   forceSplit?: {
     targetCount: 2 | 3 | "auto";
@@ -38,6 +40,8 @@ async function runStreamResponse({
       id: "019f0000-0000-7000-8000-000000000030",
       originalContent: original,
       translatedContent: translated,
+      languageCode,
+      sentenceGroupId: "019f0000-0000-7000-8000-000000000099",
       splitStatus: regenerationFeedback !== undefined ? "SPLIT" : forceSplit ? "UNSPLITTABLE" : "SPLITTABLE"
     }),
     findMany: async () => regenerationFeedback !== undefined ? [
@@ -117,6 +121,40 @@ describe("sentence split validation", () => {
     )).not.toThrow();
   });
 
+  test("validates Vietnamese and Finnish words with Unicode letters", () => {
+    expect(() => validateSplitChildren(
+      "Khi chúng ta lắng nghe cẩn thận, chúng ta hiểu vấn đề rõ hơn.",
+      [
+        {
+          originalContent: "Khi chúng ta lắng nghe cẩn thận,",
+          translatedContent: "当我们认真倾听时，",
+          splittable: false
+        },
+        {
+          originalContent: "chúng ta hiểu vấn đề rõ hơn.",
+          translatedContent: "我们会更清楚地理解问题。",
+          splittable: false
+        }
+      ]
+    )).not.toThrow();
+
+    expect(() => validateSplitChildren(
+      "Kun kuuntelemme aina kysymystä tarkasti, ymmärrämme tärkeän asian nyt paremmin.",
+      [
+        {
+          originalContent: "Kun kuuntelemme aina kysymystä tarkasti,",
+          translatedContent: "当我们认真听问题时，",
+          splittable: false
+        },
+        {
+          originalContent: "ymmärrämme tärkeän asian nyt paremmin.",
+          translatedContent: "我们会更好地理解要点。",
+          splittable: false
+        }
+      ]
+    )).not.toThrow();
+  });
+
   test("rejects missing or rewritten English content", () => {
     expect(() => validateSplitChildren(
       "One, two, three.",
@@ -163,6 +201,8 @@ describe("sentence split validation", () => {
         id: "019f0000-0000-7000-8000-000000000010",
         originalContent: "We carefully listen to every question, and we clearly answer every important point.",
         translatedContent: "我们认真倾听每个问题，并清楚回答每个要点。",
+        languageCode: "vi",
+        sentenceGroupId: "019f0000-0000-7000-8000-000000000099",
         splitStatus: "SPLITTABLE"
       }),
       updateMany: async () => ({ count: 1 }),
@@ -203,6 +243,11 @@ describe("sentence split validation", () => {
       .toBe("We carefully listen to every question,and we clearly answer every important point.");
     expect(events.at(-1)?.type).toBe("committed");
     expect(createdData.map((item) => item.splitStatus)).toEqual(["UNSPLITTABLE", "UNSPLITTABLE"]);
+    expect(createdData.map((item) => item.languageCode)).toEqual(["vi", "vi"]);
+    expect(createdData.map((item) => item.sentenceGroupId)).toEqual([
+      "019f0000-0000-7000-8000-000000000099",
+      "019f0000-0000-7000-8000-000000000099"
+    ]);
   });
 
   test("accepts the real DeepSeek response with one final legacy END", async () => {
@@ -318,7 +363,7 @@ SPLITTABLE: false
 END_CHILD
 DONE`
     });
-    expect(rewritten.events.at(-1)).toMatchObject({ type: "failed", message: "切分结果遗漏或改写了英文原句" });
+    expect(rewritten.events.at(-1)).toMatchObject({ type: "failed", message: "切分结果遗漏或改写了目标语言原句" });
     expect(rewritten.createdData).toHaveLength(0);
   });
 
@@ -384,7 +429,7 @@ SPLITTABLE: false
 END_CHILD
 DONE`
     });
-    expect(result.events.at(-1)).toMatchObject({ type: "failed", message: "切分结果遗漏或改写了英文原句" });
+    expect(result.events.at(-1)).toMatchObject({ type: "failed", message: "切分结果遗漏或改写了目标语言原句" });
     expect(result.createdData).toHaveLength(0);
   });
 
@@ -464,6 +509,51 @@ DONE`
     expect(result.prompt).toContain("上一次校验错误：强制切分生成了重复子句");
     expect(result.createdData).toHaveLength(2);
     expect(result.events.at(-1)?.type).toBe("committed");
+  });
+
+  test("uses target-language labels when force splitting Vietnamese and Finnish", async () => {
+    for (const item of [
+      {
+        languageCode: "vi" as const,
+        original: "Chúng tôi học ngôn ngữ mỗi ngày và chúng tôi luyện nghe thật cẩn thận.",
+        translated: "我们每天学习语言，并认真练习听力。",
+        response: `ANALYSIS: 改写为两个完整短句。
+RESULT: SPLIT
+ORIGINAL: Chúng tôi học ngôn ngữ mỗi ngày.
+TRANSLATION: 我们每天学习语言。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: Chúng tôi luyện nghe thật cẩn thận.
+TRANSLATION: 我们认真练习听力。
+SPLITTABLE: false
+END_CHILD
+DONE`
+      },
+      {
+        languageCode: "fi" as const,
+        original: "Me opiskelemme uutta kieltä joka päivä ja me harjoittelemme kuuntelemista erittäin huolellisesti.",
+        translated: "我们每天学习一门新语言，并非常认真地练习听力。",
+        response: `ANALYSIS: 改写为两个完整短句。
+RESULT: SPLIT
+ORIGINAL: Me opiskelemme uutta kieltä joka päivä.
+TRANSLATION: 我们每天学习一门新语言。
+SPLITTABLE: false
+END_CHILD
+ORIGINAL: Me harjoittelemme kuuntelemista erittäin huolellisesti.
+TRANSLATION: 我们非常认真地练习听力。
+SPLITTABLE: false
+END_CHILD
+DONE`
+      }
+    ]) {
+      const result = await runStreamResponse({
+        ...item,
+        forceSplit: { targetCount: 2 }
+      });
+      expect(result.system).toContain("ORIGINAL: 目标语言子句");
+      expect(result.system).not.toContain("ORIGINAL: 英文子句");
+      expect(result.events.at(-1)?.type).toBe("committed");
+    }
   });
 
   test("automatically retries once when forced splitting returns duplicate children", async () => {

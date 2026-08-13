@@ -24,18 +24,26 @@ describe('article playback settings', () => {
         defaultVoice
       )
     ).toEqual({
-      voice: defaultVoice,
+      learningLanguages: ['en'],
+      activeLanguage: 'en',
+      voices: {
+        en: defaultVoice,
+        vi: 'vi-VN-HoaiMyNeural',
+        fi: 'fi-FI-NooraNeural'
+      },
       playbackRate: 2,
       repeatCount: 3,
       extraPauseSeconds: 3.5,
       showTranslation: true,
       readingMode: 'list'
     });
-    expect(normalizePlaybackSettings({ voice: 'not-a-real-voice' }, defaultVoice).voice).toBe(defaultVoice);
+    expect(normalizePlaybackSettings({ voice: 'not-a-real-voice' }, defaultVoice).voices.en).toBe(defaultVoice);
   });
 
   test('keeps the UI voice list aligned with the server allowlist', () => {
-    expect(voices.map((voice) => voice.name)).toEqual([...SUPPORTED_PLAYBACK_VOICES]);
+    expect(voices.map((voice) => voice.name)).toEqual(
+      SUPPORTED_PLAYBACK_VOICES.filter((voice) => voice.startsWith('en-'))
+    );
   });
 
   test('keeps the last successful settings isolated by user id', () => {
@@ -46,7 +54,13 @@ describe('article playback settings', () => {
     };
     const settings = normalizePlaybackSettings(
       {
-        voice: 'en-US-JennyNeural',
+        learningLanguages: ['en', 'vi'],
+        activeLanguage: 'vi',
+        voices: {
+          en: 'en-US-JennyNeural',
+          vi: 'vi-VN-NamMinhNeural',
+          fi: 'fi-FI-NooraNeural'
+        },
         playbackRate: 1.2,
         repeatCount: 3,
         extraPauseSeconds: 1.5
@@ -223,5 +237,20 @@ describe('article navigation', () => {
 
     expect(source).toContain('router(-1);');
     expect(source).not.toContain("const handleGoBack = () => {\n    router('/');");
+  });
+
+  test('switches one global learning language for tabs, voices, and playback', async () => {
+    const source = await Bun.file(new URL('../src/pages/article/index.tsx', import.meta.url)).text();
+    const normalizedSource = source.replaceAll('"', "'").replace(/\s+/g, ' ');
+
+    expect(normalizedSource).toContain('const changeActiveLanguage = useCallback');
+    expect(normalizedSource).toContain('setActiveSentenceIndex(null); setContinuousPlayback(false);');
+    expect(normalizedSource).toContain('voices[activeLanguage]');
+    expect(normalizedSource).toContain('languageTabs={');
+    expect(normalizedSource).toContain("mode='multiple'");
+    expect(normalizedSource).toContain('generatingLanguages.has(activeLanguage)');
+    expect(normalizedSource).toContain('languageGenerationErrors[activeLanguage]');
+    expect(normalizedSource).toContain('languageGenerationRequestRef.current.get(attemptKey) !== requestId');
+    expect(normalizedSource).toContain("if (activeLanguage === 'en') { items.push(");
   });
 });

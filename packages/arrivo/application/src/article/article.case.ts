@@ -26,6 +26,26 @@ const SENTENCE_ORDER_STEP = 1000;
 const sentenceOrderBy = [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }, { id: "asc" as const }];
 const articleOrderBy = [{ createdAt: "desc" as const }, { id: "desc" as const }];
 
+function getAvailableLanguages(sentences: Array<{ languageCode: string; parentSentenceId: string | null }>) {
+  return [...new Set(sentences
+    .filter((sentence) => sentence.parentSentenceId === null)
+    .map((sentence) => sentence.languageCode || "en"))];
+}
+
+function toArticleSentenceDto<T extends {
+  id: string;
+  languageCode: string;
+  sentenceGroupId: string;
+  splitStatus: string;
+}>(sentence: T) {
+  return {
+    ...sentence,
+    languageCode: sentence.languageCode || "en",
+    sentenceGroupId: sentence.sentenceGroupId || sentence.id,
+    splitStatus: sentence.splitStatus as SentenceSplitStatus
+  };
+}
+
 function getArticleSelect(tenantId: string) {
   return {
     id: true,
@@ -41,6 +61,8 @@ function getArticleSelect(tenantId: string) {
         id: true,
         originalContent: true,
         translatedContent: true,
+        languageCode: true,
+        sentenceGroupId: true,
         sortOrder: true,
         parentSentenceId: true,
         splitStatus: true,
@@ -114,7 +136,9 @@ async function getWritableSentence({
     },
     select: {
       id: true,
-      articleId: true
+      articleId: true,
+      sentenceGroupId: true,
+      parentSentenceId: true
     }
   });
 
@@ -124,21 +148,30 @@ async function getWritableSentence({
 
   return {
     id: sentence.id,
-    articleId: sentence.articleId
+    articleId: sentence.articleId,
+    sentenceGroupId: sentence.sentenceGroupId,
+    parentSentenceId: sentence.parentSentenceId
   };
 }
 
-async function getOrderedSentenceIds({ articleId, tenantId }: { articleId: string; tenantId: string }) {
-  return db.sentences.findMany({
+async function getOrderedSentenceGroups({ articleId, tenantId }: { articleId: string; tenantId: string }) {
+  const roots = await db.sentences.findMany({
     where: {
       articleId,
       parentSentenceId: null,
       ...activeRecordWhere(tenantId)
     },
     select: {
-      id: true
+      sentenceGroupId: true,
+      sortOrder: true
     },
     orderBy: sentenceOrderBy
+  });
+  const seen = new Set<string>();
+  return roots.filter((sentence) => {
+    if (seen.has(sentence.sentenceGroupId)) return false;
+    seen.add(sentence.sentenceGroupId);
+    return true;
   });
 }
 
@@ -146,25 +179,26 @@ async function rewriteSentenceOrder({
   articleId,
   tenantId,
   userId,
-  orderedIds
+  orderedGroupIds
 }: {
   articleId: string;
   tenantId: string;
   userId: string;
-  orderedIds: string[];
+  orderedGroupIds: string[];
 }) {
   const now = new Date();
 
-  if (!orderedIds.length) {
+  if (!orderedGroupIds.length) {
     return;
   }
 
   await db.$transaction(
-    orderedIds.map((id, index) =>
+    orderedGroupIds.map((sentenceGroupId, index) =>
       db.sentences.updateMany({
         where: {
-          id,
+          sentenceGroupId,
           articleId,
+          parentSentenceId: null,
           ...activeRecordWhere(tenantId)
         },
         data: {
@@ -185,12 +219,12 @@ async function normalizeSentenceOrder({
   tenantId: string;
   userId: string;
 }) {
-  const sentences = await getOrderedSentenceIds({ articleId, tenantId });
+  const sentences = await getOrderedSentenceGroups({ articleId, tenantId });
   await rewriteSentenceOrder({
     articleId,
     tenantId,
     userId,
-    orderedIds: sentences.map((sentence) => sentence.id)
+    orderedGroupIds: sentences.map((sentence) => sentence.sentenceGroupId)
   });
 }
 
@@ -236,10 +270,8 @@ export async function getArticleList({ userId, tenantId: inputTenantId }: Articl
   });
   return articles.map((article) => ({
     ...article,
-    Sentences: article.Sentences.map((sentence) => ({
-      ...sentence,
-      splitStatus: sentence.splitStatus as SentenceSplitStatus
-    }))
+    availableLanguages: getAvailableLanguages(article.Sentences),
+    Sentences: article.Sentences.map(toArticleSentenceDto)
   }));
 }
 
@@ -280,10 +312,8 @@ export async function getArticleDetail({
 
   return {
     ...article,
-    Sentences: article.Sentences.map((sentence) => ({
-      ...sentence,
-      splitStatus: sentence.splitStatus as SentenceSplitStatus
-    })),
+    availableLanguages: getAvailableLanguages(article.Sentences),
+    Sentences: article.Sentences.map(toArticleSentenceDto),
     nextArticleId: nextArticle?.id ?? null
   };
 }
@@ -435,14 +465,19 @@ export async function createArticle({
   if (sentences.length > 0) {
     operations.push(
       db.sentences.createMany({
-        data: sentences.map((sentence, index) => ({
-          ...createRecordBase({ userId, tenantId, now }),
-          articleId,
-          content: sentence.original || sentence.translation || "",
-          originalContent: sentence.original || "",
-          translatedContent: sentence.translation || "",
-          sortOrder: getSentenceSortOrder(index)
-        }))
+        data: sentences.map((sentence, index) => {
+          const record = createRecordBase({ userId, tenantId, now });
+          return {
+            ...record,
+            articleId,
+            sentenceGroupId: record.id,
+            languageCode: sentence.languageCode,
+            content: sentence.original || sentence.translation || "",
+            originalContent: sentence.original || "",
+            translatedContent: sentence.translation || "",
+            sortOrder: getSentenceSortOrder(index)
+          };
+        })
       })
     );
   }
@@ -516,26 +551,65 @@ export async function createSentence({
   const tenantId = normalizeTenantId(inputTenantId);
   await getWritableArticle({ userId, tenantId, id: input.articleId });
   const now = new Date();
+  const record = createRecordBase({ userId, tenantId, now });
+  const existingGroupRoot = input.sentenceGroupId
+    ? await db.sentences.findFirst({
+        where: {
+          articleId: input.articleId,
+          sentenceGroupId: input.sentenceGroupId,
+          parentSentenceId: null,
+          ...activeRecordWhere(tenantId)
+        },
+        select: { sortOrder: true }
+      })
+    : null;
+  if (input.sentenceGroupId && !existingGroupRoot) throw httpError.notFound("对应的句子组不存在");
+
+  if (input.sentenceGroupId) {
+    const duplicate = await db.sentences.findFirst({
+      where: {
+        articleId: input.articleId,
+        sentenceGroupId: input.sentenceGroupId,
+        languageCode: input.languageCode,
+        parentSentenceId: null,
+        ...activeRecordWhere(tenantId)
+      },
+      select: { id: true }
+    });
+    if (duplicate) throw httpError.badRequest("这个句子已经有该语言内容");
+  }
+
+  const sentenceGroupId = input.sentenceGroupId ?? record.id;
   const sentence = await db.sentences.create({
     data: {
-      ...createRecordBase({ userId, tenantId, now }),
+      ...record,
       articleId: input.articleId,
+      sentenceGroupId,
+      languageCode: input.languageCode,
       content: input.original || input.translation || "",
       originalContent: input.original || "",
       translatedContent: input.translation || "",
-      sortOrder: 0
+      sortOrder: existingGroupRoot?.sortOrder ?? 0
     },
     select: {
       id: true
     }
   });
-  const currentIds = (await getOrderedSentenceIds({ articleId: input.articleId, tenantId }))
-    .map((item) => item.id)
-    .filter((id) => id !== sentence.id);
-  const insertIndex = Math.min(Math.max(input.insertIndex ?? currentIds.length, 0), currentIds.length);
-  const orderedIds = [...currentIds.slice(0, insertIndex), sentence.id, ...currentIds.slice(insertIndex)];
-
-  await rewriteSentenceOrder({ articleId: input.articleId, tenantId, userId, orderedIds });
+  if (!input.sentenceGroupId) {
+    const currentGroupIds = (await getOrderedSentenceGroups({ articleId: input.articleId, tenantId }))
+      .map((item) => item.sentenceGroupId)
+      .filter((id) => id !== sentenceGroupId);
+    const insertIndex = Math.min(
+      Math.max(input.insertIndex ?? currentGroupIds.length, 0),
+      currentGroupIds.length
+    );
+    const orderedGroupIds = [
+      ...currentGroupIds.slice(0, insertIndex),
+      sentenceGroupId,
+      ...currentGroupIds.slice(insertIndex)
+    ];
+    await rewriteSentenceOrder({ articleId: input.articleId, tenantId, userId, orderedGroupIds });
+  }
   return getRequiredArticleDetail({ userId, tenantId, id: input.articleId });
 }
 
@@ -580,13 +654,21 @@ export async function deleteSentence({
 }: ArticleCaseDeps & { input: DeleteSentenceInput }) {
   const tenantId = normalizeTenantId(inputTenantId);
   const sentence = await getWritableSentence({ userId, tenantId, id: input.id });
-  const descendantIds = await getDescendantSentenceIds({ articleId: sentence.articleId, sentenceId: input.id, tenantId });
+  const descendantIds = sentence.parentSentenceId
+    ? await getDescendantSentenceIds({ articleId: sentence.articleId, sentenceId: input.id, tenantId })
+    : [];
 
   await db.sentences.updateMany({
-    where: {
-      id: { in: [input.id, ...descendantIds] },
-      ...activeRecordWhere(tenantId)
-    },
+    where: sentence.parentSentenceId
+      ? {
+          id: { in: [input.id, ...descendantIds] },
+          ...activeRecordWhere(tenantId)
+        }
+      : {
+          articleId: sentence.articleId,
+          sentenceGroupId: sentence.sentenceGroupId,
+          ...activeRecordWhere(tenantId)
+        },
     data: {
       ...softDeleteRecordBase({ userId })
     }
@@ -603,16 +685,21 @@ export async function moveSentence({
 }: ArticleCaseDeps & { input: MoveSentenceInput }) {
   const tenantId = normalizeTenantId(inputTenantId);
   const sentence = await getWritableSentence({ userId, tenantId, id: input.id });
-  const orderedIds = (await getOrderedSentenceIds({ articleId: sentence.articleId, tenantId })).map((item) => item.id);
-  const currentIndex = orderedIds.indexOf(input.id);
+  if (sentence.parentSentenceId) throw httpError.badRequest("只能移动文章根句子");
+  const orderedGroupIds = (await getOrderedSentenceGroups({ articleId: sentence.articleId, tenantId }))
+    .map((item) => item.sentenceGroupId);
+  const currentIndex = orderedGroupIds.indexOf(sentence.sentenceGroupId);
   const targetIndex = input.direction === "up" ? currentIndex - 1 : currentIndex + 1;
 
-  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedIds.length) {
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedGroupIds.length) {
     return getRequiredArticleDetail({ userId, tenantId, id: sentence.articleId });
   }
 
-  [orderedIds[currentIndex], orderedIds[targetIndex]] = [orderedIds[targetIndex], orderedIds[currentIndex]];
-  await rewriteSentenceOrder({ articleId: sentence.articleId, tenantId, userId, orderedIds });
+  [orderedGroupIds[currentIndex], orderedGroupIds[targetIndex]] = [
+    orderedGroupIds[targetIndex],
+    orderedGroupIds[currentIndex]
+  ];
+  await rewriteSentenceOrder({ articleId: sentence.articleId, tenantId, userId, orderedGroupIds });
 
   return getRequiredArticleDetail({ userId, tenantId, id: sentence.articleId });
 }

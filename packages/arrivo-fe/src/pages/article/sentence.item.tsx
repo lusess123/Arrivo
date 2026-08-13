@@ -113,6 +113,7 @@ interface ISentenceItem {
   transientContent?: React.ReactNode;
   variant?: PlaybackSettingsDto['readingMode'];
   showTranslation?: boolean;
+  languageTabs?: React.ReactNode;
 }
 
 export default function SentenceItem(sentence: ISentenceItem) {
@@ -1034,6 +1035,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       </div>
       <div className={styles.sentenceContent}>
         {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
+        {sentence.languageTabs}
         <div ref={focusTextAreaRef} className={styles.sentenceTextArea}>
           <div ref={englishTextRegionRef} className={styles.sentenceTextRegion}>
             <p ref={englishTextRef} className={styles.englishText}>

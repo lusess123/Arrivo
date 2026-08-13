@@ -58,10 +58,17 @@ import {
   buildSentenceTree,
   getPlayableSentences,
   getSentenceDisplayRows,
+  getSentenceGroups,
+  mergeGeneratedSentences,
   type SentenceDisplayRow,
   type SentenceNode
 } from "./sentence-tree";
-import type { ArticleSentenceDto, SentenceSplitStatus } from "@arrivo/contracts";
+import {
+  LEARNING_LANGUAGE_OPTIONS,
+  type ArticleSentenceDto,
+  type LearningLanguageCode,
+  type SentenceSplitStatus
+} from "@arrivo/contracts";
 
 interface Sentence extends ArticleSentenceDto {
   duration?: number;
@@ -81,6 +88,24 @@ interface ArticleNavigationState {
   autoPlay?: boolean;
 }
 
+const EXTRA_VOICE_OPTIONS: Record<Exclude<LearningLanguageCode, "en">, Array<{ label: string; value: string }>> = {
+  vi: [
+    { label: "越南语-怀美-女性", value: "vi-VN-HoaiMyNeural" },
+    { label: "越南语-南明-男性", value: "vi-VN-NamMinhNeural" }
+  ],
+  fi: [
+    { label: "芬兰语-哈里-男性", value: "fi-FI-HarriNeural" },
+    { label: "芬兰语-诺拉-女性", value: "fi-FI-NooraNeural" }
+  ]
+};
+
+function getVoiceOptions(languageCode: LearningLanguageCode) {
+  if (languageCode === "en") {
+    return ens.map((voice) => ({ label: voice["中文"], value: voice.name }));
+  }
+  return EXTRA_VOICE_OPTIONS[languageCode];
+}
+
 const ArticlePage: React.FC = () => {
   const router = useNavigate();
   const location = useLocation();
@@ -94,10 +119,15 @@ const ArticlePage: React.FC = () => {
   const [sentenceModalOpen, setSentenceModalOpen] = useState(false);
   const [editingSentence, setEditingSentence] = useState<Sentence | null>(null);
   const [sentenceInsertIndex, setSentenceInsertIndex] = useState<number | null>(null);
+  const [sentenceGroupId, setSentenceGroupId] = useState<string | null>(null);
   const [savingSentence, setSavingSentence] = useState(false);
+  const [generatingLanguages, setGeneratingLanguages] = useState<Set<LearningLanguageCode>>(new Set());
+  const [languageGenerationErrors, setLanguageGenerationErrors] = useState<
+    Partial<Record<LearningLanguageCode, string>>
+  >({});
   const [playbackSettings, setPlaybackSettings] = useState<PlaybackSettings>(() => ({
     ...DEFAULT_PLAYBACK_SETTINGS,
-    voice: ens[0].name
+    voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, en: ens[0].name }
   }));
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number | null>(null);
   const [selectedFocusSentenceId, setSelectedFocusSentenceId] = useState<string | null>(null);
@@ -117,11 +147,38 @@ const ArticlePage: React.FC = () => {
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const restoredArticleRef = useRef<string | null>(null);
+  const languageGenerationAttemptRef = useRef(new Set<string>());
+  const languageGenerationRequestRef = useRef(new Map<string, symbol>());
   const currentUserId = (auth?.userData as any)?.id;
-  const sentenceTree = useMemo(() => buildSentenceTree(sentences), [sentences]);
+  const activeLanguage = playbackSettings.activeLanguage;
+  const sentenceTree = useMemo(
+    () => buildSentenceTree(sentences, activeLanguage),
+    [activeLanguage, sentences]
+  );
+  const sentenceGroups = useMemo(() => getSentenceGroups(sentences), [sentences]);
+  const languageSections = useMemo(() => {
+    const rootByGroup = new Map(sentenceTree.map((root) => [root.sentenceGroupId, root]));
+    return sentenceGroups.map((group, index) => {
+      const root = rootByGroup.get(group.sentenceGroupId);
+      return {
+        ...group,
+        rows: root ? getSentenceDisplayRows([root], expandedSentenceIds, index) : []
+      };
+    });
+  }, [expandedSentenceIds, sentenceGroups, sentenceTree]);
+  const missingSentenceGroups = useMemo(
+    () => languageSections.filter((section) => !section.rows.length),
+    [languageSections]
+  );
+  const hasSentenceGroups = sentences.some((sentence) => sentence.parentSentenceId === null);
+  const activeLanguageOption = LEARNING_LANGUAGE_OPTIONS.find(
+    (language) => language.code === activeLanguage
+  )!;
+  const isGeneratingActiveLanguage = generatingLanguages.has(activeLanguage);
+  const activeLanguageGenerationError = languageGenerationErrors[activeLanguage] ?? null;
   const displayRows = useMemo(
-    () => getSentenceDisplayRows(sentenceTree, expandedSentenceIds),
-    [expandedSentenceIds, sentenceTree]
+    () => languageSections.flatMap((section) => section.rows),
+    [languageSections]
   );
   const playableSentences = useMemo(() => getPlayableSentences(displayRows), [displayRows]);
   const displayRowBySentenceId = useMemo(
@@ -212,24 +269,87 @@ const ArticlePage: React.FC = () => {
     [currentUserId]
   );
 
-  const applyArticleData = useCallback((articleData: any) => {
+  const changeActiveLanguage = useCallback((languageCode: LearningLanguageCode) => {
+    if (!playbackSettingsRef.current.learningLanguages.includes(languageCode)) return;
+    setActiveSentenceIndex(null);
+    setContinuousPlayback(false);
+    setSentencePaused(false);
+    setPlaybackSession((session) => session + 1);
+    setSelectedFocusSentenceId(null);
+    restoredArticleRef.current = null;
+    const nextSettings = updatePlaybackSettings({ activeLanguage: languageCode });
+    persistPlaybackSettings(nextSettings);
+  }, [persistPlaybackSettings, updatePlaybackSettings]);
+
+  const applyArticleData = useCallback((
+    articleData: any,
+    mergeGenerated: LearningLanguageCode | null = null
+  ) => {
     setArticle(articleData);
-    setSentences(
-      (articleData?.Sentences || []).map((sentence: any) => ({
+    const normalizedSentences = (articleData?.Sentences || []).map((sentence: any) => ({
         ...sentence,
         originalContent: sentence.originalContent || "",
         translatedContent: sentence.translatedContent || "",
+        languageCode: sentence.languageCode || "en",
+        sentenceGroupId: sentence.sentenceGroupId || sentence.id,
         parentSentenceId: sentence.parentSentenceId || null,
         splitStatus: (sentence.splitStatus || "UNKNOWN") as SentenceSplitStatus,
         playedWordIndexes: Array.isArray(sentence.playedWordIndexes)
           ? sentence.playedWordIndexes
           : []
-      }))
-    );
+      }));
+    setSentences((current) => mergeGenerated
+      ? mergeGeneratedSentences(current, normalizedSentences, mergeGenerated)
+      : normalizedSentences);
     setActiveSentenceIndex(null);
     setSelectedFocusSentenceId(null);
     setSentencePaused(false);
   }, []);
+
+  const generateMissingLanguage = useCallback(async (
+    languageCode: LearningLanguageCode,
+    retry = false
+  ) => {
+    if (!id || languageCode === "en") return;
+    const groups = getSentenceGroups(sentences);
+    const existingGroups = new Set(
+      sentences
+        .filter((sentence) => sentence.parentSentenceId === null && sentence.languageCode === languageCode)
+        .map((sentence) => sentence.sentenceGroupId)
+    );
+    if (!groups.length || groups.every((group) => existingGroups.has(group.sentenceGroupId))) return;
+
+    const attemptKey = `${id}:${languageCode}`;
+    if (!retry && languageGenerationAttemptRef.current.has(attemptKey)) return;
+    languageGenerationAttemptRef.current.add(attemptKey);
+    const requestId = Symbol(attemptKey);
+    languageGenerationRequestRef.current.set(attemptKey, requestId);
+    setGeneratingLanguages((languages) => new Set(languages).add(languageCode));
+    setLanguageGenerationErrors((errors) => {
+      if (!errors[languageCode]) return errors;
+      const next = { ...errors };
+      delete next[languageCode];
+      return next;
+    });
+    const [err, res] = await asyncHandle(
+      axios.post(`/api/articles/${encodeURIComponent(id)}/languages/${languageCode}/generate`)
+    );
+    if (languageGenerationRequestRef.current.get(attemptKey) !== requestId) return;
+    if (err) {
+      setLanguageGenerationErrors((errors) => ({
+        ...errors,
+        [languageCode]: err.response?.data?.message || "语言内容生成失败"
+      }));
+    } else {
+      applyArticleData(res?.data?.data, languageCode);
+    }
+    setGeneratingLanguages((languages) => {
+      const next = new Set(languages);
+      next.delete(languageCode);
+      return next;
+    });
+    languageGenerationRequestRef.current.delete(attemptKey);
+  }, [applyArticleData, id, sentences]);
 
   const fetchArticle = useCallback(async () => {
     if (!id) return;
@@ -272,8 +392,17 @@ const ArticlePage: React.FC = () => {
     setActiveSentenceIndex(null);
     setContinuousPlayback(false);
     restoredArticleRef.current = null;
+    languageGenerationAttemptRef.current.clear();
+    languageGenerationRequestRef.current.clear();
+    setGeneratingLanguages(new Set());
+    setLanguageGenerationErrors({});
     void fetchArticle();
   }, [fetchArticle]);
+
+  useEffect(() => {
+    if (!article || loading) return;
+    void generateMissingLanguage(activeLanguage);
+  }, [activeLanguage, article, generateMissingLanguage, loading]);
 
   useEffect(() => {
     if (!id || currentUserId === undefined || currentUserId === null) return;
@@ -545,6 +674,10 @@ const ArticlePage: React.FC = () => {
 
   const startContinuousPlayback = useCallback(
     (sentenceIndex: number) => {
+      if (isGeneratingActiveLanguage || missingSentenceGroups.length) {
+        message.info(`${activeLanguageOption.label}内容生成完成后即可播放`);
+        return;
+      }
       if (!playableSentences.length) {
         message.info("暂无可朗读内容");
         return;
@@ -555,7 +688,12 @@ const ArticlePage: React.FC = () => {
       setSentencePaused(false);
       setActiveSentenceIndex(sentenceIndex);
     },
-    [playableSentences.length]
+    [
+      activeLanguageOption.label,
+      isGeneratingActiveLanguage,
+      missingSentenceGroups.length,
+      playableSentences.length
+    ]
   );
 
   const handleContinuePlayback = useCallback(() => {
@@ -578,27 +716,44 @@ const ArticlePage: React.FC = () => {
       return;
     }
 
+    if (activeLanguage !== "en" && missingSentenceGroups.length) {
+      if (!activeLanguageGenerationError) return;
+      router(`${location.pathname}${location.search}${location.hash}`, {
+        replace: true,
+        state: null
+      });
+      message.info("下一篇语言内容生成失败，连续播放已停止");
+      return;
+    }
+
+    if (!playableSentences.length) {
+      router(`${location.pathname}${location.search}${location.hash}`, {
+        replace: true,
+        state: null
+      });
+      message.info("下一篇暂无可朗读内容");
+      return;
+    }
+
     router(`${location.pathname}${location.search}${location.hash}`, {
       replace: true,
       state: null
     });
-
-    if (!playableSentences.length) {
-      message.info("下一篇暂无可朗读内容");
-      return;
-    }
 
     setPlaybackSession((session) => session + 1);
     setContinuousPlayback(true);
     setActiveSentenceIndex(resumeIndex ?? 0);
   }, [
     article,
+    activeLanguage,
     id,
     loading,
     location.hash,
     location.pathname,
     location.search,
     location.state,
+    activeLanguageGenerationError,
+    missingSentenceGroups.length,
     playableSentences.length,
     progressLoaded,
     resumeIndex,
@@ -715,6 +870,7 @@ const ArticlePage: React.FC = () => {
       }
       if (eventName === "committed") {
         setSentences((current) => {
+          const parent = current.find((item) => item.id === sentenceId);
           const descendants = new Set<string>();
           let changed = true;
           while (changed) {
@@ -742,9 +898,13 @@ const ArticlePage: React.FC = () => {
             id: child.id,
             originalContent: child.originalContent || "",
             translatedContent: child.translatedContent || "",
+            languageCode: parent?.languageCode || "en",
+            sentenceGroupId: parent?.sentenceGroupId || sentenceId,
             parentSentenceId: sentenceId,
             sortOrder: child.sortOrder,
-            splitStatus: (child.splittable ? "SPLITTABLE" : "UNSPLITTABLE") as SentenceSplitStatus
+            splitStatus: (child.splittable ? "SPLITTABLE" : "UNSPLITTABLE") as SentenceSplitStatus,
+            playCount: 0,
+            playedWordIndexes: []
           }));
           return [...retained, ...children];
         });
@@ -950,10 +1110,11 @@ const ArticlePage: React.FC = () => {
     recognition.start();
   }, [listeningFeedback]);
 
-  const openCreateSentence = (insertIndex: number) => {
+  const openCreateSentence = (insertIndex: number, targetSentenceGroupId?: string) => {
     if (!canEdit) return;
     setEditingSentence(null);
     setSentenceInsertIndex(insertIndex);
+    setSentenceGroupId(targetSentenceGroupId ?? null);
     sentenceForm.setFieldsValue({
       original: "",
       translation: ""
@@ -965,6 +1126,7 @@ const ArticlePage: React.FC = () => {
     if (!canEdit) return;
     setEditingSentence(sentence);
     setSentenceInsertIndex(null);
+    setSentenceGroupId(sentence.sentenceGroupId);
     sentenceForm.setFieldsValue({
       original: sentence.originalContent,
       translation: sentence.translatedContent
@@ -976,6 +1138,7 @@ const ArticlePage: React.FC = () => {
     setSentenceModalOpen(false);
     setEditingSentence(null);
     setSentenceInsertIndex(null);
+    setSentenceGroupId(null);
     sentenceForm.resetFields();
   };
 
@@ -986,7 +1149,7 @@ const ArticlePage: React.FC = () => {
     const original = values.original?.trim() || "";
     const translation = values.translation?.trim() || "";
     if (!original && !translation) {
-      message.info("请至少填写英文或中文释义");
+      message.info("请至少填写学习语言内容或中文释义");
       return;
     }
 
@@ -1004,9 +1167,11 @@ const ArticlePage: React.FC = () => {
           }
         : {
             articleId: id,
+            languageCode: activeLanguage,
+            ...(sentenceGroupId ? { sentenceGroupId } : {}),
             original,
             translation,
-            insertIndex: sentenceInsertIndex ?? sentenceTree.length
+            insertIndex: sentenceInsertIndex ?? sentenceGroups.length
           };
       const [err, res] = await asyncHandle(axios.post(endpoint, payload));
 
@@ -1071,19 +1236,23 @@ const ArticlePage: React.FC = () => {
     }
 
     if (canEdit && rootIndex >= 0) {
+      if (activeLanguage === "en") {
+        items.push(
+          {
+            key: "insert-above",
+            icon: <PlusOutlined />,
+            label: "上方插入",
+            onClick: () => openCreateSentence(rootIndex)
+          },
+          {
+            key: "insert-below",
+            icon: <PlusOutlined />,
+            label: "下方插入",
+            onClick: () => openCreateSentence(rootIndex + 1)
+          }
+        );
+      }
       items.push(
-        {
-          key: "insert-above",
-          icon: <PlusOutlined />,
-          label: "上方插入",
-          onClick: () => openCreateSentence(rootIndex)
-        },
-        {
-          key: "insert-below",
-          icon: <PlusOutlined />,
-          label: "下方插入",
-          onClick: () => openCreateSentence(rootIndex + 1)
-        },
         {
           key: "move-up",
           icon: <ArrowUpOutlined />,
@@ -1100,7 +1269,7 @@ const ArticlePage: React.FC = () => {
           key: "move-down",
           icon: <ArrowDownOutlined />,
           label: "下移",
-          disabled: rootIndex === sentenceTree.length - 1,
+          disabled: rootIndex === sentenceGroups.length - 1,
           onClick: () =>
             void mutateSentence(
               "/api/article/moveSentence",
@@ -1235,7 +1404,7 @@ const ArticlePage: React.FC = () => {
     const index = playableIndex >= 0 ? playableIndex : displayIndex;
     const rootIndex = sentence.parentSentenceId
       ? -1
-      : sentenceTree.findIndex((item) => item.id === sentence.id);
+      : sentenceGroups.findIndex((group) => group.sentenceGroupId === sentence.sentenceGroupId);
 
     return (
       <SentenceItem
@@ -1250,7 +1419,7 @@ const ArticlePage: React.FC = () => {
         playedWordIndexes={sentence.playedWordIndexes}
         resumePoint={row.playable && activeSentenceIndex === null && resumeIndex === playableIndex}
         times={playbackSettings.repeatCount}
-        v={playbackSettings.voice}
+        v={playbackSettings.voices[activeLanguage]}
         rate={playbackSettings.playbackRate}
         delay={playbackSettings.extraPauseSeconds}
         playing={row.playable && activeSentenceIndex === playableIndex}
@@ -1273,6 +1442,17 @@ const ArticlePage: React.FC = () => {
         transientContent={renderSplitProgress(sentence)}
         variant={variant}
         showTranslation={playbackSettings.showTranslation}
+        languageTabs={
+          <Segmented
+            size="small"
+            value={activeLanguage}
+            options={playbackSettings.learningLanguages.map((languageCode) => {
+              const option = LEARNING_LANGUAGE_OPTIONS.find((item) => item.code === languageCode)!;
+              return { label: option.nativeLabel, value: languageCode };
+            })}
+            onChange={(value) => changeActiveLanguage(value as LearningLanguageCode)}
+          />
+        }
       />
     );
   };
@@ -1304,15 +1484,19 @@ const ArticlePage: React.FC = () => {
                 type="primary"
                 icon={<PlayCircleOutlined />}
                 onClick={handleContinuePlayback}
-                disabled={!progressLoaded}
+                disabled={
+                  !progressLoaded
+                  || isGeneratingActiveLanguage
+                  || missingSentenceGroups.length > 0
+                }
                 className={styles.playButton}
               >
                 {resumeIndex === null ? "朗读" : "继续"}
               </Button>
-              {canEdit ? (
+              {canEdit && activeLanguage === "en" ? (
                 <Button
                   icon={<PlusOutlined />}
-                  onClick={() => openCreateSentence(sentenceTree.length)}
+                  onClick={() => openCreateSentence(sentenceGroups.length)}
                   className={styles.addSentenceButton}
                 >
                   添加句子
@@ -1367,10 +1551,10 @@ const ArticlePage: React.FC = () => {
             )}
           </div>
         )}
-        {sentenceTree.length === 0 && (
+        {!hasSentenceGroups && (
           <div className={styles.emptySentence}>
             <p>暂无句子</p>
-            {canEdit && (
+            {canEdit && activeLanguage === "en" && (
               <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateSentence(0)}>
                 添加第一句
               </Button>
@@ -1378,7 +1562,41 @@ const ArticlePage: React.FC = () => {
           </div>
         )}
         {!isFocusMode ? (
-          displayRows.map((row, displayIndex) => renderSentenceItem(row, displayIndex, "list"))
+          <>
+            {languageSections.map((section) => section.rows.length
+              ? section.rows.map((row) => renderSentenceItem(
+                  row,
+                  displayRows.indexOf(row),
+                  "list"
+                ))
+              : (
+                <div className={styles.missingLanguageSentence} key={section.sentenceGroupId}>
+                  <Segmented
+                    size="small"
+                    value={activeLanguage}
+                    options={playbackSettings.learningLanguages.map((languageCode) => {
+                      const option = LEARNING_LANGUAGE_OPTIONS.find((item) => item.code === languageCode)!;
+                      return { label: option.nativeLabel, value: languageCode };
+                    })}
+                    onChange={(value) => changeActiveLanguage(value as LearningLanguageCode)}
+                  />
+                  <p>
+                    {isGeneratingActiveLanguage
+                      ? `正在生成${activeLanguageOption.label}内容…`
+                      : activeLanguageGenerationError || `正在准备${activeLanguageOption.label}内容…`}
+                  </p>
+                  {isGeneratingActiveLanguage ? <Spin size="small" /> : null}
+                  {activeLanguageGenerationError ? (
+                    <Button
+                      type="primary"
+                      onClick={() => void generateMissingLanguage(activeLanguage, true)}
+                    >
+                      重新生成
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+          </>
         ) : focusedRow && focusIndex !== null ? (
           <div className={styles.focusViewport}>
             <div className={styles.focusStage}>
@@ -1412,6 +1630,23 @@ const ArticlePage: React.FC = () => {
                 下一句
               </Button>
             </nav>
+          </div>
+        ) : missingSentenceGroups.length ? (
+          <div className={styles.missingLanguageSentence}>
+            <p>
+              {isGeneratingActiveLanguage
+                ? `正在生成${activeLanguageOption.label}内容…`
+                : activeLanguageGenerationError || `正在准备${activeLanguageOption.label}内容…`}
+            </p>
+            {isGeneratingActiveLanguage ? <Spin size="small" /> : null}
+            {activeLanguageGenerationError ? (
+              <Button
+                type="primary"
+                onClick={() => void generateMissingLanguage(activeLanguage, true)}
+              >
+                重新生成
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -1458,6 +1693,31 @@ const ArticlePage: React.FC = () => {
         className={styles.settingsModal + " max-w-[600px]"}
         footer={null}
       >
+        <div className={styles.settingItem}>
+          <label>学习语言:</label>
+          <Select
+            mode="multiple"
+            allowClear={false}
+            value={playbackSettings.learningLanguages}
+            options={LEARNING_LANGUAGE_OPTIONS.map((language) => ({
+              label: `${language.label} · ${language.nativeLabel}`,
+              value: language.code
+            }))}
+            onChange={(values: LearningLanguageCode[]) => {
+              if (!values.length) return;
+              const nextActiveLanguage = values.includes(activeLanguage) ? activeLanguage : values[0];
+              const nextSettings = updatePlaybackSettings({
+                learningLanguages: values,
+                activeLanguage: nextActiveLanguage
+              });
+              setActiveSentenceIndex(null);
+              setContinuousPlayback(false);
+              setPlaybackSession((session) => session + 1);
+              persistPlaybackSettings(nextSettings);
+            }}
+            style={{ width: "100%" }}
+          />
+        </div>
         <div className={`${styles.settingItem} ${styles.settingSwitchItem}`}>
           <label>显示中文翻译</label>
           <Switch
@@ -1487,16 +1747,15 @@ const ArticlePage: React.FC = () => {
         <div className={styles.settingItem}>
           <label>音色:</label>
           <Select
-            value={playbackSettings.voice}
+            value={playbackSettings.voices[activeLanguage]}
             onChange={(value) => {
-              const nextSettings = updatePlaybackSettings({ voice: value });
+              const nextSettings = updatePlaybackSettings({
+                voices: { ...playbackSettingsRef.current.voices, [activeLanguage]: value }
+              });
               persistPlaybackSettings(nextSettings);
             }}
             style={{ width: "100%" }}
-            options={ens.map((item) => ({
-              label: item["中文"],
-              value: item.name
-            }))}
+            options={getVoiceOptions(activeLanguage)}
           />
         </div>
         <div className={styles.settingItem}>
@@ -1554,7 +1813,7 @@ const ArticlePage: React.FC = () => {
       </Modal>
 
       <Modal
-        title={editingSentence ? "编辑句子" : "添加句子"}
+        title={editingSentence ? "编辑句子" : `添加${activeLanguageOption.label}句子`}
         open={sentenceModalOpen}
         onCancel={closeSentenceModal}
         onOk={handleSaveSentence}
@@ -1563,8 +1822,8 @@ const ArticlePage: React.FC = () => {
         cancelText="取消"
       >
         <Form form={sentenceForm} layout="vertical">
-          <Form.Item label="英文" name="original">
-            <Input.TextArea rows={4} placeholder="输入要朗读的英文，可不填" />
+          <Form.Item label={activeLanguageOption.label} name="original">
+            <Input.TextArea rows={4} placeholder={`输入要朗读的${activeLanguageOption.label}，可不填`} />
           </Form.Item>
           <Form.Item label="中文释义" name="translation">
             <Input.TextArea rows={4} placeholder="输入中文释义，可不填" />

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { runWithDbClientFactory } from "@arrivo/application";
-import type { AuthUserDto } from "@arrivo/contracts";
+import { DEFAULT_PLAYBACK_SETTINGS, type AuthUserDto } from "@arrivo/contracts";
 import type { ArrivoDb } from "@arrivo/db";
 import { signUserJwt } from "@arrivo/runtime";
 import { createApiApp } from "../src/app-factory";
@@ -61,12 +61,11 @@ describe("playback settings routes", () => {
 
     expect(response.status).toBe(200);
     expect(((await response.json()) as any).data).toEqual({
-      voice: "en-GB-SoniaNeural",
+      ...DEFAULT_PLAYBACK_SETTINGS,
+      voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, en: "en-GB-SoniaNeural" },
       playbackRate: 1.25,
       repeatCount: 2,
-      extraPauseSeconds: 1,
-      showTranslation: true,
-      readingMode: "list"
+      extraPauseSeconds: 1
     });
     expect(where).toEqual({
       tenantId: "tenant-a",
@@ -92,7 +91,7 @@ describe("playback settings routes", () => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          voice: "en-AU-NatashaNeural",
+          ...DEFAULT_PLAYBACK_SETTINGS,
           playbackRate: 1,
           repeatCount: 1,
           extraPauseSeconds: 0.25
@@ -121,7 +120,8 @@ describe("playback settings routes", () => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          voice: "not-a-real-voice",
+          ...DEFAULT_PLAYBACK_SETTINGS,
+          voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, vi: "not-a-real-voice" },
           playbackRate: 1,
           repeatCount: 1,
           extraPauseSeconds: 0
@@ -142,7 +142,10 @@ describe("playback settings routes", () => {
       }
     };
     const input = {
-      voice: "en-GB-RyanNeural",
+      ...DEFAULT_PLAYBACK_SETTINGS,
+      learningLanguages: ["en", "vi"],
+      activeLanguage: "vi",
+      voices: { ...DEFAULT_PLAYBACK_SETTINGS.voices, en: "en-GB-RyanNeural" },
       playbackRate: 1.5,
       repeatCount: 3,
       extraPauseSeconds: 2.5,

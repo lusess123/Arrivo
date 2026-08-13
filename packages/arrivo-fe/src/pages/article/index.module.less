@@ -342,6 +342,10 @@
   margin-top: 8px;
   grid-column: 2;
   grid-row: 1;
+
+  > :global(.ant-segmented) {
+    margin-bottom: 8px;
+  }
 }
 
 .sentenceTextArea {
@@ -601,6 +605,20 @@
   background: rgba(255, 255, 255, 0.86);
   border: 1px dashed rgba(160, 216, 239, 0.7);
   border-radius: 8px;
+}
+
+.missingLanguageSentence {
+  margin-bottom: 12px;
+  padding: 18px;
+  text-align: center;
+  color: #536872;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px dashed rgba(160, 216, 239, 0.8);
+  border-radius: 10px;
+
+  p {
+    margin: 12px 0;
+  }
 }
 
 .wordPreviewButton {

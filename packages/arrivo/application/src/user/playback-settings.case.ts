@@ -22,7 +22,19 @@ function parseStoredSettings(value: string | undefined): PlaybackSettingsDto {
   if (!value) return { ...DEFAULT_PLAYBACK_SETTINGS };
 
   try {
-    const result = playbackSettingsInputSchema.safeParse(JSON.parse(value));
+    const stored = JSON.parse(value) as Record<string, unknown>;
+    const legacyVoice = typeof stored.voice === "string" ? stored.voice : undefined;
+    const result = playbackSettingsInputSchema.safeParse({
+      ...DEFAULT_PLAYBACK_SETTINGS,
+      ...stored,
+      learningLanguages: stored.learningLanguages ?? DEFAULT_PLAYBACK_SETTINGS.learningLanguages,
+      activeLanguage: stored.activeLanguage ?? DEFAULT_PLAYBACK_SETTINGS.activeLanguage,
+      voices: {
+        ...DEFAULT_PLAYBACK_SETTINGS.voices,
+        ...(typeof stored.voices === "object" && stored.voices ? stored.voices : {}),
+        ...(legacyVoice ? { en: legacyVoice } : {})
+      }
+    });
     return result.success ? result.data : { ...DEFAULT_PLAYBACK_SETTINGS };
   } catch {
     return { ...DEFAULT_PLAYBACK_SETTINGS };
