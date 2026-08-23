@@ -102,6 +102,7 @@ export const playbackSettingsInputSchema = z.object({
   playbackRate: z.number().min(0.5).max(2),
   repeatCount: z.number().int().min(1).max(10),
   extraPauseSeconds: extraPauseSecondsSchema,
+  showOriginal: z.boolean().default(true),
   showTranslation: z.boolean().default(true),
   readingMode: z.enum(["list", "focus"]).default("list")
 }).refine((settings) => settings.learningLanguages.includes(settings.activeLanguage), {
@@ -119,6 +120,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettingsDto = {
   playbackRate: 1,
   repeatCount: 1,
   extraPauseSeconds: 0,
+  showOriginal: true,
   showTranslation: true,
   readingMode: "list"
 };

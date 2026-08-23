@@ -34,8 +34,13 @@ export function getAdjacentFocusIndex(currentIndex: number, direction: -1 | 1, s
   return nextIndex >= 0 && nextIndex < sentenceCount ? nextIndex : null;
 }
 
-export function getFocusTextLayout(width: number, height: number, showTranslation: boolean): FocusTextLayout {
-  if (!showTranslation) return 'single';
+export function getFocusTextLayout(
+  width: number,
+  height: number,
+  showOriginal: boolean,
+  showTranslation: boolean
+): FocusTextLayout {
+  if (!showOriginal || !showTranslation) return 'single';
   return width >= 800 && width / Math.max(1, height) >= 1.2 ? 'columns' : 'stack';
 }
 

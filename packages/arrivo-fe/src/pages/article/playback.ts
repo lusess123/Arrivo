@@ -58,6 +58,7 @@ export function normalizePlaybackSettings(
     playbackRate: normalizeNumber(value?.playbackRate, 1, 0.5, 2, 0.1),
     repeatCount: normalizeNumber(value?.repeatCount, 1, 1, 10, 1),
     extraPauseSeconds: normalizeNumber(value?.extraPauseSeconds, 0, 0, 10, 0.5),
+    showOriginal: typeof value?.showOriginal === 'boolean' ? value.showOriginal : true,
     showTranslation: typeof value?.showTranslation === 'boolean' ? value.showTranslation : true,
     readingMode: value?.readingMode === 'focus' ? 'focus' : 'list'
   };

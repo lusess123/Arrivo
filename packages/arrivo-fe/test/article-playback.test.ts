@@ -34,6 +34,7 @@ describe('article playback settings', () => {
       playbackRate: 2,
       repeatCount: 3,
       extraPauseSeconds: 3.5,
+      showOriginal: true,
       showTranslation: true,
       readingMode: 'list'
     });
@@ -79,12 +80,14 @@ describe('article playback settings', () => {
     expect(
       normalizePlaybackSettings(
         {
+          showOriginal: false,
           showTranslation: false,
           readingMode: 'focus'
         },
         defaultVoice
       )
     ).toMatchObject({
+      showOriginal: false,
       showTranslation: false,
       readingMode: 'focus'
     });
@@ -96,6 +99,7 @@ describe('article playback settings', () => {
         defaultVoice
       )
     ).toMatchObject({
+      showOriginal: true,
       showTranslation: true,
       readingMode: 'list'
     });

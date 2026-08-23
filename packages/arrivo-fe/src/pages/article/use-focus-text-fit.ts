@@ -4,7 +4,8 @@ import {
   doFocusTextRegionsFit,
   findLargestFittingFontSize,
   getFocusFontSizeRange,
-  getFocusTextLayout
+  getFocusTextLayout,
+  type FocusTextRegionMetrics
 } from './focus-reading';
 
 const getTranslationFontSize = (englishSize: number) =>
@@ -12,6 +13,7 @@ const getTranslationFontSize = (englishSize: number) =>
 
 export function useFocusTextFit({
   enabled,
+  showOriginal,
   showTranslation,
   containerRef,
   englishRegionRef,
@@ -20,6 +22,7 @@ export function useFocusTextFit({
   translationRef
 }: {
   enabled: boolean;
+  showOriginal: boolean;
   showTranslation: boolean;
   containerRef: RefObject<HTMLDivElement | null>;
   englishRegionRef: RefObject<HTMLDivElement | null>;
@@ -32,7 +35,9 @@ export function useFocusTextFit({
     const container = containerRef.current;
     const englishRegion = englishRegionRef.current;
     const english = englishRef.current;
-    if (!container || !englishRegion || !english) return;
+    const translationRegion = translationRegionRef.current;
+    const translation = translationRef.current;
+    if (!container) return;
 
     let frame = 0;
     const fitText = () => {
@@ -40,23 +45,26 @@ export function useFocusTextFit({
       const height = container.clientHeight;
       if (!width || !height) return;
 
-      const layout = getFocusTextLayout(width, height, showTranslation);
+      const layout = getFocusTextLayout(width, height, showOriginal, showTranslation);
       container.dataset.layout = layout;
-      const translationRegion = translationRegionRef.current;
-      const translation = translationRef.current;
+      if (!showOriginal && !showTranslation) {
+        container.dataset.textOverflow = 'false';
+        return;
+      }
       const { min: minSize, max: maxSize } = getFocusFontSizeRange(width, height);
-      const fits = (englishSize: number) => {
-        const translationSize = getTranslationFontSize(englishSize);
-        container.style.setProperty('--focus-english-size', `${englishSize}px`);
+      const fits = (baseSize: number) => {
+        const translationSize = showOriginal ? getTranslationFontSize(baseSize) : baseSize;
+        container.style.setProperty('--focus-english-size', `${baseSize}px`);
         container.style.setProperty('--focus-translation-size', `${translationSize}px`);
-        const regions = [
-          {
+        const regions: FocusTextRegionMetrics[] = [];
+        if (showOriginal && englishRegion && english) {
+          regions.push({
             availableWidth: englishRegion.clientWidth,
             availableHeight: englishRegion.clientHeight,
             contentWidth: english.scrollWidth,
             contentHeight: english.scrollHeight
-          }
-        ];
+          });
+        }
         if (showTranslation && translationRegion && translation) {
           regions.push({
             availableWidth: translationRegion.clientWidth,
@@ -77,7 +85,7 @@ export function useFocusTextFit({
       container.style.setProperty('--focus-english-size', `${fittedSize}px`);
       container.style.setProperty(
         '--focus-translation-size',
-        `${getTranslationFontSize(fittedSize)}px`
+        `${showOriginal ? getTranslationFontSize(fittedSize) : fittedSize}px`
       );
     };
     const scheduleFit = () => {
@@ -97,6 +105,7 @@ export function useFocusTextFit({
     enabled,
     englishRef,
     englishRegionRef,
+    showOriginal,
     showTranslation,
     translationRef,
     translationRegionRef

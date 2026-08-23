@@ -1441,6 +1441,7 @@ const ArticlePage: React.FC = () => {
         hierarchyControl={renderSplitControl(sentence, row.expanded)}
         transientContent={renderSplitProgress(sentence)}
         variant={variant}
+        showOriginal={playbackSettings.showOriginal}
         showTranslation={playbackSettings.showTranslation}
         languageTabs={
           <Segmented
@@ -1716,6 +1717,20 @@ const ArticlePage: React.FC = () => {
               persistPlaybackSettings(nextSettings);
             }}
             style={{ width: "100%" }}
+          />
+        </div>
+        <div className={`${styles.settingItem} ${styles.settingSwitchItem}`}>
+          <label>显示原文</label>
+          <Switch
+            checked={playbackSettings.showOriginal}
+            checkedChildren="显示"
+            unCheckedChildren="隐藏"
+            onChange={(checked) => {
+              const nextSettings = updatePlaybackSettings({
+                showOriginal: checked
+              });
+              persistPlaybackSettings(nextSettings);
+            }}
           />
         </div>
         <div className={`${styles.settingItem} ${styles.settingSwitchItem}`}>

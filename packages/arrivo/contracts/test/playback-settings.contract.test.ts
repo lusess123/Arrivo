@@ -31,6 +31,7 @@ describe("playbackSettingsInputSchema", () => {
       playbackRate: 0.5,
       repeatCount: 10,
       extraPauseSeconds: 10,
+      showOriginal: true,
       showTranslation: true,
       readingMode: "list"
     });
@@ -69,6 +70,7 @@ describe("playbackSettingsInputSchema", () => {
         playbackRate: 1,
         repeatCount: 1,
         extraPauseSeconds: 0,
+        showOriginal: false,
         showTranslation: false,
         readingMode: "focus"
       })
@@ -79,6 +81,7 @@ describe("playbackSettingsInputSchema", () => {
       playbackRate: 1,
       repeatCount: 1,
       extraPauseSeconds: 0,
+      showOriginal: false,
       showTranslation: false,
       readingMode: "focus"
     });

@@ -64,10 +64,12 @@ describe('focus reading navigation', () => {
     expect(getAdjacentFocusIndex(2, -1, 3)).toBe(1);
   });
 
-  test('uses columns only when translated text has enough horizontal space', () => {
-    expect(getFocusTextLayout(1200, 700, true)).toBe('columns');
-    expect(getFocusTextLayout(700, 1000, true)).toBe('stack');
-    expect(getFocusTextLayout(1200, 700, false)).toBe('single');
+  test('uses two regions only when both texts are visible', () => {
+    expect(getFocusTextLayout(1200, 700, true, true)).toBe('columns');
+    expect(getFocusTextLayout(700, 1000, true, true)).toBe('stack');
+    expect(getFocusTextLayout(1200, 700, true, false)).toBe('single');
+    expect(getFocusTextLayout(1200, 700, false, true)).toBe('single');
+    expect(getFocusTextLayout(1200, 700, false, false)).toBe('single');
   });
 
   test('uses a comfortable responsive font range instead of the viewport edge', () => {
