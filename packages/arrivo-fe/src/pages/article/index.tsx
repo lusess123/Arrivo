@@ -54,6 +54,7 @@ import { articleSentenceElementId } from "./article-progress";
 import { useArticleProgress } from "./use-article-progress";
 import { apiUrl } from "@/lib/api";
 import { getAdjacentFocusIndex, resolveFocusIndex } from "./focus-reading";
+import { resolveSentenceTextVisibility } from "./sentence-visibility";
 import {
   buildSentenceTree,
   getPlayableSentences,
@@ -67,6 +68,7 @@ import {
   LEARNING_LANGUAGE_OPTIONS,
   type ArticleSentenceDto,
   type LearningLanguageCode,
+  type SentenceTextVisibility,
   type SentenceSplitStatus
 } from "@arrivo/contracts";
 
@@ -135,6 +137,10 @@ const ArticlePage: React.FC = () => {
   const [playbackSession, setPlaybackSession] = useState(0);
   const [continuousPlayback, setContinuousPlayback] = useState(false);
   const [expandedSentenceIds, setExpandedSentenceIds] = useState<Set<string>>(new Set());
+  const [sentenceVisibilityById, setSentenceVisibilityById] = useState<
+    Record<string, SentenceTextVisibility>
+  >({});
+  const [sentenceVisibilityLoaded, setSentenceVisibilityLoaded] = useState(false);
   const [splitUiBySentence, setSplitUiBySentence] = useState<Record<string, SplitUiState>>({});
   const [regeneratingSentence, setRegeneratingSentence] = useState<SentenceNode | null>(null);
   const [regenerationFeedback, setRegenerationFeedback] = useState("");
@@ -144,6 +150,7 @@ const ArticlePage: React.FC = () => {
   const playbackSettingsRef = useRef(playbackSettings);
   const sentencePlayCountQueueRef = useRef<Promise<void>>(Promise.resolve());
   const sentenceWordPlayQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const sentenceVisibilitySaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const settingsTouchedRef = useRef(false);
   const settingsSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const restoredArticleRef = useRef<string | null>(null);
@@ -423,6 +430,36 @@ const ArticlePage: React.FC = () => {
       .catch(() => {
         if (!controller.signal.aborted) setExpandedSentenceIds(new Set());
       });
+    return () => controller.abort();
+  }, [currentUserId, id]);
+
+  useEffect(() => {
+    setSentenceVisibilityById({});
+    setSentenceVisibilityLoaded(false);
+    if (!id || currentUserId === undefined || currentUserId === null) return;
+
+    const controller = new AbortController();
+    void fetch(apiUrl(`/api/user/articles/${encodeURIComponent(id)}/sentence-visibility`), {
+      credentials: "include",
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Sentence visibility failed: ${response.status}`);
+        const body = (await response.json()) as {
+          data?: { visibilityBySentenceId?: Record<string, SentenceTextVisibility> };
+        };
+        if (!controller.signal.aborted) {
+          setSentenceVisibilityById(body.data?.visibilityBySentenceId || {});
+          setSentenceVisibilityLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setSentenceVisibilityById({});
+          setSentenceVisibilityLoaded(true);
+        }
+      });
+
     return () => controller.abort();
   }, [currentUserId, id]);
 
@@ -787,6 +824,37 @@ const ArticlePage: React.FC = () => {
       void persistExpansion(sentenceId, expanded);
     },
     [persistExpansion]
+  );
+
+  const persistSentenceVisibility = useCallback(
+    (sentenceId: string, visibility: SentenceTextVisibility) => {
+      if (!id) return;
+      sentenceVisibilitySaveQueueRef.current = sentenceVisibilitySaveQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const [err] = await asyncHandle(
+            axios.patch(`/api/user/articles/${encodeURIComponent(id)}/sentence-visibility`, {
+              sentenceId,
+              ...visibility
+            })
+          );
+          if (err && err.response?.status !== 401) {
+            message.warning("单句显示偏好暂未同步");
+          }
+        });
+    },
+    [id]
+  );
+
+  const updateSentenceVisibility = useCallback(
+    (sentenceId: string, visibility: SentenceTextVisibility) => {
+      setSentenceVisibilityById((current) => ({
+        ...current,
+        [sentenceId]: visibility
+      }));
+      persistSentenceVisibility(sentenceId, visibility);
+    },
+    [persistSentenceVisibility]
   );
 
   const updateSplitUi = useCallback(
@@ -1405,6 +1473,13 @@ const ArticlePage: React.FC = () => {
     const rootIndex = sentence.parentSentenceId
       ? -1
       : sentenceGroups.findIndex((group) => group.sentenceGroupId === sentence.sentenceGroupId);
+    const textVisibility = resolveSentenceTextVisibility(
+      sentenceVisibilityById[sentence.id],
+      {
+        showOriginal: playbackSettings.showOriginal,
+        showTranslation: playbackSettings.showTranslation
+      }
+    );
 
     return (
       <SentenceItem
@@ -1441,8 +1516,12 @@ const ArticlePage: React.FC = () => {
         hierarchyControl={renderSplitControl(sentence, row.expanded)}
         transientContent={renderSplitProgress(sentence)}
         variant={variant}
-        showOriginal={playbackSettings.showOriginal}
-        showTranslation={playbackSettings.showTranslation}
+        showOriginal={textVisibility.showOriginal}
+        showTranslation={textVisibility.showTranslation}
+        visibilityControlsDisabled={!sentenceVisibilityLoaded}
+        onTextVisibilityChange={(visibility) =>
+          updateSentenceVisibility(sentence.id, visibility)
+        }
         languageTabs={
           <Segmented
             size="small"

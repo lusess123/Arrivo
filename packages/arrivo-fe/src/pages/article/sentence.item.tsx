@@ -1,14 +1,25 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   PlaybackSettingsDto,
+  SentenceTextVisibility,
   TtsWordBoundaryDto
 } from '@arrivo/contracts';
 import styles from './index.module.less';
-import { Button } from 'antd';
-import { AudioOutlined, MoreOutlined, PauseCircleOutlined, PlayCircleOutlined, SoundOutlined } from '@ant-design/icons';
+import { Button, message } from 'antd';
+import {
+  AudioOutlined,
+  CopyOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  MoreOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  SoundOutlined
+} from '@ant-design/icons';
 import { apiUrl } from '@/lib/api';
 import { buildWordTextSegments, findActiveWordIndex, findPauseActiveWordIndex } from './word-highlight';
 import { articleSentenceElementId } from './article-progress';
+import { copySentenceText } from './sentence-copy';
 import { useFocusTextFit } from './use-focus-text-fit';
 
 // Previously cached MP3 responses predate byte-range support. Bump the URL version
@@ -114,6 +125,8 @@ interface ISentenceItem {
   variant?: PlaybackSettingsDto['readingMode'];
   showOriginal?: boolean;
   showTranslation?: boolean;
+  visibilityControlsDisabled?: boolean;
+  onTextVisibilityChange?: (visibility: SentenceTextVisibility) => void;
   languageTabs?: React.ReactNode;
 }
 
@@ -172,9 +185,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
   useScreenWakeLock(keepScreenAwake);
   const maxCount = Math.max(1, sentence.times || 1);
   const isFocusMode = sentence.variant === 'focus';
-  const showOriginal = sentence.showOriginal !== false && Boolean(sentence.originalContent.trim());
-  const showTranslation =
-    sentence.showTranslation !== false && Boolean(sentence.translatedContent.trim());
+  const hasOriginal = Boolean(sentence.originalContent.trim());
+  const hasTranslation = Boolean(sentence.translatedContent.trim());
+  const showOriginal = sentence.showOriginal !== false && hasOriginal;
+  const showTranslation = sentence.showTranslation !== false && hasTranslation;
   const wordSegments = useMemo(
     () => buildWordTextSegments(sentence.originalContent, wordBoundaries),
     [sentence.originalContent, wordBoundaries]
@@ -189,6 +203,15 @@ export default function SentenceItem(sentence: ISentenceItem) {
     translationRegionRef: translationTextRegionRef,
     translationRef: translationTextRef
   });
+
+  const handleCopy = useCallback(async (text: string, label: '原文' | '译文') => {
+    try {
+      await copySentenceText(text);
+      message.success(`${label}已复制`);
+    } catch {
+      message.error(`${label}复制失败`);
+    }
+  }, []);
 
   useEffect(() => {
     setPreviewedWordIndices(new Set(sentence.playedWordIndexes));
@@ -1082,6 +1105,15 @@ export default function SentenceItem(sentence: ISentenceItem) {
                   );
                 })}
               </p>
+              <Button
+                type="text"
+                shape="circle"
+                icon={<CopyOutlined />}
+                className={styles.sentenceCopyButton}
+                aria-label={`复制第 ${sentence.displayNumber} 句原文`}
+                title="复制原文"
+                onClick={() => void handleCopy(sentence.originalContent, '原文')}
+              />
             </div>
           ) : null}
           {showTranslation ? (
@@ -1092,12 +1124,56 @@ export default function SentenceItem(sentence: ISentenceItem) {
               <p ref={translationTextRef} className={styles.chineseText}>
                 {sentence.translatedContent}
               </p>
+              <Button
+                type="text"
+                shape="circle"
+                icon={<CopyOutlined />}
+                className={styles.sentenceCopyButton}
+                aria-label={`复制第 ${sentence.displayNumber} 句译文`}
+                title="复制译文"
+                onClick={() => void handleCopy(sentence.translatedContent, '译文')}
+              />
             </div>
           ) : null}
         </div>
         {sentence.hierarchyControl}
         {sentence.transientContent}
         <div className={styles.sentenceControls}>
+          <div
+            className={styles.sentenceVisibilityControls}
+            aria-label={`第 ${sentence.displayNumber} 句内容显示`}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={showOriginal ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+              className={`${styles.sentenceVisibilityButton} ${showOriginal ? styles.sentenceVisibilityButtonActive : ''}`}
+              aria-label={`${showOriginal ? '隐藏' : '显示'}第 ${sentence.displayNumber} 句原文`}
+              aria-pressed={showOriginal}
+              disabled={!hasOriginal || sentence.visibilityControlsDisabled}
+              onClick={() => sentence.onTextVisibilityChange?.({
+                showOriginal: !showOriginal,
+                showTranslation
+              })}
+            >
+              原文
+            </Button>
+            <Button
+              type="text"
+              size="small"
+              icon={showTranslation ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+              className={`${styles.sentenceVisibilityButton} ${showTranslation ? styles.sentenceVisibilityButtonActive : ''}`}
+              aria-label={`${showTranslation ? '隐藏' : '显示'}第 ${sentence.displayNumber} 句译文`}
+              aria-pressed={showTranslation}
+              disabled={!hasTranslation || sentence.visibilityControlsDisabled}
+              onClick={() => sentence.onTextVisibilityChange?.({
+                showOriginal,
+                showTranslation: !showTranslation
+              })}
+            >
+              译文
+            </Button>
+          </div>
           {sentence.playing ? (
             <span className={styles.playCount}>
               第{playCount || 1}/{maxCount}次

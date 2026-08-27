@@ -353,7 +353,30 @@
 }
 
 .sentenceTextRegion {
+  position: relative;
+  box-sizing: border-box;
   min-width: 0;
+  padding-right: 32px;
+}
+
+.sentenceCopyButton {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #6b7a85;
+  font-size: 14px;
+  opacity: 0.7;
+
+  &:hover,
+  &:focus-visible {
+    color: #176b8d !important;
+    background: rgba(160, 216, 239, 0.2) !important;
+    opacity: 1;
+  }
 }
 
 .englishText {
@@ -539,6 +562,33 @@
   padding-top: 8px;
   color: #6b7a85;
   border-top: 1px solid rgba(76, 159, 197, 0.16);
+}
+
+.sentenceVisibilityControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sentenceVisibilityButton {
+  height: 26px;
+  padding: 0 8px;
+  color: #6b7a85;
+  font-size: 12px;
+  border: 1px solid rgba(76, 159, 197, 0.16);
+
+  &:hover,
+  &:focus-visible {
+    color: #176b8d !important;
+    background: rgba(160, 216, 239, 0.18) !important;
+    border-color: rgba(76, 159, 197, 0.34) !important;
+  }
+}
+
+.sentenceVisibilityButtonActive {
+  color: #176b8d;
+  background: rgba(160, 216, 239, 0.14);
+  border-color: rgba(76, 159, 197, 0.28);
 }
 
 .sentenceMoreButton {
