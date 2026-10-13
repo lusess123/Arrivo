@@ -3,10 +3,14 @@ name: "⭐ Deploy Arrivo Production"
 on:
   workflow_dispatch:
     inputs:
-      api_only:
-        description: "仅发布 API（不执行数据库迁移）"
-        type: boolean
-        default: false
+      target:
+        description: "发布范围（all 包含数据库迁移）"
+        type: choice
+        default: all
+        options:
+          - all
+          - api
+          - frontend
 
 permissions:
   contents: read
@@ -41,7 +45,7 @@ jobs:
   deploy-api:
     name: Deploy API Worker
     needs: [validate, migrate-database]
-    if: ${{ !cancelled() && needs.validate.result == 'success' && (inputs.api_only || needs.migrate-database.result == 'success') }}
+    if: ${{ !cancelled() && needs.validate.result == 'success' && (inputs.target == 'api' || (inputs.target == 'all' && needs.migrate-database.result == 'success')) }}
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -62,7 +66,7 @@ jobs:
   migrate-database:
     name: Migrate production database
     needs: validate
-    if: ${{ !inputs.api_only }}
+    if: ${{ inputs.target == 'all' }}
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -84,7 +88,7 @@ jobs:
   deploy-frontend:
     name: Deploy user frontend
     needs: validate
-    if: ${{ !inputs.api_only }}
+    if: ${{ inputs.target == 'all' || inputs.target == 'frontend' }}
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -106,7 +110,7 @@ jobs:
   deploy-manage:
     name: Deploy management frontend
     needs: validate
-    if: ${{ !inputs.api_only }}
+    if: ${{ inputs.target == 'all' }}
     runs-on: ubuntu-latest
     environment: production
     env:
