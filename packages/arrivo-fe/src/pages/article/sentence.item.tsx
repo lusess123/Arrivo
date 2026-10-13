@@ -132,6 +132,7 @@ interface ISentenceItem {
 
 export default function SentenceItem(sentence: ISentenceItem) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const activeAudioAttemptRef = useRef<object | null>(null);
   const wordPreviewRef = useRef<HTMLAudioElement | null>(null);
   const focusTextAreaRef = useRef<HTMLDivElement | null>(null);
   const englishTextRegionRef = useRef<HTMLDivElement | null>(null);
@@ -251,11 +252,11 @@ export default function SentenceItem(sentence: ISentenceItem) {
     continuousPreviewWordIndexRef.current = -1;
     setContinuousPreviewWordIndex(-1);
     const preview = wordPreviewRef.current;
+    wordPreviewRef.current = null;
     if (preview) {
       preview.pause();
       preview.removeAttribute('src');
       preview.load();
-      wordPreviewRef.current = null;
     }
     setPreviewLoadingWordIndex(-1);
     setPreviewPlayingWordIndex(-1);
@@ -352,6 +353,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   }, []);
 
   const resetPlaybackState = useCallback(() => {
+    activeAudioAttemptRef.current = null;
     stopWordPreview();
     clearRepeatTimer();
     stopHighlightTracking();
@@ -483,6 +485,20 @@ export default function SentenceItem(sentence: ISentenceItem) {
     resetPlaybackState();
   }, [resetPlaybackState]);
 
+  const handleAudioPlaybackFailure = useCallback(
+    (error: unknown, attempt = activeAudioAttemptRef.current) => {
+      if (!attempt || activeAudioAttemptRef.current !== attempt || !audioRef.current) return;
+      if ((error as { name?: string } | null)?.name === 'AbortError') return;
+
+      activeAudioAttemptRef.current = null;
+      console.error('Audio playback failed', error);
+      stopAudio();
+      message.error('音频生成或播放失败，请重试。');
+      sentence.onPlayStop(sentence.index);
+    },
+    [sentence.index, sentence.onPlayStop, stopAudio]
+  );
+
   const playOnce = useCallback(
     async (nextCount: number) => {
       const audio = audioRef.current;
@@ -492,6 +508,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
         return;
       }
 
+      const attempt = {};
+      activeAudioAttemptRef.current = attempt;
       clearRepeatTimer();
       stopWordPreview();
       stopPauseHighlightTracking();
@@ -509,6 +527,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
         itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
+      if (audio.error) audio.load();
       audio.volume = sentence.sound ? 1 : 0;
       audio.playbackRate = sentence.rate;
       const resumeAt = nextCount === 1 ? resumeWordOffsetRef.current : null;
@@ -524,19 +543,17 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
       try {
         await audio.play();
+        if (activeAudioAttemptRef.current !== attempt || audioRef.current !== audio) return;
         startHighlightTracking();
       } catch (error) {
-        console.error('Audio play failed', error);
-        resetPlaybackState();
-        sentence.onPlayStop(sentence.index);
+        handleAudioPlaybackFailure(error, attempt);
       }
     },
     [
       clearRepeatTimer,
-      resetPlaybackState,
+      handleAudioPlaybackFailure,
       sentence.index,
       sentence.onPlayEnd,
-      sentence.onPlayStop,
       sentence.originalContent,
       sentence.rate,
       sentence.sound,
@@ -551,6 +568,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
     if (!audio) return;
 
+    activeAudioAttemptRef.current = null;
     if (startedAtRef.current) {
       playbackElapsedMsRef.current += Date.now() - startedAtRef.current;
       startedAtRef.current = 0;
@@ -594,7 +612,10 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
       if (!audio) return;
 
+      const attempt = {};
+      activeAudioAttemptRef.current = attempt;
       stopWordPreview();
+      if (audio.error) audio.load();
       if (resumeAt !== undefined) {
         clearRepeatTimer();
         stopPauseHighlightTracking();
@@ -606,6 +627,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
         audio.pause();
         stopHighlightTracking();
         await seekAudio(audio, resumeAt);
+        if (activeAudioAttemptRef.current !== attempt || audioRef.current !== audio) return;
         console.debug(`Article word seek completed resumeAt=${resumeAt} currentTime=${audio.currentTime}`);
         resumeWordOffsetRef.current = null;
       }
@@ -617,18 +639,15 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
       try {
         await audio.play();
+        if (activeAudioAttemptRef.current !== attempt || audioRef.current !== audio) return;
         startHighlightTracking();
       } catch (error) {
-        console.error('Audio resume failed', error);
-        resetPlaybackState();
-        sentence.onPlayStop(sentence.index);
+        handleAudioPlaybackFailure(error, attempt);
       }
     },
     [
       clearRepeatTimer,
-      resetPlaybackState,
-      sentence.index,
-      sentence.onPlayStop,
+      handleAudioPlaybackFailure,
       sentence.rate,
       sentence.sound,
       seekAudio,
@@ -761,15 +780,22 @@ export default function SentenceItem(sentence: ISentenceItem) {
 
       const finish = () => {
         if (wordPreviewRef.current !== preview) return;
+        wordPreviewRef.current = null;
         preview.pause();
         preview.removeAttribute('src');
         preview.load();
-        wordPreviewRef.current = null;
         setPreviewLoadingWordIndex(-1);
         setPreviewPlayingWordIndex(-1);
       };
+      const fail = (error: unknown) => {
+        if (wordPreviewRef.current !== preview) return;
+        finish();
+        if ((error as { name?: string } | null)?.name !== 'AbortError') {
+          message.error('音频生成或播放失败，请重试。');
+        }
+      };
       preview.addEventListener('ended', finish, { once: true });
-      preview.addEventListener('error', () => finish(), { once: true });
+      preview.addEventListener('error', () => fail(preview.error), { once: true });
       void preview
         .play()
         .then(() => {
@@ -779,7 +805,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
           setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
           sentence.onWordPreviewed(sentence.id, wordIndex);
         })
-        .catch(() => finish());
+        .catch(fail);
     },
     [sentence.id, sentence.onWordPreviewed, sentence.rate, sentence.sound, sentence.v, stopWordPreview]
   );
@@ -810,19 +836,28 @@ export default function SentenceItem(sentence: ISentenceItem) {
         setPreviewLoadingWordIndex(wordIndex);
 
         const discardPreview = () => {
-          preview.pause();
-          preview.removeAttribute('src');
-          preview.load();
           if (wordPreviewRef.current === preview) {
             wordPreviewRef.current = null;
             setPreviewLoadingWordIndex(-1);
             setPreviewPlayingWordIndex(-1);
+          }
+          preview.pause();
+          preview.removeAttribute('src');
+          preview.load();
+        };
+
+        const fail = (error: unknown) => {
+          if (wordPreviewRef.current !== preview) return;
+          stopWordPreview();
+          if ((error as { name?: string } | null)?.name !== 'AbortError') {
+            message.error('音频生成或播放失败，请重试。');
           }
         };
 
         preview.addEventListener(
           'ended',
           () => {
+            if (wordPreviewRef.current !== preview) return;
             if (continuousPreviewWordIndexRef.current !== wordIndex) {
               discardPreview();
               return;
@@ -835,17 +870,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
           },
           { once: true }
         );
-        preview.addEventListener(
-          'error',
-          () => {
-            discardPreview();
-            if (continuousPreviewWordIndexRef.current === wordIndex) {
-              continuousPreviewWordIndexRef.current = -1;
-              setContinuousPreviewWordIndex(-1);
-            }
-          },
-          { once: true }
-        );
+        preview.addEventListener('error', () => fail(preview.error), { once: true });
         void preview
           .play()
           .then(() => {
@@ -856,13 +881,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
             setPreviewedWordIndices((current) => new Set(current).add(wordIndex));
             sentence.onWordPreviewed(sentence.id, wordIndex);
           })
-          .catch(() => {
-            discardPreview();
-            if (continuousPreviewWordIndexRef.current === wordIndex) {
-              continuousPreviewWordIndexRef.current = -1;
-              setContinuousPreviewWordIndex(-1);
-            }
-          });
+          .catch(fail);
       };
 
       playAgain();
@@ -973,6 +992,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
   );
 
   const handleEnded = () => {
+    activeAudioAttemptRef.current = null;
     stopHighlightTracking();
     setHighlightedWord(-1);
     sentence.onPlaybackCompleted(sentence.id);
@@ -1043,7 +1063,14 @@ export default function SentenceItem(sentence: ISentenceItem) {
         marginLeft: isFocusMode ? 0 : `${Math.min(sentence.depth || 0, 6) * 24}px`
       }}
     >
-      <audio onEnded={handleEnded} onLoadedMetadata={handleLoadedMetadata} ref={audioRef} />
+      <audio
+        onEnded={handleEnded}
+        onLoadedMetadata={handleLoadedMetadata}
+        onError={(event) => {
+          if (event.currentTarget.error) handleAudioPlaybackFailure(event.currentTarget.error);
+        }}
+        ref={audioRef}
+      />
       <div className={styles.sentenceLeadingControls}>
         {sentence.playable !== false && (
           <Button
