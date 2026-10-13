@@ -2,7 +2,7 @@ import type { TtsWordBoundaryDto, VoicePackageDto } from "@arrivo/contracts";
 
 const BASE_URL = "speech.platform.bing.com/consumer/speech/synthesize/readaloud";
 const TRUSTED_CLIENT_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-const WSS_URL = `wss://${BASE_URL}/edge/v1`;
+const WSS_URL = "wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1";
 const VOICE_LIST_URL = `https://${BASE_URL}/voices/list`;
 const CHROMIUM_FULL_VERSION = "143.0.3650.75";
 const CHROMIUM_MAJOR_VERSION = CHROMIUM_FULL_VERSION.split(".")[0];
@@ -274,7 +274,7 @@ export async function synthesizeWithEdge(input: SynthesizeSpeechInput): Promise<
   words: TtsWordBoundaryDto[];
 }> {
   const requestId = connectId();
-  const url = `${WSS_URL}?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${await generateSecMsGec()}&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}&ConnectionId=${requestId}`;
+  const url = `${WSS_URL}?Ocp-Apim-Subscription-Key=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${await generateSecMsGec()}&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}&ConnectionId=${requestId}`;
   const chunks: Uint8Array[] = [];
   const words: TtsWordBoundaryDto[] = [];
 
