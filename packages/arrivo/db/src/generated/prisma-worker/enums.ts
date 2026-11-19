@@ -9,7 +9,21 @@
 * 🟢 You can import this file directly.
 */
 
+export const MindTaskStatus = {
+  IN_PROGRESS: 'IN_PROGRESS',
+  WAITING: 'WAITING',
+  PAUSED: 'PAUSED',
+  DONE: 'DONE'
+} as const
+
+export type MindTaskStatus = (typeof MindTaskStatus)[keyof typeof MindTaskStatus]
 
 
-// This file is empty because there are no enums in the schema.
-export {}
+export const MindNoteType = {
+  IDEA: 'IDEA',
+  CONCERN: 'CONCERN',
+  INSPIRATION: 'INSPIRATION',
+  OTHER: 'OTHER'
+} as const
+
+export type MindNoteType = (typeof MindNoteType)[keyof typeof MindNoteType]

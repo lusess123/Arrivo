@@ -396,7 +396,11 @@ export const ModelName = {
   Config: 'Config',
   UserPassword: 'UserPassword',
   PhoneCode: 'PhoneCode',
-  EmailCode: 'EmailCode'
+  EmailCode: 'EmailCode',
+  MindWorkspace: 'MindWorkspace',
+  MindTask: 'MindTask',
+  MindNote: 'MindNote',
+  MindAction: 'MindAction'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -412,7 +416,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "articles" | "sentences" | "config" | "userPassword" | "phoneCode" | "emailCode"
+    modelProps: "user" | "articles" | "sentences" | "config" | "userPassword" | "phoneCode" | "emailCode" | "mindWorkspace" | "mindTask" | "mindNote" | "mindAction"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -934,6 +938,302 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MindWorkspace: {
+      payload: Prisma.$MindWorkspacePayload<ExtArgs>
+      fields: Prisma.MindWorkspaceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MindWorkspaceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MindWorkspaceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>
+        }
+        findFirst: {
+          args: Prisma.MindWorkspaceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MindWorkspaceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>
+        }
+        findMany: {
+          args: Prisma.MindWorkspaceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>[]
+        }
+        create: {
+          args: Prisma.MindWorkspaceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>
+        }
+        createMany: {
+          args: Prisma.MindWorkspaceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MindWorkspaceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>[]
+        }
+        delete: {
+          args: Prisma.MindWorkspaceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>
+        }
+        update: {
+          args: Prisma.MindWorkspaceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>
+        }
+        deleteMany: {
+          args: Prisma.MindWorkspaceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MindWorkspaceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MindWorkspaceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>[]
+        }
+        upsert: {
+          args: Prisma.MindWorkspaceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindWorkspacePayload>
+        }
+        aggregate: {
+          args: Prisma.MindWorkspaceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMindWorkspace>
+        }
+        groupBy: {
+          args: Prisma.MindWorkspaceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindWorkspaceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MindWorkspaceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindWorkspaceCountAggregateOutputType> | number
+        }
+      }
+    }
+    MindTask: {
+      payload: Prisma.$MindTaskPayload<ExtArgs>
+      fields: Prisma.MindTaskFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MindTaskFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MindTaskFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>
+        }
+        findFirst: {
+          args: Prisma.MindTaskFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MindTaskFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>
+        }
+        findMany: {
+          args: Prisma.MindTaskFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>[]
+        }
+        create: {
+          args: Prisma.MindTaskCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>
+        }
+        createMany: {
+          args: Prisma.MindTaskCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MindTaskCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>[]
+        }
+        delete: {
+          args: Prisma.MindTaskDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>
+        }
+        update: {
+          args: Prisma.MindTaskUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>
+        }
+        deleteMany: {
+          args: Prisma.MindTaskDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MindTaskUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MindTaskUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>[]
+        }
+        upsert: {
+          args: Prisma.MindTaskUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindTaskPayload>
+        }
+        aggregate: {
+          args: Prisma.MindTaskAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMindTask>
+        }
+        groupBy: {
+          args: Prisma.MindTaskGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindTaskGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MindTaskCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindTaskCountAggregateOutputType> | number
+        }
+      }
+    }
+    MindNote: {
+      payload: Prisma.$MindNotePayload<ExtArgs>
+      fields: Prisma.MindNoteFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MindNoteFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MindNoteFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>
+        }
+        findFirst: {
+          args: Prisma.MindNoteFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MindNoteFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>
+        }
+        findMany: {
+          args: Prisma.MindNoteFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>[]
+        }
+        create: {
+          args: Prisma.MindNoteCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>
+        }
+        createMany: {
+          args: Prisma.MindNoteCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MindNoteCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>[]
+        }
+        delete: {
+          args: Prisma.MindNoteDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>
+        }
+        update: {
+          args: Prisma.MindNoteUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>
+        }
+        deleteMany: {
+          args: Prisma.MindNoteDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MindNoteUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MindNoteUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>[]
+        }
+        upsert: {
+          args: Prisma.MindNoteUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindNotePayload>
+        }
+        aggregate: {
+          args: Prisma.MindNoteAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMindNote>
+        }
+        groupBy: {
+          args: Prisma.MindNoteGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindNoteGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MindNoteCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindNoteCountAggregateOutputType> | number
+        }
+      }
+    }
+    MindAction: {
+      payload: Prisma.$MindActionPayload<ExtArgs>
+      fields: Prisma.MindActionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MindActionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MindActionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>
+        }
+        findFirst: {
+          args: Prisma.MindActionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MindActionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>
+        }
+        findMany: {
+          args: Prisma.MindActionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>[]
+        }
+        create: {
+          args: Prisma.MindActionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>
+        }
+        createMany: {
+          args: Prisma.MindActionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MindActionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>[]
+        }
+        delete: {
+          args: Prisma.MindActionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>
+        }
+        update: {
+          args: Prisma.MindActionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>
+        }
+        deleteMany: {
+          args: Prisma.MindActionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MindActionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MindActionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>[]
+        }
+        upsert: {
+          args: Prisma.MindActionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MindActionPayload>
+        }
+        aggregate: {
+          args: Prisma.MindActionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMindAction>
+        }
+        groupBy: {
+          args: Prisma.MindActionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindActionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MindActionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MindActionCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1137,6 +1437,61 @@ export const EmailCodeScalarFieldEnum = {
 export type EmailCodeScalarFieldEnum = (typeof EmailCodeScalarFieldEnum)[keyof typeof EmailCodeScalarFieldEnum]
 
 
+export const MindWorkspaceScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  currentTaskId: 'currentTaskId',
+  revision: 'revision'
+} as const
+
+export type MindWorkspaceScalarFieldEnum = (typeof MindWorkspaceScalarFieldEnum)[keyof typeof MindWorkspaceScalarFieldEnum]
+
+
+export const MindTaskScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  id: 'id',
+  title: 'title',
+  status: 'status',
+  lastContext: 'lastContext',
+  nextAction: 'nextAction',
+  archivedAt: 'archivedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MindTaskScalarFieldEnum = (typeof MindTaskScalarFieldEnum)[keyof typeof MindTaskScalarFieldEnum]
+
+
+export const MindNoteScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  id: 'id',
+  content: 'content',
+  type: 'type',
+  taskId: 'taskId',
+  setAside: 'setAside',
+  createdAt: 'createdAt'
+} as const
+
+export type MindNoteScalarFieldEnum = (typeof MindNoteScalarFieldEnum)[keyof typeof MindNoteScalarFieldEnum]
+
+
+export const MindActionScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  id: 'id',
+  taskId: 'taskId',
+  noteId: 'noteId',
+  title: 'title',
+  done: 'done',
+  dueOn: 'dueOn',
+  createdAt: 'createdAt'
+} as const
+
+export type MindActionScalarFieldEnum = (typeof MindActionScalarFieldEnum)[keyof typeof MindActionScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -1213,6 +1568,34 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
+ * Reference to a field of type 'MindTaskStatus'
+ */
+export type EnumMindTaskStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MindTaskStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'MindTaskStatus[]'
+ */
+export type ListEnumMindTaskStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MindTaskStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'MindNoteType'
+ */
+export type EnumMindNoteTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MindNoteType'>
+    
+
+
+/**
+ * Reference to a field of type 'MindNoteType[]'
+ */
+export type ListEnumMindNoteTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MindNoteType[]'>
     
 
 
@@ -1323,6 +1706,10 @@ export type GlobalOmitConfig = {
   userPassword?: Prisma.UserPasswordOmit
   phoneCode?: Prisma.PhoneCodeOmit
   emailCode?: Prisma.EmailCodeOmit
+  mindWorkspace?: Prisma.MindWorkspaceOmit
+  mindTask?: Prisma.MindTaskOmit
+  mindNote?: Prisma.MindNoteOmit
+  mindAction?: Prisma.MindActionOmit
 }
 
 /* Types for Logging */

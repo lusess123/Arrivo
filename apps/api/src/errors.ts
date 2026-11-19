@@ -10,7 +10,12 @@ export function registerErrorHandlers(app: Hono<AppEnv>) {
     if (isHttpError(error)) {
       return fail(c, error.status, error.code, error.message, error.details);
     }
-    console.error(error instanceof Error ? error.stack ?? error.message : error);
+    const path = new URL(c.req.url).pathname;
+    if (path === "/api/mind-switch" || path === "/mind-switch") {
+      console.error("MindSwitch request failed", c.get("requestId"));
+    } else {
+      console.error(error instanceof Error ? error.stack ?? error.message : error);
+    }
     return fail(c, 500, "INTERNAL_ERROR", "服务器错误");
   });
 }

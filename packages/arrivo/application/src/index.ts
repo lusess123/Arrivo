@@ -12,3 +12,5 @@ export * from "./user/last-visited-page.case";
 export * from "./user/playback-settings.case";
 export * from "./user/sentence-expansion.case";
 export * from "./user/sentence-visibility.case";
+
+export * from "./mind-switch/mind-switch.case";

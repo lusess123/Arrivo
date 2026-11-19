@@ -73,3 +73,23 @@ export type PhoneCode = Prisma.PhoneCodeModel
  * 
  */
 export type EmailCode = Prisma.EmailCodeModel
+/**
+ * Model MindWorkspace
+ * 
+ */
+export type MindWorkspace = Prisma.MindWorkspaceModel
+/**
+ * Model MindTask
+ * 
+ */
+export type MindTask = Prisma.MindTaskModel
+/**
+ * Model MindNote
+ * 
+ */
+export type MindNote = Prisma.MindNoteModel
+/**
+ * Model MindAction
+ * 
+ */
+export type MindAction = Prisma.MindActionModel

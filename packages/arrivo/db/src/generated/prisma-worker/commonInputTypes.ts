@@ -242,6 +242,40 @@ export type BoolWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedBoolFilter<$PrismaModel>
 }
 
+export type EnumMindTaskStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindTaskStatus | Prisma.EnumMindTaskStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindTaskStatusFilter<$PrismaModel> | $Enums.MindTaskStatus
+}
+
+export type EnumMindTaskStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindTaskStatus | Prisma.EnumMindTaskStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindTaskStatusWithAggregatesFilter<$PrismaModel> | $Enums.MindTaskStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMindTaskStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMindTaskStatusFilter<$PrismaModel>
+}
+
+export type EnumMindNoteTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindNoteType | Prisma.EnumMindNoteTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindNoteTypeFilter<$PrismaModel> | $Enums.MindNoteType
+}
+
+export type EnumMindNoteTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindNoteType | Prisma.EnumMindNoteTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindNoteTypeWithAggregatesFilter<$PrismaModel> | $Enums.MindNoteType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMindNoteTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMindNoteTypeFilter<$PrismaModel>
+}
+
 export type NestedUuidFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -477,6 +511,40 @@ export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedBoolFilter<$PrismaModel>
   _max?: Prisma.NestedBoolFilter<$PrismaModel>
+}
+
+export type NestedEnumMindTaskStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindTaskStatus | Prisma.EnumMindTaskStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindTaskStatusFilter<$PrismaModel> | $Enums.MindTaskStatus
+}
+
+export type NestedEnumMindTaskStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindTaskStatus | Prisma.EnumMindTaskStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindTaskStatus[] | Prisma.ListEnumMindTaskStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindTaskStatusWithAggregatesFilter<$PrismaModel> | $Enums.MindTaskStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMindTaskStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMindTaskStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumMindNoteTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindNoteType | Prisma.EnumMindNoteTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindNoteTypeFilter<$PrismaModel> | $Enums.MindNoteType
+}
+
+export type NestedEnumMindNoteTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MindNoteType | Prisma.EnumMindNoteTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MindNoteType[] | Prisma.ListEnumMindNoteTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMindNoteTypeWithAggregatesFilter<$PrismaModel> | $Enums.MindNoteType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMindNoteTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMindNoteTypeFilter<$PrismaModel>
 }
 
 

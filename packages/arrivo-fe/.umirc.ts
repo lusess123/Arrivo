@@ -4,8 +4,8 @@ import path from "path";
 
 const isProduction = process.env.NODE_ENV === "production";
 const dashboardUrl = isProduction ? "https://manage-arrivo.zyking.xyz" : process.env.UMI_APP_DASHBOARD;
-const apiBaseUrl = isProduction ? "https://api-arrivo.zyking.xyz" : process.env.UMI_APP_API_BASE_URL;
-const clarityProjectId = isProduction ? "xl7w8qhw2t" : process.env.UMI_APP_CLARITY_PROJECT_ID;
+const apiBaseUrl = process.env.UMI_APP_API_BASE_URL ?? (isProduction ? "https://api-arrivo.zyking.xyz" : undefined);
+const clarityProjectId = process.env.UMI_APP_CLARITY_PROJECT_ID ?? (isProduction ? "xl7w8qhw2t" : undefined);
 
 export default defineConfig({
   mfsu: false, // 明确关闭 mfsu
@@ -45,6 +45,12 @@ export default defineConfig({
     {
       path: '/',
       component: 'index',
+      wrappers: ['@/wrappers/auth'],
+    },
+    {
+      path: '/mind-switch',
+      component: 'mind-switch',
+      title: '心智切换 · Arrivo',
       wrappers: ['@/wrappers/auth'],
     },
     {

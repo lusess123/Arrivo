@@ -87,8 +87,8 @@ jobs:
 
   deploy-frontend:
     name: Deploy user frontend
-    needs: validate
-    if: ${{ inputs.target == 'all' || inputs.target == 'frontend' }}
+    needs: [validate, deploy-api]
+    if: ${{ !cancelled() && needs.validate.result == 'success' && (inputs.target == 'frontend' || (inputs.target == 'all' && needs.deploy-api.result == 'success')) }}
     runs-on: ubuntu-latest
     environment: production
     env:

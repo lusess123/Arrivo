@@ -8,3 +8,5 @@ export * from "./mdd.contract";
 export * from "./playback-settings.contract";
 export * from "./last-visited-page.contract";
 export * from "./tts.contract";
+
+export * from "./mind-switch.contract";

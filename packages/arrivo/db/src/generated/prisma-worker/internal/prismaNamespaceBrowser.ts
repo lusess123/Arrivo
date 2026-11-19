@@ -55,7 +55,11 @@ export const ModelName = {
   Config: 'Config',
   UserPassword: 'UserPassword',
   PhoneCode: 'PhoneCode',
-  EmailCode: 'EmailCode'
+  EmailCode: 'EmailCode',
+  MindWorkspace: 'MindWorkspace',
+  MindTask: 'MindTask',
+  MindNote: 'MindNote',
+  MindAction: 'MindAction'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -236,6 +240,61 @@ export const EmailCodeScalarFieldEnum = {
 } as const
 
 export type EmailCodeScalarFieldEnum = (typeof EmailCodeScalarFieldEnum)[keyof typeof EmailCodeScalarFieldEnum]
+
+
+export const MindWorkspaceScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  currentTaskId: 'currentTaskId',
+  revision: 'revision'
+} as const
+
+export type MindWorkspaceScalarFieldEnum = (typeof MindWorkspaceScalarFieldEnum)[keyof typeof MindWorkspaceScalarFieldEnum]
+
+
+export const MindTaskScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  id: 'id',
+  title: 'title',
+  status: 'status',
+  lastContext: 'lastContext',
+  nextAction: 'nextAction',
+  archivedAt: 'archivedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MindTaskScalarFieldEnum = (typeof MindTaskScalarFieldEnum)[keyof typeof MindTaskScalarFieldEnum]
+
+
+export const MindNoteScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  id: 'id',
+  content: 'content',
+  type: 'type',
+  taskId: 'taskId',
+  setAside: 'setAside',
+  createdAt: 'createdAt'
+} as const
+
+export type MindNoteScalarFieldEnum = (typeof MindNoteScalarFieldEnum)[keyof typeof MindNoteScalarFieldEnum]
+
+
+export const MindActionScalarFieldEnum = {
+  tenantId: 'tenantId',
+  userId: 'userId',
+  id: 'id',
+  taskId: 'taskId',
+  noteId: 'noteId',
+  title: 'title',
+  done: 'done',
+  dueOn: 'dueOn',
+  createdAt: 'createdAt'
+} as const
+
+export type MindActionScalarFieldEnum = (typeof MindActionScalarFieldEnum)[keyof typeof MindActionScalarFieldEnum]
 
 
 export const SortOrder = {

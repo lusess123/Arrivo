@@ -4,6 +4,7 @@ import type { AppEnv } from "../context";
 import { ok } from "../http";
 import { registerAuthRoutes } from "./auth.route";
 import { registerArticleRoutes } from "./article.route";
+import { registerMindSwitchRoutes } from "./mind-switch.route";
 import { registerMddRoutes } from "./mdd.route";
 import { registerTtsRoutes } from "./tts.route";
 import { registerUserRoutes } from "./user.route";
@@ -25,5 +26,6 @@ export function registerRoutes(app: Hono<AppEnv>) {
     registerMddRoutes(app, prefix);
     registerTtsRoutes(app, prefix);
     registerUserRoutes(app, prefix);
+    registerMindSwitchRoutes(app, prefix);
   }
 }

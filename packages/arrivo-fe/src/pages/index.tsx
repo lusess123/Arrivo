@@ -281,6 +281,7 @@ export default function IndexPage() {
       <header className={styles.header}>
         <img src={logo} alt="Arrivo Logo" className={styles.logo} />
         <div className={styles.headerActions}>
+          <a className={styles.mindSwitchLink} href="/mind-switch">心智切换</a>
           <Button
             type="primary"
             icon={<PlusOutlined />}

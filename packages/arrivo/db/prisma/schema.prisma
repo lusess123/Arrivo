@@ -189,3 +189,79 @@ model EmailCode {
   @@index([tenantId, toEmail, createdAt])
   @@index([tenantId, deletedAt])
 }
+
+enum MindTaskStatus {
+  IN_PROGRESS
+  WAITING
+  PAUSED
+  DONE
+}
+
+enum MindNoteType {
+  IDEA
+  CONCERN
+  INSPIRATION
+  OTHER
+}
+
+model MindWorkspace {
+  tenantId      String    @db.VarChar(50)
+  userId        String    @db.Uuid
+  currentTaskId String?   @db.Uuid
+  revision      String    @db.Uuid
+  currentTask   MindTask? @relation(fields: [tenantId, userId, currentTaskId], references: [tenantId, userId, id], onDelete: Restrict)
+
+  @@id([tenantId, userId])
+}
+
+model MindTask {
+  tenantId    String          @db.VarChar(50)
+  userId      String          @db.Uuid
+  id          String          @db.Uuid
+  title       String
+  status      MindTaskStatus  @default(IN_PROGRESS)
+  lastContext String?
+  nextAction  String?
+  archivedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  focus       MindWorkspace[]
+  notes       MindNote[]
+  actions     MindAction[]
+
+  @@id([tenantId, userId, id])
+}
+
+model MindNote {
+  tenantId   String       @db.VarChar(50)
+  userId     String       @db.Uuid
+  id         String       @db.Uuid
+  content    String
+  type       MindNoteType @default(OTHER)
+  taskId     String?      @db.Uuid
+  setAside   Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  task       MindTask?    @relation(fields: [tenantId, userId, taskId], references: [tenantId, userId, id], onDelete: Restrict)
+  actions    MindAction[]
+
+  @@id([tenantId, userId, id])
+  @@index([tenantId, userId, taskId])
+}
+
+model MindAction {
+  tenantId  String    @db.VarChar(50)
+  userId    String    @db.Uuid
+  id        String    @db.Uuid
+  taskId    String?   @db.Uuid
+  noteId    String?   @db.Uuid
+  title     String
+  done      Boolean   @default(false)
+  dueOn     DateTime? @db.Date
+  createdAt DateTime  @default(now())
+  task      MindTask? @relation(fields: [tenantId, userId, taskId], references: [tenantId, userId, id], onDelete: Cascade)
+  note      MindNote? @relation(fields: [tenantId, userId, noteId], references: [tenantId, userId, id], onDelete: Cascade)
+
+  @@id([tenantId, userId, id])
+  @@index([tenantId, userId, taskId])
+  @@index([tenantId, userId, noteId])
+}

@@ -277,3 +277,26 @@
   margin-bottom: 16px;
   opacity: 0.7;
 }
+
+.mindSwitchLink {
+  color: #15506b;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #15506b;
+    outline-offset: 4px;
+  }
+}
+
+@media (max-width: 420px) {
+  .header { padding-inline: 10px; }
+  .headerActions { gap: 8px; }
+  .logo { height: 28px; }
+  .logoutBtn { padding-inline: 9px; }
+}
