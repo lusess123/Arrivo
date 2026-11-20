@@ -1240,19 +1240,25 @@
   }
 }
 
-@media (max-width: 380px) {
-  .addSentenceButton {
+@media (max-width: 560px) {
+  .header .backButton,
+  .header .addSentenceButton,
+  .header .readingModeButton {
+    flex: 0 0 32px;
     width: 32px;
     padding-inline: 0;
+    gap: 0;
     overflow: hidden;
     font-size: 0;
 
     :global(.anticon) {
       margin-inline-end: 0 !important;
-      font-size: 14px;
+      font-size: 15px;
     }
   }
+}
 
+@media (max-width: 380px) {
   .countdownRow {
     gap: 6px;
     padding-inline: 10px;

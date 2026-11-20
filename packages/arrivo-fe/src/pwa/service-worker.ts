@@ -5,6 +5,7 @@ import {
   isCacheableResponse,
   normalizeUserScope,
 } from "./cache-policy";
+import { languagePreferenceKey, resolveLanguage } from "../lib/ui-language";
 
 declare const __PWA_API_ORIGIN__: string;
 declare const __PWA_BUILD_VERSION__: string;
@@ -307,13 +308,13 @@ async function readStoredUserScope() {
 function offlineContentResponse(
   reason: "USER_SCOPE_UNAVAILABLE" | "NOT_CACHED",
 ) {
+  const chinese = resolveLanguage(null, navigator.languages) === "zh";
   return Response.json(
     {
       code: "OFFLINE_CONTENT_UNAVAILABLE",
-      message:
-        reason === "NOT_CACHED"
-          ? "此内容尚未离线缓存，请联网加载一次。"
-          : "无法确认当前用户，未读取离线内容。",
+      message: reason === "NOT_CACHED"
+        ? (chinese ? "此内容尚未离线缓存，请联网加载一次。" : "Connect once to make this content available offline.")
+        : (chinese ? "无法确认当前用户，未读取离线内容。" : "Reconnect to verify your account before opening offline content."),
       reason,
     },
     {
@@ -327,8 +328,14 @@ function offlineContentResponse(
 }
 
 function offlinePageResponse() {
+  const language = resolveLanguage(null, navigator.languages);
   return new Response(
-    '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Arrivo 离线</title><body><main><h1>暂时无法离线打开</h1><p>请联网完整打开 Arrivo 一次后再重试。</p></main></body></html>',
+    `<!doctype html><html lang="${language}"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Arrivo</title>
+<style>html[lang="zh"] [lang="en"],html[lang="en"] [lang="zh"]{display:none}body{font:1rem/1.6 system-ui;color:#24241f;background:#f8f7f2;margin:10vh 8vw}</style>
+<script>try{const l=localStorage.getItem("${languagePreferenceKey}");if(l==="zh"||l==="en")document.documentElement.lang=l}catch{}</script>
+<main><section lang="zh"><h1>暂时无法离线打开</h1><p>请联网完整打开 Arrivo 一次后再重试。</p></section>
+<section lang="en"><h1>Arrivo is offline</h1><p>Connect to the internet and open Arrivo once, then try again.</p></section></main></html>`,
     {
       status: 503,
       headers: {

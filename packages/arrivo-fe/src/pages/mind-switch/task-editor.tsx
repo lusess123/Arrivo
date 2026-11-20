@@ -2,15 +2,16 @@ import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { MindSwitchChange, MindTaskDto, MindTaskStatus } from "@arrivo/contracts";
 import { ExpandableTextField } from "@/components/expandable-text-field";
-import { mindSwitchError } from "@/lib/mind-switch-api";
+import { useLocale, type MessagePair } from "@/lib/locale";
+import { mindSwitchErrorCopy } from "@/lib/mind-switch-api";
 import styles from "./index.module.less";
 
-export const taskStatuses = {
-  IN_PROGRESS: "进行中",
-  WAITING: "等待中",
-  PAUSED: "暂停",
-  DONE: "完成",
-} satisfies Record<MindTaskStatus, string>;
+export const taskStatuses: Record<MindTaskStatus, MessagePair> = {
+  IN_PROGRESS: ["进行中", "In progress"],
+  WAITING: ["等待中", "Waiting"],
+  PAUSED: ["暂停", "Paused"],
+  DONE: ["完成", "Done"],
+};
 
 export function readTaskContext(form: FormData) {
   const lastContext = String(form.get("lastContext") ?? "");
@@ -22,11 +23,12 @@ export function readTaskContext(form: FormData) {
 }
 
 export function ContextFields({ task }: { task: MindTaskDto }) {
+  const { t } = useLocale();
   return <>
-    <label>上次做到哪（可选）
+    <label>{t("上次做到哪（可选）", "Where you left off (optional)")}
       <ExpandableTextField name="lastContext" maxLength={12000} defaultValue={task.lastContext ?? ""} />
     </label>
-    <label>下一步做什么（可选）
+    <label>{t("下一步做什么（可选）", "Next step (optional)")}
       <ExpandableTextField name="nextAction" maxLength={4000} defaultValue={task.nextAction ?? ""} />
     </label>
   </>;
@@ -41,10 +43,11 @@ export function TaskEditor({
   save: (change: MindSwitchChange) => Promise<void>;
   cancel: () => void;
 }) {
+  const { t } = useLocale();
   const writing = useRef(false);
   const [titleInput, setTitleInput] = useState(task.title);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessagePair | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,7 +55,7 @@ export function TaskEditor({
     const form = new FormData(event.currentTarget);
     const title = titleInput.trim();
     if (!title) {
-      setError("请输入任务名称");
+      setError(["请输入任务名称", "Enter a task name."]);
       return;
     }
 
@@ -71,37 +74,37 @@ export function TaskEditor({
         nextAction: nextAction === task.nextAction ? undefined : nextAction,
       });
     } catch (reason) {
-      setError(mindSwitchError(reason));
+      setError(mindSwitchErrorCopy(reason));
     } finally {
       writing.current = false;
       setPending(false);
     }
   }
 
-  return <form className={styles.taskEditor} aria-label="编辑任务" aria-busy={pending} onSubmit={submit}>
+  return <form className={styles.taskEditor} aria-label={t("编辑任务", "Edit task")} aria-busy={pending} onSubmit={submit}>
     <fieldset disabled={pending}>
       <div className={styles.fields}>
-        <label>任务名称
+        <label>{t("任务名称", "Task name")}
           <ExpandableTextField
             name="title"
             required
-            placeholder="输入任务名称"
+            placeholder={t("输入任务名称", "Enter a task name")}
             value={titleInput}
             onChange={(event) => setTitleInput(event.target.value)}
             autoFocus
           />
         </label>
-        <label>状态
-          <select aria-label="状态" name="status" defaultValue={task.status}>
-            {Object.entries(taskStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        <label>{t("状态", "Status")}
+          <select aria-label={t("状态", "Status")} name="status" defaultValue={task.status}>
+            {Object.entries(taskStatuses).map(([value, label]) => <option key={value} value={value}>{t(...label)}</option>)}
           </select>
         </label>
         <ContextFields task={task} />
       </div>
-      {error && <p className={styles.formError} role="alert">{error}</p>}
+      {error && <p className={styles.formError} role="alert">{t(...error)}</p>}
       <div className={styles.buttons}>
-        <button className={styles.primary} type="submit">{pending ? "保存中…" : "保存"}</button>
-        <button type="button" onClick={cancel}>取消</button>
+        <button className={styles.primary} type="submit">{pending ? t("保存中…", "Saving…") : t("保存", "Save")}</button>
+        <button type="button" onClick={cancel}>{t("取消", "Cancel")}</button>
       </div>
     </fieldset>
   </form>;

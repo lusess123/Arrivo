@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const emailSchema = z.string().trim().toLowerCase().email();
 const passwordSchema = z.string().min(6);
+const emailLanguage = z.enum(["zh", "en"]).optional();
 
 export const phoneNumberLoginInputSchema = z.object({
   phoneNumber: z.string().min(1),
@@ -22,6 +23,7 @@ export const emailPasswordRegisterInputSchema = emailPasswordLoginInputSchema;
 
 export const sendPasswordResetEmailInputSchema = z.object({
   email: emailSchema,
+  language: emailLanguage,
 });
 
 export const resetPasswordInputSchema = z.object({
@@ -31,6 +33,7 @@ export const resetPasswordInputSchema = z.object({
 
 export const sendEmailLoginLinkInputSchema = z.object({
   email: emailSchema,
+  language: emailLanguage,
   redirect: z.string().url().optional(),
 });
 

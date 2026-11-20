@@ -10,7 +10,7 @@ const clarityProjectId = process.env.UMI_APP_CLARITY_PROJECT_ID ?? (isProduction
 export default defineConfig({
   mfsu: false, // 明确关闭 mfsu
   hash: true,
-  title: "Arrivo - 让语言为你的世界降临",
+  title: "Arrivo",
   links: [
     { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png", sizes: "180x180" },
@@ -50,13 +50,11 @@ export default defineConfig({
     {
       path: '/learn',
       component: 'index',
-      title: '语言复读 · Arrivo',
       wrappers: ['@/wrappers/auth'],
     },
     {
       path: '/mind-switch',
       component: 'mind-switch',
-      title: '心智切换 · Arrivo',
       wrappers: ['@/wrappers/auth'],
     },
     {

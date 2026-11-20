@@ -2,6 +2,7 @@ import { Button, Card, Typography } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import { AudioOutlined, SoundOutlined } from '@ant-design/icons';
 import { apiUrl } from '@/lib/api';
+import { useLocale } from '@/lib/locale';
 const { Text } = Typography;
 
 export default function Item({
@@ -19,6 +20,7 @@ export default function Item({
   index,
   rate,
 }: any) {
+  const { t: ui } = useLocale();
   const audioRef = useRef<any>(null);
   const [playCount, setPlayCount] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -177,18 +179,18 @@ export default function Item({
       </div>
       <p className="ml-4 break-words break-all !text-xl">
         {' '}
-        {isWaite ? '已经' : '正在'}
-        {isPlaying ? `播放第${playCount}/${maxCount}次` : ''}{' '}
+        {isPlaying && ui(`${isWaite ? '已经' : '正在'}播放第${playCount}/${maxCount}次`,
+          isWaite ? `Completed repeat ${playCount} of ${maxCount}` : `Playing repeat ${playCount} of ${maxCount}`)}{' '}
         {isPlaying &&
           (isWaite ? (
             <span>
-              <AudioOutlined></AudioOutlined>跟读
+              <AudioOutlined /> {ui('跟读', 'Read along')}
             </span>
           ) : (
             <SoundOutlined />
           ))}{' '}
-        {!!duration && duration + '秒'}
-        <Button onClick={playAudio}>播放</Button>
+        {!!duration && ui(`${duration}秒`, `${duration} s`)}
+        <Button onClick={playAudio}>{ui('播放', 'Play')}</Button>
         <Button
           onClick={() => {
             if (myRef.current) {
@@ -196,7 +198,7 @@ export default function Item({
             }
           }}
         >
-          置顶
+          {ui('置顶', 'Scroll to sentence')}
         </Button>
       </p>
     </Card>

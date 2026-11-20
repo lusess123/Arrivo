@@ -19,6 +19,7 @@ import {
   updateRecordBase,
 } from "../runtime/data-scope";
 import { db } from "../runtime/db";
+import { authLinkEmail } from "./auth-link-email";
 import { getLastVisitedPage } from "../user/last-visited-page.case";
 
 type AuthDeps = {
@@ -386,14 +387,6 @@ function requireEmailClient(emailClient: EmailClient) {
   }
 }
 
-function passwordResetEmailHtml(link: string) {
-  return `<p>你正在找回 Arrivo 密码。</p><p><a href="${link}">点击这里设置新密码</a></p><p>链接 30 分钟内有效。如果不是你本人操作，请忽略这封邮件。</p>`;
-}
-
-function emailLoginHtml(link: string) {
-  return `<p>你正在登录 Arrivo。</p><p><a href="${link}">点击这里完成登录</a></p><p>链接 15 分钟内有效。如果不是你本人操作，请忽略这封邮件。</p>`;
-}
-
 async function getFixedSmsCode(
   db: ArrivoDb,
   envFixedCode?: string,
@@ -680,9 +673,7 @@ export async function sendPasswordResetEmail({
   const link = `${webOrigin}/login?resetToken=${encodeURIComponent(token)}`;
   await emailClient.send({
     to: email,
-    subject: "Arrivo 密码找回",
-    text: `点击链接设置新密码：${link}\n\n链接 30 分钟内有效。如果不是你本人操作，请忽略这封邮件。`,
-    html: passwordResetEmailHtml(link),
+    ...authLinkEmail("reset", link, PASSWORD_RESET_EXPIRES_MINUTES, input.language),
   });
   return 1;
 }
@@ -732,9 +723,7 @@ export async function sendEmailLoginLink({
   const link = `${apiBaseUrl}/auth/emailLinkLogin?token=${encodeURIComponent(token)}&redirect=${encodeURIComponent(redirect)}`;
   await emailClient.send({
     to: email,
-    subject: "登录 Arrivo",
-    text: `点击链接登录 Arrivo：${link}\n\n链接 15 分钟内有效。如果不是你本人操作，请忽略这封邮件。`,
-    html: emailLoginHtml(link),
+    ...authLinkEmail("login", link, EMAIL_LOGIN_EXPIRES_MINUTES, input.language),
   });
   return 1;
 }

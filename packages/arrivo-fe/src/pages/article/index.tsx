@@ -36,6 +36,9 @@ import {
   UnorderedListOutlined
 } from "@ant-design/icons";
 import styles from "./index.module.less";
+import { translate, useLocale, type MessagePair } from "@/lib/locale";
+import { readerError } from "./reader-error";
+import { LanguageSwitch } from "@/components/language-switch";
 import { asyncHandle } from "@/lib";
 import { buildLoginUrl } from "@/lib/auth-redirect";
 import axios from "axios";
@@ -83,32 +86,34 @@ type SplitUiState = {
     translatedContent: string;
   }>;
   loading: boolean;
-  error?: { message: string; failedOutput: string; validationError: string };
+  error?: { display: MessagePair; failedOutput: string; validationError: string };
 };
 
 interface ArticleNavigationState {
   autoPlay?: boolean;
 }
 
-const EXTRA_VOICE_OPTIONS: Record<Exclude<LearningLanguageCode, "en">, Array<{ label: string; value: string }>> = {
-  vi: [
-    { label: "越南语-怀美-女性", value: "vi-VN-HoaiMyNeural" },
-    { label: "越南语-南明-男性", value: "vi-VN-NamMinhNeural" }
-  ],
-  fi: [
-    { label: "芬兰语-哈里-男性", value: "fi-FI-HarriNeural" },
-    { label: "芬兰语-诺拉-女性", value: "fi-FI-NooraNeural" }
-  ]
-};
+const englishLanguageNames: Record<LearningLanguageCode, string> = { en: "English", vi: "Vietnamese", fi: "Finnish" };
 
 function getVoiceOptions(languageCode: LearningLanguageCode) {
   if (languageCode === "en") {
-    return ens.map((voice) => ({ label: voice["中文"], value: voice.name }));
+    return ens.map((voice) => {
+      const [, region, name] = voice.name.split("-");
+      return { label: translate(voice["中文"], `${name.replace(/Neural$/, "")} · ${region} · ${voice.gender}`), value: voice.name };
+    });
   }
-  return EXTRA_VOICE_OPTIONS[languageCode];
+  if (languageCode === "vi") return [
+    { label: translate("越南语-怀美-女性", "Hoài My · Female"), value: "vi-VN-HoaiMyNeural" },
+    { label: translate("越南语-南明-男性", "Nam Minh · Male"), value: "vi-VN-NamMinhNeural" }
+  ];
+  return [
+    { label: translate("芬兰语-哈里-男性", "Harri · Male"), value: "fi-FI-HarriNeural" },
+    { label: translate("芬兰语-诺拉-女性", "Noora · Female"), value: "fi-FI-NooraNeural" }
+  ];
 }
 
 const ArticlePage: React.FC = () => {
+  const { locale, t } = useLocale();
   const router = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -125,7 +130,7 @@ const ArticlePage: React.FC = () => {
   const [savingSentence, setSavingSentence] = useState(false);
   const [generatingLanguages, setGeneratingLanguages] = useState<Set<LearningLanguageCode>>(new Set());
   const [languageGenerationErrors, setLanguageGenerationErrors] = useState<
-    Partial<Record<LearningLanguageCode, string>>
+    Partial<Record<LearningLanguageCode, MessagePair>>
   >({});
   const [playbackSettings, setPlaybackSettings] = useState<PlaybackSettings>(() => ({
     ...DEFAULT_PLAYBACK_SETTINGS,
@@ -181,8 +186,10 @@ const ArticlePage: React.FC = () => {
   const activeLanguageOption = LEARNING_LANGUAGE_OPTIONS.find(
     (language) => language.code === activeLanguage
   )!;
+  const learningLanguageName = t(activeLanguageOption.label, englishLanguageNames[activeLanguage]);
   const isGeneratingActiveLanguage = generatingLanguages.has(activeLanguage);
-  const activeLanguageGenerationError = languageGenerationErrors[activeLanguage] ?? null;
+  const generationError = languageGenerationErrors[activeLanguage];
+  const activeLanguageGenerationError = generationError && t(...generationError);
   const displayRows = useMemo(
     () => languageSections.flatMap((section) => section.rows),
     [languageSections]
@@ -265,7 +272,7 @@ const ArticlePage: React.FC = () => {
           const [err] = await asyncHandle(axios.put("/api/user/playback-settings", settings));
           if (err) {
             if (err.response?.status !== 401) {
-              message.error(err.response?.data?.message || "播放设置保存失败");
+              message.error(translate(...readerError(err.response?.data, ["播放设置保存失败，请重试。", "Could not save playback settings. Please retry."])));
             }
             return;
           }
@@ -333,7 +340,7 @@ const ArticlePage: React.FC = () => {
     languageGenerationRequestRef.current.set(attemptKey, requestId);
     setGeneratingLanguages((languages) => new Set(languages).add(languageCode));
     setLanguageGenerationErrors((errors) => {
-      if (!errors[languageCode]) return errors;
+      if (errors[languageCode] === undefined) return errors;
       const next = { ...errors };
       delete next[languageCode];
       return next;
@@ -345,7 +352,7 @@ const ArticlePage: React.FC = () => {
     if (err) {
       setLanguageGenerationErrors((errors) => ({
         ...errors,
-        [languageCode]: err.response?.data?.message || "语言内容生成失败"
+        [languageCode]: readerError(err.response?.data, ["语言内容生成失败，请重试。", "Could not generate this language. Please retry."])
       }));
     } else {
       applyArticleData(res?.data?.data, languageCode);
@@ -372,7 +379,7 @@ const ArticlePage: React.FC = () => {
 
     if (err) {
       if (err.response?.status !== 401) {
-        message.error(err.response?.data?.message || err.message);
+        message.error(translate(...readerError(err.response?.data, ["文章载入失败，请检查网络后重试。", "Could not load the article. Check your connection and retry."])));
       }
       setLoading(false);
       return;
@@ -386,7 +393,7 @@ const ArticlePage: React.FC = () => {
   const handleLogout = async () => {
     const [err] = await asyncHandle(axios.post("/api/auth/signout"));
     if (err) {
-      message.error(err.message);
+      message.error(translate(...readerError(err.response?.data, ["退出登录失败，请重试。", "Could not sign out. Please retry."])));
     } else {
       const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       await auth.saveLastVisitedPage(currentPath);
@@ -505,7 +512,7 @@ const ArticlePage: React.FC = () => {
 
       if (err) {
         if (!cachedSettings && err.response?.status !== 401) {
-          message.warning("播放设置暂时无法同步，已使用默认设置");
+          message.warning(translate("播放设置暂时无法同步，已使用默认设置", "Playback settings could not sync. Using the defaults."));
         }
         return;
       }
@@ -613,7 +620,7 @@ const ArticlePage: React.FC = () => {
                 : sentence
             )
           );
-          message.error(err.response?.data?.message || "句子播放量更新失败");
+          message.error(translate(...readerError(err.response?.data, ["句子播放量更新失败", "Could not update the play count."])));
           return;
         }
 
@@ -650,7 +657,7 @@ const ArticlePage: React.FC = () => {
         );
         if (err) {
           if (err.response?.status !== 401) {
-            message.error(err.response?.data?.message || "单词播放记录保存失败");
+            message.error(translate(...readerError(err.response?.data, ["单词播放记录保存失败", "Could not save word playback history."])));
           }
           return;
         }
@@ -696,7 +703,7 @@ const ArticlePage: React.FC = () => {
 
       if (completion.type === "all-complete") {
         clearArticleProgress();
-        message.success("已播放完全部文章");
+        message.success(translate("已播放完全部文章", "You’ve finished all articles."));
       }
     },
     [
@@ -712,11 +719,11 @@ const ArticlePage: React.FC = () => {
   const startContinuousPlayback = useCallback(
     (sentenceIndex: number) => {
       if (isGeneratingActiveLanguage || missingSentenceGroups.length) {
-        message.info(`${activeLanguageOption.label}内容生成完成后即可播放`);
+        message.info(translate(`${activeLanguageOption.label}内容生成完成后即可播放`, `Playback will be available once the ${englishLanguageNames[activeLanguage]} text is ready.`));
         return;
       }
       if (!playableSentences.length) {
-        message.info("暂无可朗读内容");
+        message.info(translate("暂无可朗读内容", "There is nothing to play yet."));
         return;
       }
 
@@ -759,7 +766,7 @@ const ArticlePage: React.FC = () => {
         replace: true,
         state: null
       });
-      message.info("下一篇语言内容生成失败，连续播放已停止");
+      message.info(translate("下一篇语言内容生成失败，连续播放已停止", "Continuous playback stopped because the next article could not be prepared."));
       return;
     }
 
@@ -768,7 +775,7 @@ const ArticlePage: React.FC = () => {
         replace: true,
         state: null
       });
-      message.info("下一篇暂无可朗读内容");
+      message.info(translate("下一篇暂无可朗读内容", "The next article has nothing to play yet."));
       return;
     }
 
@@ -806,7 +813,7 @@ const ArticlePage: React.FC = () => {
           expanded
         })
       );
-      if (err) message.warning("展开状态暂未同步");
+      if (err) message.warning(translate("展开状态暂未同步", "Your expanded sections haven’t synced yet."));
     },
     [id]
   );
@@ -839,7 +846,7 @@ const ArticlePage: React.FC = () => {
             })
           );
           if (err && err.response?.status !== 401) {
-            message.warning("单句显示偏好暂未同步");
+            message.warning(translate("单句显示偏好暂未同步", "Your display choices haven’t synced yet."));
           }
         });
     },
@@ -889,7 +896,7 @@ const ArticlePage: React.FC = () => {
           temporaryChildren: [],
           loading: true
         }));
-        message.info(payload.message || "结果不合格，正在自动重新生成");
+        message.info(translate(...readerError(payload, ["结果不合格，正在自动重新生成", "The result did not pass validation. Retrying…"])));
         return;
       }
       if (eventName === "analysis_delta") {
@@ -1024,7 +1031,7 @@ const ArticlePage: React.FC = () => {
           temporaryChildren: [],
           loading: false
         }));
-        message.info("这个句子已经不适合继续切分");
+        message.info(translate("这个句子已经不适合继续切分", "This sentence cannot be split any further."));
         return;
       }
       if (eventName === "failed") {
@@ -1032,7 +1039,7 @@ const ArticlePage: React.FC = () => {
           ...state,
           loading: false,
           error: {
-            message: payload.message || "句子切分失败",
+            display: readerError(payload, ["句子切分失败，请重试。", "Could not split the sentence. Please retry."]),
             failedOutput: payload.failedOutput || "",
             validationError: payload.validationError || payload.message || "句子切分失败"
           }
@@ -1090,8 +1097,19 @@ const ArticlePage: React.FC = () => {
               : {})
           }
         );
-        if (!response.ok || !response.body)
-          throw new Error(`句子切分请求失败 (${response.status})`);
+        if (!response.ok || !response.body) {
+          const problem = await response.json().catch(() => null);
+          updateSplitUi(sentence.id, (state) => ({
+            ...state,
+            loading: false,
+            error: {
+              display: readerError(problem, [`句子切分请求失败（${response.status}），请重试。`, `Could not split the sentence (${response.status}). Please retry.`]),
+              failedOutput: "",
+              validationError: problem?.message || `HTTP ${response.status}`
+            }
+          }));
+          return;
+        }
         const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
         let buffer = "";
         while (true) {
@@ -1109,14 +1127,14 @@ const ArticlePage: React.FC = () => {
           }
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "句子切分失败";
+        const errorMessage = error instanceof Error ? error.message : "";
         updateSplitUi(sentence.id, (state) => ({
           ...state,
           loading: false,
           error: {
-            message: errorMessage,
+            display: readerError({ message: errorMessage }, ["句子切分中断，请检查网络后重试。", "Sentence splitting was interrupted. Check your connection and retry."]),
             failedOutput: JSON.stringify(state.temporaryChildren),
-            validationError: errorMessage
+            validationError: errorMessage || "句子切分失败"
           }
         }));
       }
@@ -1156,7 +1174,7 @@ const ArticlePage: React.FC = () => {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!Recognition) return;
     const recognition = new Recognition();
-    recognition.lang = "zh-CN";
+    recognition.lang = locale;
     recognition.interimResults = true;
     recognition.continuous = false;
     recognition.onresult = (event: any) => {
@@ -1176,7 +1194,7 @@ const ArticlePage: React.FC = () => {
     speechRecognitionRef.current = recognition;
     setListeningFeedback(true);
     recognition.start();
-  }, [listeningFeedback]);
+  }, [listeningFeedback, locale]);
 
   const openCreateSentence = (insertIndex: number, targetSentenceGroupId?: string) => {
     if (!canEdit) return;
@@ -1217,7 +1235,7 @@ const ArticlePage: React.FC = () => {
     const original = values.original?.trim() || "";
     const translation = values.translation?.trim() || "";
     if (!original && !translation) {
-      message.info("请至少填写学习语言内容或中文释义");
+      message.info(translate("请至少填写学习语言内容或中文释义", "Enter the sentence or its Chinese translation."));
       return;
     }
 
@@ -1244,13 +1262,13 @@ const ArticlePage: React.FC = () => {
       const [err, res] = await asyncHandle(axios.post(endpoint, payload));
 
       if (err) {
-        message.error(err.response?.data?.message || err.message);
+        message.error(translate(...readerError(err.response?.data, ["句子保存失败，请重试。", "Could not save the sentence. Please retry."])));
         return;
       }
 
       applyArticleData(res?.data?.data);
       closeSentenceModal();
-      message.success(editingSentence ? "句子已更新" : "句子已添加");
+      message.success(editingSentence ? translate("句子已更新", "Sentence updated.") : translate("句子已添加", "Sentence added."));
     } finally {
       setSavingSentence(false);
     }
@@ -1264,7 +1282,7 @@ const ArticlePage: React.FC = () => {
     const [err, res] = await asyncHandle(axios.post(endpoint, payload));
 
     if (err) {
-      message.error(err.response?.data?.message || err.message);
+      message.error(translate(...readerError(err.response?.data, ["句子更新失败，请重新载入文章后重试。", "Could not update the sentence. Reload the article and retry."])));
       return;
     }
 
@@ -1281,7 +1299,7 @@ const ArticlePage: React.FC = () => {
         items.push({
           key: "regenerate",
           icon: <ReloadOutlined />,
-          label: "重新生成子句",
+          label: t("重新生成子句", "Regenerate parts"),
           onClick: () => {
             setRegeneratingSentence(sentence);
             setRegenerationFailure(undefined);
@@ -1292,7 +1310,7 @@ const ArticlePage: React.FC = () => {
         items.push({
           key: "split",
           icon: <ThunderboltOutlined />,
-          label: "切分句子",
+          label: t("切分句子", "Split sentence"),
           onClick: () =>
             sentence.splitStatus === "SPLITTABLE"
               ? void startSentenceSplit(sentence)
@@ -1309,13 +1327,13 @@ const ArticlePage: React.FC = () => {
           {
             key: "insert-above",
             icon: <PlusOutlined />,
-            label: "上方插入",
+            label: t("上方插入", "Insert above"),
             onClick: () => openCreateSentence(rootIndex)
           },
           {
             key: "insert-below",
             icon: <PlusOutlined />,
-            label: "下方插入",
+            label: t("下方插入", "Insert below"),
             onClick: () => openCreateSentence(rootIndex + 1)
           }
         );
@@ -1324,47 +1342,47 @@ const ArticlePage: React.FC = () => {
         {
           key: "move-up",
           icon: <ArrowUpOutlined />,
-          label: "上移",
+          label: t("上移", "Move up"),
           disabled: rootIndex === 0,
           onClick: () =>
             void mutateSentence(
               "/api/article/moveSentence",
               { id: sentence.id, direction: "up" },
-              "顺序已更新"
+              translate("顺序已更新", "Sentence order updated.")
             )
         },
         {
           key: "move-down",
           icon: <ArrowDownOutlined />,
-          label: "下移",
+          label: t("下移", "Move down"),
           disabled: rootIndex === sentenceGroups.length - 1,
           onClick: () =>
             void mutateSentence(
               "/api/article/moveSentence",
               { id: sentence.id, direction: "down" },
-              "顺序已更新"
+              translate("顺序已更新", "Sentence order updated.")
             )
         },
         {
           key: "edit",
           icon: <EditOutlined />,
-          label: "编辑",
+          label: t("编辑", "Edit"),
           onClick: () => openEditSentence(sentence)
         },
         {
           key: "delete",
           icon: <DeleteOutlined />,
-          label: "删除",
+          label: t("删除", "Delete"),
           danger: true,
           onClick: () => {
             Modal.confirm({
-              title: "删除这个句子？",
-              content: "删除后无法恢复。",
-              okText: "删除",
-              cancelText: "取消",
+              title: t("删除这个句子？", "Delete this sentence?"),
+              content: t("删除后无法恢复。", "This cannot be undone."),
+              okText: t("删除", "Delete"),
+              cancelText: t("取消", "Cancel"),
               okButtonProps: { danger: true },
               onOk: () =>
-                mutateSentence("/api/article/deleteSentence", { id: sentence.id }, "句子已删除")
+                mutateSentence("/api/article/deleteSentence", { id: sentence.id }, translate("句子已删除", "Sentence deleted."))
             });
           }
         }
@@ -1380,7 +1398,7 @@ const ArticlePage: React.FC = () => {
       return (
         <span className={styles.sentenceHierarchyControl}>
           <Button type="text" size="small" icon={<ApartmentOutlined />} loading disabled>
-            正在生成子句
+            {t("正在生成子句", "Generating parts…")}
           </Button>
         </span>
       );
@@ -1389,16 +1407,16 @@ const ArticlePage: React.FC = () => {
       const childCount = sentence.children.length;
       return (
         <span className={styles.sentenceHierarchyControl}>
-          <Tooltip title={expanded ? "收起子句" : "展开子句"}>
+          <Tooltip title={expanded ? t("收起子句", "Collapse parts") : t("展开子句", "Expand parts")}>
             <Button
               type="text"
               size="small"
               icon={<ApartmentOutlined />}
               onClick={() => void startSentenceSplit(sentence)}
               className={styles.sentenceHierarchyButton}
-              aria-label={expanded ? "收起子句" : "展开子句"}
+              aria-label={expanded ? t("收起子句", "Collapse parts") : t("展开子句", "Expand parts")}
             >
-              {expanded ? "收起子句" : `展开${childCount ? ` ${childCount} 个` : ""}子句`}
+              {expanded ? t("收起子句", "Collapse parts") : t(`展开${childCount ? ` ${childCount} 个` : ""}子句`, childCount ? `Show ${childCount} ${childCount === 1 ? "part" : "parts"}` : "Show parts")}
               {expanded ? <UpOutlined /> : <DownOutlined />}
             </Button>
           </Tooltip>
@@ -1429,7 +1447,7 @@ const ArticlePage: React.FC = () => {
         )}
         {state.error && (
           <div className={styles.splitError} role="alert">
-            <span>{state.error.message}</span>
+            <span>{t(...state.error.display)}</span>
             <div className={styles.splitErrorActions}>
               <Button
                 size="small"
@@ -1440,7 +1458,7 @@ const ArticlePage: React.FC = () => {
                   setRegenerationFeedback("");
                 }}
               >
-                重新生成
+                {t("重新生成", "Regenerate")}
               </Button>
               <Button
                 size="small"
@@ -1453,7 +1471,7 @@ const ArticlePage: React.FC = () => {
                   }))
                 }
               >
-                清空结果
+                {t("清空结果", "Clear result")}
               </Button>
             </div>
           </div>
@@ -1541,7 +1559,7 @@ const ArticlePage: React.FC = () => {
     return (
       <div className={styles.loadingContainer}>
         <Spin size="large" />
-        <p>Loading article...</p>
+        <p>{t("正在载入文章…", "Loading article…")}</p>
       </div>
     );
   }
@@ -1554,9 +1572,11 @@ const ArticlePage: React.FC = () => {
             type="text"
             icon={<ArrowLeftOutlined />}
             onClick={handleGoBack}
+            aria-label={t("返回", "Back")}
+            title={t("返回", "Back")}
             className={styles.backButton}
           >
-            返回
+            {t("返回", "Back")}
           </Button>
           {!isFocusMode ? (
             <>
@@ -1571,15 +1591,17 @@ const ArticlePage: React.FC = () => {
                 }
                 className={styles.playButton}
               >
-                {resumeIndex === null ? "朗读" : "继续"}
+                {resumeIndex === null ? t("朗读", "Play") : t("继续", "Resume")}
               </Button>
               {canEdit && activeLanguage === "en" ? (
                 <Button
                   icon={<PlusOutlined />}
                   onClick={() => openCreateSentence(sentenceGroups.length)}
+                  aria-label={t("添加句子", "Add sentence")}
+                  title={t("添加句子", "Add sentence")}
                   className={styles.addSentenceButton}
                 >
-                  添加句子
+                  {t("添加句子", "Add sentence")}
                 </Button>
               ) : null}
             </>
@@ -1591,27 +1613,30 @@ const ArticlePage: React.FC = () => {
               ? `${focusIndex + 1} / ${playableSentences.length}`
               : article?.title}
           </span>
-          {article?.isPublic && <Tag color="blue">公共</Tag>}
+          {article?.isPublic && <Tag color="blue">{t("公共", "Public")}</Tag>}
         </h1>
         <div className={styles.rightControls}>
           <Button
             type="text"
             icon={isFocusMode ? <UnorderedListOutlined /> : <FullscreenOutlined />}
             onClick={() => changeReadingMode(isFocusMode ? "list" : "focus")}
+            aria-label={isFocusMode ? t("切换到列表模式", "Switch to list view") : t("切换到专注模式", "Switch to focus view")}
             className={styles.readingModeButton}
           >
-            <span className={styles.readingModeLabel}>{isFocusMode ? "列表" : "专注"}</span>
+            <span className={styles.readingModeLabel}>{isFocusMode ? t("列表", "List") : t("专注", "Focus")}</span>
           </Button>
           <Button
             type="text"
             icon={<SettingOutlined />}
             onClick={handleOpenSettings}
+            aria-label={t("阅读设置", "Reading settings")}
             className={styles.settingsButton}
           />
           <Button
             type="text"
             icon={<LogoutOutlined />}
             onClick={handleLogout}
+            aria-label={t("退出登录", "Sign out")}
             className={styles.logoutButton}
           />
         </div>
@@ -1620,23 +1645,23 @@ const ArticlePage: React.FC = () => {
       <div className={styles.content}>
         {!isFocusMode && resumeIndex !== null && activeSentenceIndex === null && (
           <div className={styles.resumeNotice} role="status">
-            <span>上次停在第 {resumeIndex + 1} 句</span>
+            <span>{t(`上次停在第 ${resumeIndex + 1} 句`, `You left off at sentence ${resumeIndex + 1}.`)}</span>
             <Button type="link" onClick={handleContinuePlayback}>
-              从这里继续
+              {t("从这里继续", "Resume here")}
             </Button>
             {resumeIndex > 0 && (
               <Button type="link" onClick={handlePlayFromBeginning}>
-                从头播放
+                {t("从头播放", "Play from the start")}
               </Button>
             )}
           </div>
         )}
         {!hasSentenceGroups && (
           <div className={styles.emptySentence}>
-            <p>暂无句子</p>
+            <p>{t("暂无句子", "No sentences yet")}</p>
             {canEdit && activeLanguage === "en" && (
               <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateSentence(0)}>
-                添加第一句
+                {t("添加第一句", "Add the first sentence")}
               </Button>
             )}
           </div>
@@ -1662,8 +1687,8 @@ const ArticlePage: React.FC = () => {
                   />
                   <p>
                     {isGeneratingActiveLanguage
-                      ? `正在生成${activeLanguageOption.label}内容…`
-                      : activeLanguageGenerationError || `正在准备${activeLanguageOption.label}内容…`}
+                      ? t(`正在生成${learningLanguageName}内容…`, `Generating ${learningLanguageName} text…`)
+                      : activeLanguageGenerationError || t(`正在准备${learningLanguageName}内容…`, `Preparing ${learningLanguageName} text…`)}
                   </p>
                   {isGeneratingActiveLanguage ? <Spin size="small" /> : null}
                   {activeLanguageGenerationError ? (
@@ -1671,7 +1696,7 @@ const ArticlePage: React.FC = () => {
                       type="primary"
                       onClick={() => void generateMissingLanguage(activeLanguage, true)}
                     >
-                      重新生成
+                      {t("重新生成", "Regenerate")}
                     </Button>
                   ) : null}
                 </div>
@@ -1686,7 +1711,7 @@ const ArticlePage: React.FC = () => {
                 "focus"
               )}
             </div>
-            <nav className={styles.focusNavigation} aria-label="专注阅读句子导航">
+            <nav className={styles.focusNavigation} aria-label={t("专注阅读句子导航", "Focus reading navigation")}>
               <Button
                 type="text"
                 icon={<LeftOutlined />}
@@ -1694,7 +1719,7 @@ const ArticlePage: React.FC = () => {
                 onClick={() => handleFocusNavigate(-1)}
                 className={styles.focusNavigationButton}
               >
-                上一句
+                {t("上一句", "Previous")}
               </Button>
               <span className={styles.focusNavigationProgress}>
                 {focusIndex + 1} / {playableSentences.length}
@@ -1707,7 +1732,7 @@ const ArticlePage: React.FC = () => {
                 onClick={() => handleFocusNavigate(1)}
                 className={styles.focusNavigationButton}
               >
-                下一句
+                {t("下一句", "Next")}
               </Button>
             </nav>
           </div>
@@ -1715,8 +1740,8 @@ const ArticlePage: React.FC = () => {
           <div className={styles.missingLanguageSentence}>
             <p>
               {isGeneratingActiveLanguage
-                ? `正在生成${activeLanguageOption.label}内容…`
-                : activeLanguageGenerationError || `正在准备${activeLanguageOption.label}内容…`}
+                ? t(`正在生成${learningLanguageName}内容…`, `Generating ${learningLanguageName} text…`)
+                : activeLanguageGenerationError || t(`正在准备${learningLanguageName}内容…`, `Preparing ${learningLanguageName} text…`)}
             </p>
             {isGeneratingActiveLanguage ? <Spin size="small" /> : null}
             {activeLanguageGenerationError ? (
@@ -1724,7 +1749,7 @@ const ArticlePage: React.FC = () => {
                 type="primary"
                 onClick={() => void generateMissingLanguage(activeLanguage, true)}
               >
-                重新生成
+                {t("重新生成", "Regenerate")}
               </Button>
             ) : null}
           </div>
@@ -1732,7 +1757,7 @@ const ArticlePage: React.FC = () => {
       </div>
 
       <Modal
-        title="纠错并重新生成"
+        title={t("纠错并重新生成", "Revise and regenerate")}
         open={Boolean(regeneratingSentence)}
         onCancel={() => {
           speechRecognitionRef.current?.stop();
@@ -1741,14 +1766,14 @@ const ArticlePage: React.FC = () => {
           setRegenerationFeedback("");
         }}
         onOk={submitRegeneration}
-        okText={regenerationFeedback.trim() ? "按建议重新生成" : "直接重新生成"}
-        cancelText="取消"
+        okText={regenerationFeedback.trim() ? t("按建议重新生成", "Regenerate with feedback") : t("直接重新生成", "Regenerate")}
+        cancelText={t("取消", "Cancel")}
       >
-        <p>可以直接重新生成，也可以补充修改建议。旧结果和已有校验错误会自动发送给模型。</p>
+        <p>{t("可以直接重新生成，也可以补充修改建议。旧结果和已有校验错误会自动发送给模型。", "Regenerate now or suggest a change. The previous result and its validation errors will be included.")}</p>
         <Input.TextArea
           value={regenerationFeedback}
           onChange={(event) => setRegenerationFeedback(event.target.value)}
-          placeholder="选填：输入或使用语音说出修改建议"
+          placeholder={t("选填：输入或使用语音说出修改建议", "Optional: type or dictate feedback")}
           rows={4}
           maxLength={1000}
           showCount
@@ -1761,26 +1786,30 @@ const ArticlePage: React.FC = () => {
               type={listeningFeedback ? "primary" : "default"}
               onClick={toggleFeedbackSpeech}
             >
-              {listeningFeedback ? "停止语音输入" : "语音输入"}
+              {listeningFeedback ? t("停止语音输入", "Stop dictation") : t("语音输入", "Dictate feedback")}
             </Button>
           )}
       </Modal>
 
       <Modal
-        title="阅读设置"
+        title={t("阅读设置", "Reading settings")}
         open={isSettingsModalVisible}
         onCancel={handleCloseSettings}
         className={styles.settingsModal + " max-w-[600px]"}
         footer={null}
       >
+        <div className={`${styles.settingItem} ${styles.settingSwitchItem}`}>
+          <label>{t("界面语言", "Interface language")}</label>
+          <LanguageSwitch />
+        </div>
         <div className={styles.settingItem}>
-          <label>学习语言:</label>
+          <label>{t("学习语言:", "Learning languages")}</label>
           <Select
             mode="multiple"
             allowClear={false}
             value={playbackSettings.learningLanguages}
             options={LEARNING_LANGUAGE_OPTIONS.map((language) => ({
-              label: `${language.label} · ${language.nativeLabel}`,
+              label: t(`${language.label} · ${language.nativeLabel}`, language.code === "en" ? "English" : `${englishLanguageNames[language.code]} · ${language.nativeLabel}`),
               value: language.code
             }))}
             onChange={(values: LearningLanguageCode[]) => {
@@ -1799,11 +1828,11 @@ const ArticlePage: React.FC = () => {
           />
         </div>
         <div className={`${styles.settingItem} ${styles.settingSwitchItem}`}>
-          <label>显示原文</label>
+          <label>{t("显示原文", "Show original")}</label>
           <Switch
             checked={playbackSettings.showOriginal}
-            checkedChildren="显示"
-            unCheckedChildren="隐藏"
+            checkedChildren={t("显示", "Show")}
+            unCheckedChildren={t("隐藏", "Hide")}
             onChange={(checked) => {
               const nextSettings = updatePlaybackSettings({
                 showOriginal: checked
@@ -1813,11 +1842,11 @@ const ArticlePage: React.FC = () => {
           />
         </div>
         <div className={`${styles.settingItem} ${styles.settingSwitchItem}`}>
-          <label>显示中文翻译</label>
+          <label>{t("显示中文翻译", "Show Chinese translation")}</label>
           <Switch
             checked={playbackSettings.showTranslation}
-            checkedChildren="显示"
-            unCheckedChildren="隐藏"
+            checkedChildren={t("显示", "Show")}
+            unCheckedChildren={t("隐藏", "Hide")}
             onChange={(checked) => {
               const nextSettings = updatePlaybackSettings({
                 showTranslation: checked
@@ -1827,19 +1856,19 @@ const ArticlePage: React.FC = () => {
           />
         </div>
         <div className={styles.settingItem}>
-          <label>阅读模式:</label>
+          <label>{t("阅读模式:", "Reading mode")}</label>
           <Segmented
             block
             value={playbackSettings.readingMode}
             options={[
-              { label: "列表", value: "list" },
-              { label: "专注", value: "focus" }
+              { label: t("列表", "List"), value: "list" },
+              { label: t("专注", "Focus"), value: "focus" }
             ]}
             onChange={(value) => changeReadingMode(value as PlaybackSettings["readingMode"])}
           />
         </div>
         <div className={styles.settingItem}>
-          <label>音色:</label>
+          <label>{t("音色:", "Voice")}</label>
           <Select
             value={playbackSettings.voices[activeLanguage]}
             onChange={(value) => {
@@ -1853,7 +1882,7 @@ const ArticlePage: React.FC = () => {
           />
         </div>
         <div className={styles.settingItem}>
-          <label>说话速度:</label>
+          <label>{t("说话速度:", "Playback speed")}</label>
           <Slider
             min={0.5}
             max={2}
@@ -1862,15 +1891,15 @@ const ArticlePage: React.FC = () => {
             onChange={(value) => updatePlaybackSettings({ playbackRate: value })}
             onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
-              0.5: "慢",
-              1: "正常",
-              1.5: "快",
-              2: "非常快"
+              0.5: t("慢", "Slow"),
+              1: t("正常", "Normal"),
+              1.5: t("快", "Fast"),
+              2: t("非常快", "Very fast")
             }}
           />
         </div>
         <div className={styles.settingItem}>
-          <label>播放次数:</label>
+          <label>{t("播放次数:", "Repeat count")}</label>
           <Slider
             min={1}
             max={10}
@@ -1879,17 +1908,17 @@ const ArticlePage: React.FC = () => {
             onChange={(value) => updatePlaybackSettings({ repeatCount: value })}
             onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
-              1: "1次",
-              2: "2次",
-              3: "3次",
-              4: "4次",
-              5: "5次",
-              10: "10次"
+              1: t("1次", "1×"),
+              2: t("2次", "2×"),
+              3: t("3次", "3×"),
+              4: t("4次", "4×"),
+              5: t("5次", "5×"),
+              10: t("10次", "10×")
             }}
           />
         </div>
         <div className={styles.settingItem}>
-          <label>额外停顿: {playbackSettings.extraPauseSeconds}秒</label>
+          <label>{t(`额外停顿: ${playbackSettings.extraPauseSeconds}秒`, `Extra pause: ${playbackSettings.extraPauseSeconds} s`)}</label>
           <Slider
             min={0}
             max={10}
@@ -1898,29 +1927,29 @@ const ArticlePage: React.FC = () => {
             onChange={(value) => updatePlaybackSettings({ extraPauseSeconds: value })}
             onChangeComplete={() => persistPlaybackSettings(playbackSettingsRef.current)}
             marks={{
-              0: "0秒",
-              5: "5秒",
-              10: "10秒"
+              0: t("0秒", "0 s"),
+              5: t("5秒", "5 s"),
+              10: t("10秒", "10 s")
             }}
           />
         </div>
       </Modal>
 
       <Modal
-        title={editingSentence ? "编辑句子" : `添加${activeLanguageOption.label}句子`}
+        title={editingSentence ? t("编辑句子", "Edit sentence") : t(`添加${learningLanguageName}句子`, `Add a sentence in ${learningLanguageName}`)}
         open={sentenceModalOpen}
         onCancel={closeSentenceModal}
         onOk={handleSaveSentence}
         confirmLoading={savingSentence}
-        okText={editingSentence ? "保存" : "添加"}
-        cancelText="取消"
+        okText={editingSentence ? t("保存", "Save") : t("添加", "Add")}
+        cancelText={t("取消", "Cancel")}
       >
         <Form form={sentenceForm} layout="vertical">
-          <Form.Item label={activeLanguageOption.label} name="original">
-            <Input.TextArea rows={4} placeholder={`输入要朗读的${activeLanguageOption.label}，可不填`} />
+          <Form.Item label={learningLanguageName} name="original">
+            <Input.TextArea rows={4} placeholder={t(`输入要朗读的${learningLanguageName}，可不填`, `Enter the ${learningLanguageName} text (optional)`)} />
           </Form.Item>
-          <Form.Item label="中文释义" name="translation">
-            <Input.TextArea rows={4} placeholder="输入中文释义，可不填" />
+          <Form.Item label={t("中文释义", "Chinese translation")} name="translation">
+            <Input.TextArea rows={4} placeholder={t("输入中文释义，可不填", "Enter the Chinese translation (optional)")} />
           </Form.Item>
         </Form>
       </Modal>

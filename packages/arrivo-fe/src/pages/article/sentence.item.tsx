@@ -1,3 +1,4 @@
+import { translate, useLocale } from "@/lib/locale";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   PlaybackSettingsDto,
@@ -131,6 +132,7 @@ interface ISentenceItem {
 }
 
 export default function SentenceItem(sentence: ISentenceItem) {
+  const { t } = useLocale();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const activeAudioAttemptRef = useRef<object | null>(null);
   const wordPreviewRef = useRef<HTMLAudioElement | null>(null);
@@ -208,9 +210,9 @@ export default function SentenceItem(sentence: ISentenceItem) {
   const handleCopy = useCallback(async (text: string, label: '原文' | '译文') => {
     try {
       await copySentenceText(text);
-      message.success(`${label}已复制`);
+      message.success(translate(`${label}已复制`, label === '原文' ? 'Original text copied.' : 'Translation copied.'));
     } catch {
-      message.error(`${label}复制失败`);
+      message.error(translate(`${label}复制失败`, label === '原文' ? 'Could not copy the original text.' : 'Could not copy the translation.'));
     }
   }, []);
 
@@ -493,7 +495,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
       activeAudioAttemptRef.current = null;
       console.error('Audio playback failed', error);
       stopAudio();
-      message.error('音频生成或播放失败，请重试。');
+      message.error(translate('音频生成或播放失败，请重试。', 'Could not play the audio. Please try again.'));
       sentence.onPlayStop(sentence.index);
     },
     [sentence.index, sentence.onPlayStop, stopAudio]
@@ -791,7 +793,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
         if (wordPreviewRef.current !== preview) return;
         finish();
         if ((error as { name?: string } | null)?.name !== 'AbortError') {
-          message.error('音频生成或播放失败，请重试。');
+          message.error(translate('音频生成或播放失败，请重试。', 'Could not play the audio. Please try again.'));
         }
       };
       preview.addEventListener('ended', finish, { once: true });
@@ -850,7 +852,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
           if (wordPreviewRef.current !== preview) return;
           stopWordPreview();
           if ((error as { name?: string } | null)?.name !== 'AbortError') {
-            message.error('音频生成或播放失败，请重试。');
+            message.error(translate('音频生成或播放失败，请重试。', 'Could not play the audio. Please try again.'));
           }
         };
 
@@ -1051,7 +1053,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
     }
   };
 
-  const playButtonLabel = !sentence.playing ? '播放句子' : isPaused ? '继续播放' : '暂停播放';
+  const playButtonLabel = !sentence.playing ? t('播放句子', 'Play sentence') : isPaused ? t('继续播放', 'Resume playback') : t('暂停播放', 'Pause playback');
 
   return (
     <div
@@ -1079,7 +1081,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
             icon={sentence.playing && !isPaused ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
             onClick={handleTogglePlay}
             className={`${styles.sentencePlayButton} ${sentence.playing ? styles.sentencePlayButtonActive : ''}`}
-            aria-label={`${playButtonLabel}，第 ${sentence.displayNumber} 句`}
+            aria-label={t(`${playButtonLabel}，第 ${sentence.displayNumber} 句`, `${playButtonLabel}, sentence ${sentence.displayNumber}`)}
           />
         )}
         <span className={styles.sentenceNumber} aria-hidden="true">
@@ -1087,7 +1089,7 @@ export default function SentenceItem(sentence: ISentenceItem) {
         </span>
       </div>
       <div className={styles.sentenceContent}>
-        {sentence.resumePoint && <span className={styles.resumeMarker}>上次停在这里</span>}
+        {sentence.resumePoint && <span className={styles.resumeMarker}>{t('上次停在这里', 'You left off here')}</span>}
         {sentence.languageTabs}
         <div ref={focusTextAreaRef} className={styles.sentenceTextArea}>
           {showOriginal ? (
@@ -1122,8 +1124,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
                       onContextMenu={(event) => event.preventDefault()}
                       aria-label={
                         wordIndex === continuousPreviewWordIndex
-                          ? `停止连续播放单词 ${segment.text}`
-                          : `播放或定位单词 ${segment.text}`
+                          ? t(`停止连续播放单词 ${segment.text}`, `Stop repeating ${segment.text}`)
+                          : t(`播放或定位单词 ${segment.text}`, `Play or locate ${segment.text}`)
                       }
                       aria-busy={wordIndex === previewLoadingWordIndex || wordIndex === continuousPreviewWordIndex}
                     >
@@ -1137,8 +1139,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 shape="circle"
                 icon={<CopyOutlined />}
                 className={styles.sentenceCopyButton}
-                aria-label={`复制第 ${sentence.displayNumber} 句原文`}
-                title="复制原文"
+                aria-label={t(`复制第 ${sentence.displayNumber} 句原文`, `Copy original text for sentence ${sentence.displayNumber}`)}
+                title={t("复制原文", "Copy original")}
                 onClick={() => void handleCopy(sentence.originalContent, '原文')}
               />
             </div>
@@ -1156,8 +1158,8 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 shape="circle"
                 icon={<CopyOutlined />}
                 className={styles.sentenceCopyButton}
-                aria-label={`复制第 ${sentence.displayNumber} 句译文`}
-                title="复制译文"
+                aria-label={t(`复制第 ${sentence.displayNumber} 句译文`, `Copy the translation for sentence ${sentence.displayNumber}`)}
+                title={t("复制译文", "Copy translation")}
                 onClick={() => void handleCopy(sentence.translatedContent, '译文')}
               />
             </div>
@@ -1168,14 +1170,14 @@ export default function SentenceItem(sentence: ISentenceItem) {
         <div className={styles.sentenceControls}>
           <div
             className={styles.sentenceVisibilityControls}
-            aria-label={`第 ${sentence.displayNumber} 句内容显示`}
+            aria-label={t(`第 ${sentence.displayNumber} 句内容显示`, `Text visibility for sentence ${sentence.displayNumber}`)}
           >
             <Button
               type="text"
               size="small"
               icon={showOriginal ? <EyeOutlined /> : <EyeInvisibleOutlined />}
               className={`${styles.sentenceVisibilityButton} ${showOriginal ? styles.sentenceVisibilityButtonActive : ''}`}
-              aria-label={`${showOriginal ? '隐藏' : '显示'}第 ${sentence.displayNumber} 句原文`}
+              aria-label={t(`${showOriginal ? '隐藏' : '显示'}第 ${sentence.displayNumber} 句原文`, `${showOriginal ? 'Hide' : 'Show'} original text for sentence ${sentence.displayNumber}`)}
               aria-pressed={showOriginal}
               disabled={!hasOriginal || sentence.visibilityControlsDisabled}
               onClick={() => sentence.onTextVisibilityChange?.({
@@ -1183,14 +1185,14 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 showTranslation
               })}
             >
-              原文
+              {t('原文', 'Original')}
             </Button>
             <Button
               type="text"
               size="small"
               icon={showTranslation ? <EyeOutlined /> : <EyeInvisibleOutlined />}
               className={`${styles.sentenceVisibilityButton} ${showTranslation ? styles.sentenceVisibilityButtonActive : ''}`}
-              aria-label={`${showTranslation ? '隐藏' : '显示'}第 ${sentence.displayNumber} 句译文`}
+              aria-label={t(`${showTranslation ? '隐藏' : '显示'}第 ${sentence.displayNumber} 句译文`, `${showTranslation ? 'Hide' : 'Show'} the translation for sentence ${sentence.displayNumber}`)}
               aria-pressed={showTranslation}
               disabled={!hasTranslation || sentence.visibilityControlsDisabled}
               onClick={() => sentence.onTextVisibilityChange?.({
@@ -1198,37 +1200,37 @@ export default function SentenceItem(sentence: ISentenceItem) {
                 showTranslation: !showTranslation
               })}
             >
-              译文
+              {t('译文', 'Translation')}
             </Button>
           </div>
           {sentence.playing ? (
             <span className={styles.playCount}>
-              第{playCount || 1}/{maxCount}次
+              {t(`第${playCount || 1}/${maxCount}次`, `Repeat ${playCount || 1} of ${maxCount}`)}
             </span>
           ) : null}
-          <span className={styles.totalPlayCount}>播放量 {sentence.totalPlayCount}</span>
+          <span className={styles.totalPlayCount}>{t(`播放量 ${sentence.totalPlayCount}`, `${sentence.totalPlayCount} ${sentence.totalPlayCount === 1 ? 'play' : 'plays'}`)}</span>
           {sentence.playing && !isWaite ? (
             isPaused ? (
-              <span className={styles.playbackPaused}>已暂停</span>
+              <span className={styles.playbackPaused}>{t('已暂停', 'Paused')}</span>
             ) : (
               <SoundOutlined />
             )
           ) : null}
-          {!!duration && <span className={styles.duration}>{duration}秒</span>}
+          {!!duration && <span className={styles.duration}>{t(`${duration}秒`, `${duration} s`)}</span>}
           {!!sentence.actions?.length && (
             <Button
               type="text"
               shape="circle"
               icon={<MoreOutlined />}
               className={`${styles.sentenceMoreButton} ${isActionPanelOpen ? styles.sentenceMoreButtonActive : ''}`}
-              aria-label="更多句子操作"
+              aria-label={t("更多句子操作", "More sentence actions")}
               aria-expanded={isActionPanelOpen}
               onClick={() => setIsActionPanelOpen((open) => !open)}
             />
           )}
         </div>
         {isActionPanelOpen && sentence.actions?.length ? (
-          <div className={styles.sentenceActionPanel} aria-label="句子操作区">
+          <div className={styles.sentenceActionPanel} aria-label={t("句子操作区", "Sentence actions")}>
             {sentence.actions.map((action) => (
               <Button
                 key={action.key}
@@ -1251,13 +1253,13 @@ export default function SentenceItem(sentence: ISentenceItem) {
       {sentence.playing && isWaite ? (
         <div
           className={styles.countdownRow}
-          aria-label={`停顿倒计时 ${pauseRemaining.toFixed(1)} 秒${isPaused ? '，已暂停' : ''}`}
+          aria-label={t(`停顿倒计时 ${pauseRemaining.toFixed(1)} 秒${isPaused ? '，已暂停' : ''}`, `Pause countdown: ${pauseRemaining.toFixed(1)} seconds${isPaused ? ', paused' : ''}`)}
         >
           <AudioOutlined className={styles.countdownIcon} />
-          <span className={styles.countdownLabel}>停顿倒计时</span>
+          <span className={styles.countdownLabel}>{t('停顿倒计时', 'Pause countdown')}</span>
           <strong className={styles.countdownValue}>{pauseRemaining.toFixed(1)}</strong>
-          <span className={styles.countdownUnit}>秒</span>
-          <span className={styles.countdownState}>{isPaused ? '暂停中' : '进行中'}</span>
+          <span className={styles.countdownUnit}>{t('秒', 's')}</span>
+          <span className={styles.countdownState}>{isPaused ? t('暂停中', 'Paused') : t('进行中', 'Running')}</span>
         </div>
       ) : null}
     </div>

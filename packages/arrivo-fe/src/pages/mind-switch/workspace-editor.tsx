@@ -9,16 +9,17 @@ import type {
   MindTaskDto,
 } from "@arrivo/contracts";
 import { ExpandableTextField } from "@/components/expandable-text-field";
-import { mindSwitchError } from "@/lib/mind-switch-api";
+import { useLocale, type MessagePair } from "@/lib/locale";
+import { mindSwitchErrorCopy } from "@/lib/mind-switch-api";
 import { ContextFields, readTaskContext } from "./task-editor";
 import styles from "./index.module.less";
 
-export const noteTypes = {
-  OTHER: "其他",
-  IDEA: "想法",
-  CONCERN: "担忧",
-  INSPIRATION: "灵感",
-} satisfies Record<MindNoteType, string>;
+export const noteTypes: Record<MindNoteType, MessagePair> = {
+  OTHER: ["其他", "Other"],
+  IDEA: ["想法", "Idea"],
+  CONCERN: ["担忧", "Concern"],
+  INSPIRATION: ["灵感", "Inspiration"],
+};
 
 export type ActionParent = { kind: "task" | "note"; id: string };
 
@@ -28,7 +29,7 @@ export type WorkspaceEdit =
   | { kind: "link"; note: MindNoteDto }
   | { kind: "convert"; note: MindNoteDto }
   | { kind: "action"; action?: MindActionDto; parent?: ActionParent; note?: MindNoteDto }
-  | { kind: "confirm"; title: string; description: string; change: MindSwitchChange };
+  | { kind: "confirm"; title: MessagePair; description: MessagePair; change: MindSwitchChange };
 
 function trimmed(form: FormData, field: string) {
   return String(form.get(field) ?? "").trim();
@@ -47,10 +48,11 @@ export function WorkspaceEditor({
   close: () => void;
   save: (input: MindSwitchChange) => Promise<void>;
 }) {
+  const { t } = useLocale();
   const element = useRef<HTMLFormElement>(null);
   const writing = useRef(false);
   const generatedId = useRef<string>();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessagePair | null>(null);
   const [pending, setPending] = useState(false);
   const activeTasks = snapshot.tasks.filter((task) => !task.archivedAt);
   const remainingTasks = edit.kind === "focus"
@@ -113,7 +115,7 @@ export function WorkspaceEditor({
       await save(change);
       finish();
     } catch (reason) {
-      setError(mindSwitchError(reason));
+      setError(mindSwitchErrorCopy(reason));
       writing.current = false;
       setPending(false);
     }
@@ -171,28 +173,28 @@ export function WorkspaceEditor({
 
   let heading: string;
   let fields: React.ReactNode;
-  let submitLabel = "保存";
+  let submitLabel = t("保存", "Save");
 
   switch (edit.kind) {
     case "focus": {
       const preview = destination?.nextAction || destination?.lastContext;
       if (edit.target === null) {
-        heading = "暂时休息";
-        submitLabel = "休息一下";
+        heading = t("暂时休息", "Take a break");
+        submitLabel = t("休息一下", "Take a break");
       } else if (edit.source) {
-        heading = "切换任务";
-        submitLabel = "切换";
+        heading = t("切换任务", "Switch tasks");
+        submitLabel = t("切换", "Switch");
       } else {
-        heading = "开始专注";
-        submitLabel = "开始专注";
+        heading = t("开始专注", "Start focusing");
+        submitLabel = t("开始专注", "Start focusing");
       }
       fields = <>
         {edit.target !== null && (
           edit.target
-            ? <p className={styles.editorTarget}>{destination?.title ?? "这项任务已不可用，请取消后重新选择。"}</p>
-            : <label>切换到
+            ? <p className={styles.editorTarget}>{destination?.title ?? t("这项任务已不可用，请取消后重新选择。", "This task is no longer available. Cancel and choose another.")}</p>
+            : <label>{t("切换到", "Switch to")}
                 <select
-                  aria-label="切换到"
+                  aria-label={t("切换到", "Switch to")}
                   name="taskId"
                   value={destination?.id ?? ""}
                   onChange={(event) => setSelectedTaskId(event.target.value)}
@@ -200,73 +202,73 @@ export function WorkspaceEditor({
                   data-initial-focus
                 >
                   {!destination && <option value="" disabled>
-                    {remainingTasks.length ? "原任务已不可用，请重新选择" : "没有其他可切换的任务"}
+                    {remainingTasks.length ? t("原任务已不可用，请重新选择", "That task is no longer available. Choose another.") : t("没有其他可切换的任务", "No other tasks to switch to")}
                   </option>}
                   {remainingTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
                 </select>
               </label>
         )}
         {preview && <div className={styles.switchPreview} aria-live="polite">
-          <strong>{destination?.nextAction ? "回来先做" : "上次进度"}</strong>
+          <strong>{destination?.nextAction ? t("回来先做", "When you return") : t("上次进度", "Where you left off")}</strong>
           <p>{preview}</p>
         </div>}
         {edit.source && <>
-          <p>离开「{edit.source.title}」前，可以留一点上下文。</p>
+          <p>{t(`离开「${edit.source.title}」前，可以留一点上下文。`, `Before you leave “${edit.source.title}”, jot down where to pick up.`)}</p>
           <ContextFields task={edit.source} />
         </>}
       </>;
       break;
     }
     case "note":
-      heading = edit.note ? "编辑记录" : "快速记录";
+      heading = edit.note ? t("编辑记录", "Edit note") : t("快速记录", "Quick note");
       fields = <>
-        <label>此刻想到什么？
+        <label>{t("此刻想到什么？", "What’s on your mind?")}
           <ExpandableTextField name="content" maxLength={12000} defaultValue={edit.note?.content} required data-initial-focus />
         </label>
-        <label>类型（可选）
-          <select aria-label="记录类型" name="type" defaultValue={edit.note?.type ?? "OTHER"}>
-            {Object.entries(noteTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        <label>{t("类型（可选）", "Type (optional)")}
+          <select aria-label={t("记录类型", "Note type")} name="type" defaultValue={edit.note?.type ?? "OTHER"}>
+            {Object.entries(noteTypes).map(([value, label]) => <option key={value} value={value}>{t(...label)}</option>)}
           </select>
         </label>
       </>;
       break;
     case "link":
-      heading = "关联任务";
-      fields = <label>任务
-        <select aria-label="任务" name="taskId" defaultValue={edit.note.taskId ?? ""} data-initial-focus>
-          <option value="">独立记录</option>
+      heading = t("关联任务", "Link to task");
+      fields = <label>{t("任务", "Task")}
+        <select aria-label={t("任务", "Task")} name="taskId" defaultValue={edit.note.taskId ?? ""} data-initial-focus>
+          <option value="">{t("独立记录", "Unlinked note")}</option>
           {activeTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
           {snapshot.tasks.filter((task) => task.archivedAt && task.id === edit.note.taskId).map((task) => (
-            <option key={task.id} value={task.id} disabled>{task.title}（已归档）</option>
+            <option key={task.id} value={task.id} disabled>{task.title}{t("（已归档）", " (archived)")}</option>
           ))}
         </select>
       </label>;
       break;
     case "convert":
-      heading = "转为新任务";
-      submitLabel = "创建任务";
+      heading = t("转为新任务", "Turn into a task");
+      submitLabel = t("创建任务", "Create task");
       fields = <>
-        <label>任务名称
+        <label>{t("任务名称", "Task name")}
           <ExpandableTextField name="title" defaultValue={edit.note.content.trim().slice(0, 160)} required data-initial-focus />
         </label>
-        <p>原始记录会保留，并关联到新任务。</p>
+        <p>{t("原始记录会保留，并关联到新任务。", "The original note will stay linked to the new task.")}</p>
       </>;
       break;
     case "action":
-      heading = edit.action ? "编辑行动" : edit.note ? "转为行动" : "添加行动";
+      heading = edit.action ? t("编辑行动", "Edit action") : edit.note ? t("转为行动", "Turn into an action") : t("添加行动", "Add action");
       fields = <>
-        {!edit.action && !edit.parent && !edit.note && <label>所属任务或记录
-          <select aria-label="所属任务或记录" name="parent" required defaultValue="">
-            <option value="" disabled>请选择</option>
-            <optgroup label="任务">
+        {!edit.action && !edit.parent && !edit.note && <label>{t("所属任务或记录", "Task or note")}
+          <select aria-label={t("所属任务或记录", "Task or note")} name="parent" required defaultValue="">
+            <option value="" disabled>{t("请选择", "Select a task or note")}</option>
+            <optgroup label={t("任务", "Tasks")}>
               {activeTasks.map((task) => <option key={task.id} value={`task:${task.id}`}>{task.title}</option>)}
             </optgroup>
-            <optgroup label="暂存记录">
+            <optgroup label={t("暂存记录", "Notes")}>
               {snapshot.notes.map((note) => <option key={note.id} value={`note:${note.id}`}>{note.content.slice(0, 60)}</option>)}
             </optgroup>
           </select>
         </label>}
-        <label>下一小步
+        <label>{t("下一小步", "Next small step")}
           <input
             name="title"
             maxLength={160}
@@ -275,15 +277,16 @@ export function WorkspaceEditor({
             data-initial-focus
           />
         </label>
-        <label>计划日期（可选）
+        <label>{t("计划日期（可选）", "Planned date (optional)")}
           <input name="dueOn" type="date" min="0001-01-01" max="9999-12-31" defaultValue={edit.action?.dueOn ?? undefined} />
         </label>
       </>;
       break;
     case "confirm":
-      heading = edit.title;
-      fields = <p>{edit.description}</p>;
-      submitLabel = "确认删除";
+      heading = t(...edit.title);
+      fields = <p>{t(...edit.description)}</p>;
+      submitLabel = edit.change.kind === "clear-workspace"
+        ? t("确认删除", "Clear MindSwitch data") : t("确认删除", "Delete");
       break;
   }
 
@@ -299,14 +302,14 @@ export function WorkspaceEditor({
       <h2 id="mind-editor-title">{heading}</h2>
       <fieldset disabled={pending}>
         <div className={styles.fields}>{fields}</div>
-        {error && <p role="alert" className={styles.formError}>{error}</p>}
+        {error && <p role="alert" className={styles.formError}>{t(...error)}</p>}
         <div className={styles.buttons}>
-          <button type="button" onClick={finish}>取消</button>
+          <button type="button" onClick={finish}>{t("取消", "Cancel")}</button>
           {edit.kind === "focus" && edit.source && (
-            <button type="submit" value="skip" disabled={needsDestination}>跳过备注</button>
+            <button type="submit" value="skip" disabled={needsDestination}>{t("跳过备注", "Skip notes")}</button>
           )}
           <button type="submit" disabled={needsDestination} className={edit.kind === "confirm" ? styles.danger : styles.primary}>
-            {pending ? "处理中…" : submitLabel}
+            {pending ? t("处理中…", "Working…") : submitLabel}
           </button>
         </div>
       </fieldset>

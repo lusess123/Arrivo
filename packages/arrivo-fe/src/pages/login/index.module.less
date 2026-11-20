@@ -217,3 +217,14 @@
     box-shadow: 0 8px 20px rgba(240, 190, 107, 0.6);
   }
 }
+
+.language {
+  position: absolute;
+  z-index: 1;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+}
+
+.container { padding-block: 64px 28px; }
+.feedback { margin: 14px 0 0; color: #30566b; font-size: 14px; text-align: center; }
+.feedback[role="alert"] { color: #9a2823; }

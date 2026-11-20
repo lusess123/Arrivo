@@ -7,6 +7,7 @@ import type { ApiSuccess, AuthUserDto } from "@arrivo/contracts";
 import { ExpandableTextField } from "@/components/expandable-text-field";
 import { buildLoginUrl, isAuthenticatedUser } from "@/lib/auth-redirect";
 import { mindSwitchError, mindSwitchTimeout, submitMindSwitchChange } from "@/lib/mind-switch-api";
+import { useLocale } from "@/lib/locale";
 import styles from "./home.module.less";
 
 const draftKey = "arrivo-home-task-draft";
@@ -34,13 +35,14 @@ function clearDraft() {
 }
 
 export function HomeTaskForm({ resume }: { resume: boolean }) {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const [initialDraft] = useState(getDraft);
   const [title, setTitle] = useState(() => initialDraft?.title ?? "");
   const [mostRecent, setMostRecent] = useState<SavedTask | null>(null);
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const draft = useRef(initialDraft);
   const writing = useRef(false);
   const resumed = useRef(false);
@@ -77,7 +79,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
           // The input remains on the page until the existing login redirect.
         }
       }
-      setError(mindSwitchError(reason));
+      setError(reason);
     } finally {
       writing.current = false;
       setPending(false);
@@ -116,7 +118,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
       setEditing(false);
       setTitle("");
     } catch (reason) {
-      setError(mindSwitchError(reason));
+      setError(reason);
     } finally {
       writing.current = false;
       setPending(false);
@@ -124,15 +126,15 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
   }
 
   return (
-    <section className={styles.quickTask} aria-label="快速添加任务">
+    <section className={styles.quickTask} aria-label={t("快速添加任务", "Quick task entry")}>
       <form onSubmit={submit} aria-busy={pending}>
-        <label className={styles.fieldLabel} htmlFor="home-task-name">{editing ? "编辑任务" : "新建任务"}</label>
+        <label className={styles.fieldLabel} htmlFor="home-task-name">{editing ? t("编辑任务", "Edit task") : t("新建任务", "New task")}</label>
         <div className={styles.quickInput}>
           <ExpandableTextField
             ref={input}
             id="home-task-name"
             name="task"
-            placeholder="输入任务名称"
+            placeholder={t("输入任务名称", "Enter a task")}
             value={title}
             aria-describedby="home-task-keys"
             required
@@ -148,13 +150,13 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
             }}
           />
           <button className={styles.submit} type="submit" disabled={pending || !title.trim()}>
-            <span>{pending ? "保存中…" : editing ? "保存" : "添加任务"}</span>
+            <span>{pending ? t("保存中…", "Saving…") : editing ? t("保存", "Save") : t("添加任务", "Add task")}</span>
             <ArrowUpOutlined aria-hidden="true" />
           </button>
         </div>
         <div className={styles.composerFooter}>
           <p id="home-task-keys" className={styles.taskKeys}>
-            回车换行<span className={styles.shortcut}> · Ctrl / ⌘ + 回车保存</span>
+            {t("回车换行", "Enter for a new line")}<span className={styles.shortcut}>{t(" · Ctrl / ⌘ + 回车保存", " · Ctrl / ⌘ + Enter to save")}</span>
           </p>
           {editing && <button
             className={styles.taskTextButton}
@@ -165,21 +167,21 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
               setTitle("");
               setError(null);
             }}
-          >取消</button>}
+          >{t("取消", "Cancel")}</button>}
         </div>
       </form>
-      {error && <p className={styles.taskError} role="alert">{error}</p>}
+      {error != null && <p className={styles.taskError} role="alert">{mindSwitchError(error, t)}</p>}
       {mostRecent && !editing && !title && (
         <div className={styles.taskSaved}>
-          <CheckCircleOutlined aria-hidden="true" /><p role="status">已保存「{mostRecent.title}」</p>
+          <CheckCircleOutlined aria-hidden="true" /><p role="status">{t(`已保存「${mostRecent.title}」`, `Saved “${mostRecent.title}”`)}</p>
           <div className={styles.savedActions}>
             <button type="button" className={styles.taskTextButton} onClick={() => {
               setTitle(mostRecent.title);
               setEditing(true);
               input.current?.focus();
-            }}>编辑</button>
+            }}>{t("编辑", "Edit")}</button>
             <a className={styles.focusLink} href={`/mind-switch#task=${encodeURIComponent(mostRecent.id)}`}>
-              去专注 <ArrowRightOutlined aria-hidden="true" />
+              {t("去专注", "Open in MindSwitch")} <ArrowRightOutlined aria-hidden="true" />
             </a>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { translate } from "@/lib/locale";
 import type {
   ApiSuccess,
   MindSwitchChange,
@@ -129,7 +130,7 @@ export function useMindSwitch() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Arrivo-心智切换-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `Arrivo-${translate("心智切换", "MindSwitch")}-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.append(link);
     link.click();
     link.remove();

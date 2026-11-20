@@ -1,4 +1,5 @@
 import { asyncHandle } from "@/lib";
+import { getLanguage } from "@/lib/locale";
 import { useRootStore } from "./store";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import axios from "axios";
@@ -72,7 +73,7 @@ export const useAuth = () => {
 
   const sendPasswordResetEmail = useMemoizedFn((email: string) => {
     return asyncHandle(
-      axios.post("/api/auth/sendPasswordResetEmail", { email }),
+      axios.post("/api/auth/sendPasswordResetEmail", { email, language: getLanguage() }),
     );
   });
 
@@ -85,6 +86,7 @@ export const useAuth = () => {
         axios.post("/api/auth/sendEmailLoginLink", {
           email,
           redirect: callback.toString(),
+          language: getLanguage(),
         }),
       );
     },

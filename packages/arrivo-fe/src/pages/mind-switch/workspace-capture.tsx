@@ -3,19 +3,21 @@ import type { ElementRef, FormEvent } from "react";
 import { ArrowUpOutlined } from "@ant-design/icons";
 import type { MindSwitchChange } from "@arrivo/contracts";
 import { ExpandableTextField } from "@/components/expandable-text-field";
-import { mindSwitchError } from "@/lib/mind-switch-api";
+import { useLocale, type MessagePair } from "@/lib/locale";
+import { mindSwitchErrorCopy } from "@/lib/mind-switch-api";
 import styles from "./workspace-capture.module.less";
 
 type Kind = "task" | "note";
 type View = "workspace" | "focus";
-type Draft = { text: string; message?: string; error?: string };
+type Draft = { text: string; message?: MessagePair; error?: MessagePair };
 const kinds = ["task", "note"] as const;
-const labels = { task: "新建任务", note: "随手记" };
+const labels: Record<Kind, MessagePair> = { task: ["新建任务", "New task"], note: ["随手记", "Jot a note"] };
 
 export function WorkspaceCapture({ save, focusMode = false }: {
   save: (change: MindSwitchChange) => Promise<void>;
   focusMode?: boolean;
 }) {
+  const { t } = useLocale();
   const [selection, setSelection] = useState<Record<View, Kind>>({ workspace: "task", focus: "note" });
   const [editingView, setEditingView] = useState<View | null>(null);
   const [drafts, setDrafts] = useState<Record<Kind, Draft>>({ task: { text: "" }, note: { text: "" } });
@@ -62,7 +64,7 @@ export function WorkspaceCapture({ save, focusMode = false }: {
         ? { kind: "create-task", id: attempt.id, title: text }
         : { kind: "create-note", id: attempt.id, content: text });
       delete attempts.current[kind];
-      const message = isTask ? "任务已保存" : "已存入暂存箱";
+      const message: MessagePair = isTask ? ["任务已保存", "Task saved"] : ["已存入暂存箱", "Saved to Inbox"];
       setDrafts((previous) => {
         const updated = { ...previous, [kind]: { text: "", message } };
         if (resume) updated.task = { ...previous.task, message, error: undefined };
@@ -82,7 +84,7 @@ export function WorkspaceCapture({ save, focusMode = false }: {
         });
       }
     } catch (reason) {
-      setDrafts((previous) => ({ ...previous, [kind]: { text: draft.text, error: mindSwitchError(reason) } }));
+      setDrafts((previous) => ({ ...previous, [kind]: { text: draft.text, error: mindSwitchErrorCopy(reason) } }));
     } finally {
       writing.current = false;
       setPending(false);
@@ -93,7 +95,7 @@ export function WorkspaceCapture({ save, focusMode = false }: {
     className={styles.capture}
     data-kind={kind}
     data-view={view}
-    aria-label={labels[kind]}
+    aria-label={t(...labels[kind])}
     aria-busy={pending}
     onFocus={() => setEditingView(view)}
     onBlur={(event) => {
@@ -106,7 +108,7 @@ export function WorkspaceCapture({ save, focusMode = false }: {
     }}
     onSubmit={submit}
   >
-    <div className={styles.selector} role="group" aria-label="记录方式">
+    <div className={styles.selector} role="group" aria-label={t("记录方式", "Capture type")}>
       {kinds.map((item) => <button
         key={item}
         type="button"
@@ -116,19 +118,19 @@ export function WorkspaceCapture({ save, focusMode = false }: {
         onClick={() => select(item)}
       >
         <span className={styles.glyph} aria-hidden="true" />
-        {labels[item]}
-        {kind !== item && drafts[item].text && <small>草稿</small>}
+        {t(...labels[item])}
+        {kind !== item && drafts[item].text && <small>{t("草稿", "Draft")}</small>}
       </button>)}
     </div>
     <ExpandableTextField
       ref={field}
       id={fieldId}
       name={isTask ? "title" : "content"}
-      aria-label={labels[kind]}
+      aria-label={t(...labels[kind])}
       aria-describedby="mind-capture-help"
       aria-keyshortcuts="Control+Enter Meta+Enter"
       maxLength={isTask ? 160 : 12000}
-      placeholder={isTask ? "输入任务名称" : "刚才想到了什么？"}
+      placeholder={isTask ? t("输入任务名称", "Enter a task name") : t("刚才想到了什么？", "What’s on your mind?")}
       value={draft.text}
       readOnly={pending}
       required
@@ -139,11 +141,12 @@ export function WorkspaceCapture({ save, focusMode = false }: {
     />
     <div className={styles.footer}>
       <p id="mind-capture-help">
-        {draft.error ? <span role="alert" className={styles.error}>{draft.error}</span>
-          : <span role="status">{draft.message || <>回车换行<span className={styles.keys}> · {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"} + Enter 保存</span></>}</span>}
+        {draft.error ? <span role="alert" className={styles.error}>{t(...draft.error)}</span>
+          : <span role="status">{draft.message ? t(...draft.message) : <>{t("回车换行", "Enter for a new line")}<span className={styles.keys}> · {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"} + Enter {t("保存", "to save")}</span></>}</span>}
       </p>
       <button className={styles.submit} type="submit" disabled={pending || !draft.text.trim()}>
-        {pending ? "保存中…" : isTask ? "添加任务" : continueTask ? "保存并继续任务" : "存入暂存箱"} <ArrowUpOutlined aria-hidden="true" />
+        {pending ? t("保存中…", "Saving…") : isTask ? t("添加任务", "Add task")
+          : continueTask ? t("保存并继续任务", "Save & resume task") : t("存入暂存箱", "Save to Inbox")} <ArrowUpOutlined aria-hidden="true" />
       </button>
     </div>
   </form>;

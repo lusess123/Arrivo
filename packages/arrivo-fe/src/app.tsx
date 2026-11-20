@@ -1,5 +1,7 @@
 import { defineApp } from '@umijs/max';
 import './global.css'
+import { LanguageProvider } from './components/language-provider';
+import { localizedPageTitle } from './lib/locale';
 import { AppProviderParent } from './hooks';
 import { configureHttpClient } from './lib/api';
 import { initializeClarity } from './lib/clarity';
@@ -16,11 +18,14 @@ if (typeof window !== 'undefined') {
 void registerPwaServiceWorker();
 
 export default defineApp({
+    onRouteChange: ({ location }) => {
+        document.title = localizedPageTitle(location.pathname);
+    },
     rootContainer: (oldContainer) => {
         return (
-            <AppProviderParent>
-                {oldContainer}
-            </AppProviderParent>
+            <LanguageProvider>
+                <AppProviderParent>{oldContainer}</AppProviderParent>
+            </LanguageProvider>
         )
     }
 })
