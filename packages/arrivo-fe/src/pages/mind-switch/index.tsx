@@ -4,7 +4,8 @@ import {
   CalendarOutlined,
   DownOutlined,
   EditOutlined,
-  ReadOutlined,
+  CompressOutlined,
+  ExpandOutlined,
   ArrowRightOutlined,
   BulbOutlined,
   CheckSquareOutlined,
@@ -18,6 +19,7 @@ import { mindSwitchError } from "@/lib/mind-switch-api";
 import { WorkspaceEditor, noteTypes } from "./workspace-editor";
 import type { ActionParent, WorkspaceEdit } from "./workspace-editor";
 import { TaskEditor, taskStatuses } from "./task-editor";
+import { WorkspaceCapture } from "./workspace-capture";
 import { useMindSwitch } from "./use-mind-switch";
 import styles from "./index.module.less";
 
@@ -41,6 +43,10 @@ export default function MindSwitchPage() {
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [pending, setPending] = useState(false);
   const acting = useRef(false);
+  const [readingTaskId, setReadingTaskId] = useState<string | null>(null);
+  const enterButton = useRef<HTMLButtonElement>(null);
+  const exitButton = useRef<HTMLButtonElement>(null);
+  const focusTitle = useRef<HTMLHeadingElement>(null);
 
   const tasks = snapshot?.tasks;
   const notes = snapshot?.notes;
@@ -67,6 +73,33 @@ export default function MindSwitchPage() {
   const inboxNotes = notes?.filter((note) => !note.setAside) ?? [];
   const setAsideNotes = notes?.filter((note) => note.setAside) ?? [];
   const canSwitch = otherTasks.length > 0;
+  const focusMode = readingTaskId !== null && readingTaskId === current?.id && section === "focus";
+
+  function exitFocusMode() {
+    exitButton.current?.focus({ preventScroll: true });
+    setReadingTaskId(null);
+    requestAnimationFrame(() => (enterButton.current ?? focusTitle.current)?.focus());
+  }
+
+  useEffect(() => {
+    if (!focusMode) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+      if (event.target instanceof HTMLSelectElement) return;
+      event.preventDefault();
+      exitFocusMode();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [focusMode]);
+
+  useEffect(() => {
+    if (readingTaskId && readingTaskId !== current?.id) {
+      setReadingTaskId(null);
+      setNotice({ text: "当前焦点已更新，已回到工作台。" });
+      if (document.activeElement === document.body) focusTitle.current?.focus();
+    }
+  }, [readingTaskId, current?.id]);
 
   useEffect(() => {
     if (!snapshot || !window.location.hash.startsWith("#task=")) return;
@@ -82,6 +115,7 @@ export default function MindSwitchPage() {
 
   function moveTo(view: Section) {
     setSection(view);
+    setReadingTaskId(null);
     setEditingTask(null);
     setEditor(null);
     setNotice(null);
@@ -273,25 +307,14 @@ export default function MindSwitchPage() {
     plan: actions?.filter((action) => !action.done).length, settings: undefined,
   };
 
-  return <div className={styles.shell} lang="zh-CN">
+  return <div className={styles.shell} lang="zh-CN" data-focus-mode={focusMode}>
     <header className={styles.topBar}>
       <div className={styles.brand}>
         <a href="/" aria-label="返回 Arrivo 首页"><img src="/favicon.svg" alt="" width="30" height="30" /> Arrivo</a>
         <span className={styles.divider} aria-hidden="true" />
         <span className={styles.productName}>心智切换</span>
       </div>
-      <div className={styles.topActions}>
-        <button className={styles.syncButton} onClick={() => moveTo("settings")} data-sync={sync}>
-          <span aria-hidden="true" />{syncLabel}
-        </button>
-        <button className={styles.primary} onClick={() => open({ kind: "note" })} disabled={!snapshot}>
-          <PlusOutlined aria-hidden="true" /> 快速记录
-        </button>
-      </div>
-    </header>
-
-    <div className={styles.layout}>
-      <nav className={styles.sections} aria-label="心智切换功能">
+      <nav className={styles.sections} aria-label="心智切换功能" hidden={focusMode}>
         {sections.map(({ id, label, icon: Icon }) => <button
           key={id}
           aria-label={label}
@@ -304,7 +327,20 @@ export default function MindSwitchPage() {
           {snapshot && Boolean(counts[id]) && <small aria-hidden="true">{counts[id]}</small>}
         </button>)}
       </nav>
-
+      <div className={styles.topActions}>
+        {focusMode
+          ? <button ref={exitButton} className={styles.exitButton} onClick={exitFocusMode}>
+              <CompressOutlined aria-hidden="true" /> 退出专注视图
+            </button>
+          : <button className={styles.syncButton} onClick={() => moveTo("settings")} data-sync={sync}>
+              <span aria-hidden="true" />{syncLabel}
+            </button>}
+        <button className={styles.recordButton} onClick={() => open({ kind: "note" })} disabled={!snapshot}>
+          <PlusOutlined aria-hidden="true" /> 快速记录
+        </button>
+      </div>
+    </header>
+    <div className={styles.layout}>
       <main className={styles.main} aria-busy={sync === "loading"}>
         {sync === "failed" && <div className={styles.syncError} role="status">
           <span>无法同步，正在编辑的内容仍保留在页面。</span>
@@ -314,11 +350,8 @@ export default function MindSwitchPage() {
         {!snapshot && sync === "failed" && <p className={styles.empty}>联网后即可打开工作区。</p>}
         {notice && <p className={notice.error ? styles.errorNotice : styles.notice} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
 
-        {snapshot && <div className={styles.pageHeading}>
+        {snapshot && <div className={section === "focus" ? styles.srOnly : styles.pageHeading}>
           <h1>{section === "focus" ? "专注工作台" : currentSection.label}</h1>
-          {section === "focus" && <span className={styles.date}><CalendarOutlined aria-hidden="true" />
-            {today.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" })}
-          </span>}
           {section === "plan" && <button
             className={styles.primary}
             onClick={() => open({ kind: "action" })}
@@ -340,22 +373,31 @@ export default function MindSwitchPage() {
           {section === "focus" && <section className={styles.focusPanel} aria-label="当前焦点">
             <div className={styles.focusCard}>
               <div className={styles.focusMeta}>
-                <AimOutlined aria-hidden="true" /> 当前焦点{current && <Status status={current.status} />}
+                <span className={styles.focusMark}>当前焦点</span>
+                {current && <Status status={current.status} />}
+                <time className={styles.date} dateTime={today.toLocaleDateString("sv-SE")}>
+                  <CalendarOutlined aria-hidden="true" />{today.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" })}
+                </time>
               </div>
-              <h2>{current?.title ?? "此刻没有焦点"}</h2>
+              <h2 ref={focusTitle} tabIndex={-1}>{current?.title ?? "从一件事开始"}</h2>
               {!current && <p className={styles.emptyFocus}>
                 {canSwitch ? "选一件现在想做的事，接着上次的进度。" : "在「新建任务」写下第一件想做的事。"}
               </p>}
-              {(canSwitch || current) && <div className={styles.buttons}>
-                {canSwitch && <button className={styles.primary} disabled={pending} onClick={() => changeFocus(!current && otherTasks.length === 1 ? otherTasks[0] : undefined)}>
+              {!focusMode && (canSwitch || current) && <div className={styles.buttons}>
+                {current && <button ref={enterButton} className={styles.primary} onClick={() => {
+                  enterButton.current?.focus({ preventScroll: true });
+                  setReadingTaskId(current.id);
+                  requestAnimationFrame(() => exitButton.current?.focus());
+                }}><ExpandOutlined aria-hidden="true" /> 进入专注视图</button>}
+                {canSwitch && <button className={current ? styles.textButton : styles.primary} disabled={pending} onClick={() => changeFocus(!current && otherTasks.length === 1 ? otherTasks[0] : undefined)}>
                   {current ? "切换任务" : "开始专注"} <ArrowRightOutlined aria-hidden="true" />
                 </button>}
-                {current && <button onClick={() => changeFocus(null)}>暂时休息</button>}
+                {current && <button className={styles.textButton} onClick={() => changeFocus(null)}>暂时休息</button>}
               </div>}
             </div>
             {contextTask && <div className={styles.context}>
               <div className={styles.sideHeading}>
-                <h2><ReadOutlined aria-hidden="true" /> {editingTask ? "编辑任务" : "继续上次的进度"}</h2>
+                <h2>{editingTask ? "编辑任务" : "继续上次的进度"}</h2>
                 {!editingTask && <button className={styles.textButton} onClick={() => startTaskForm(contextTask)}>
                   <EditOutlined aria-hidden="true" /> 编辑上下文
                 </button>}
@@ -363,14 +405,15 @@ export default function MindSwitchPage() {
               {editingTask
                 ? <TaskEditor task={editingTask} save={saveTask} cancel={() => setEditingTask(null)} />
                 : <div className={styles.contextGrid} key={contextTask.id}>
-                    <ContextValue label="上次做到哪" value={contextTask.lastContext || "尚无备注"} />
                     <ContextValue label="下一步做什么" value={contextTask.nextAction || "尚无下一步"} />
+                    <ContextValue label="上次做到哪" value={contextTask.lastContext || "尚无备注"} />
                   </div>}
             </div>}
           </section>}
           <div className={styles.capture}>
-            <TaskEditor save={saveTask} />
-            {section === "focus" && switchList.length > 0 && <section className={styles.waiting}>
+            {section === "focus" && !focusMode && <img className={styles.foldArt} src="/images/arrivo-fold.webp" alt="" />}
+            <WorkspaceCapture save={change} focusMode={focusMode} />
+            {section === "focus" && !focusMode && switchList.length > 0 && <section className={styles.waiting}>
               <div className={styles.sideHeading}>
                 <h2><SwapOutlined aria-hidden="true" /> {current && waitingTasks.length ? "后台等待" : "待切换任务"}</h2>
                 <span className={styles.count}>{switchList.length}</span>

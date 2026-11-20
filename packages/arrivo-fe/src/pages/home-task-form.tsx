@@ -126,7 +126,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
   return (
     <section className={styles.quickTask} aria-label="快速添加任务">
       <form onSubmit={submit} aria-busy={pending}>
-        <label className={editing ? styles.editLabel : styles.srOnly} htmlFor="home-task-name">{editing ? "编辑任务" : "新建任务"}</label>
+        <label className={styles.fieldLabel} htmlFor="home-task-name">{editing ? "编辑任务" : "新建任务"}</label>
         <div className={styles.quickInput}>
           <ExpandableTextField
             ref={input}
@@ -147,6 +147,10 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
               setError(null);
             }}
           />
+          <button className={styles.submit} type="submit" disabled={pending || !title.trim()}>
+            <span>{pending ? "保存中…" : editing ? "保存" : "添加任务"}</span>
+            <ArrowUpOutlined aria-hidden="true" />
+          </button>
         </div>
         <div className={styles.composerFooter}>
           <p id="home-task-keys" className={styles.taskKeys}>
@@ -162,10 +166,6 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
               setError(null);
             }}
           >取消</button>}
-          <button className={styles.submit} type="submit" disabled={pending || !title.trim()}>
-            {pending ? "保存中…" : editing ? "保存" : "添加任务"}
-            <ArrowUpOutlined aria-hidden="true" />
-          </button>
         </div>
       </form>
       {error && <p className={styles.taskError} role="alert">{error}</p>}
