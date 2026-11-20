@@ -224,7 +224,7 @@ export default function MindSwitchPage() {
   return <div className={styles.shell} lang="zh-CN">
     <header className={styles.topBar}>
       <div className={styles.brand}>
-        <a href="/" aria-label="返回 Arrivo 语言复读"><ArrowLeftOutlined aria-hidden="true" /> <span>Arrivo</span></a>
+        <a href="/" aria-label="返回 Arrivo 首页"><ArrowLeftOutlined aria-hidden="true" /> <span>Arrivo</span></a>
         <span className={styles.divider} aria-hidden="true" />
         <span className={styles.productName}>心智切换</span>
       </div>

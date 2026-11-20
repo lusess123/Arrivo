@@ -1,0 +1,130 @@
+.home {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  padding: clamp(32px, 10vh, 104px) 20px 48px;
+  background: linear-gradient(180deg, #d6effb 0%, #eef8fd 48%, #f9f9ff 100%);
+  color: #204259;
+  color-scheme: light;
+}
+
+.home::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: url("@/assets/image1.png") center 63% / max(1100px, 100vw) auto no-repeat;
+  opacity: .47;
+  pointer-events: none;
+}
+
+.heading {
+  text-align: center;
+
+  img {
+    display: block;
+    height: auto;
+    margin: 0 auto 3px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(28px, 4.7vw, 52px);
+    font-weight: 680;
+    line-height: 1.2;
+  }
+}
+
+.modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  max-width: 880px;
+  margin: clamp(26px, 6vh, 52px) auto 0;
+}
+
+.module {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  min-height: 150px;
+  padding: 24px 22px;
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid #d5e8f3;
+  border-radius: 16px;
+  color: #204259;
+  text-decoration: none;
+  box-shadow: 0 5px 18px rgb(35 72 104 / 7%);
+  transition: border-color 150ms, box-shadow 150ms;
+
+  &:hover {
+    border-color: #7bb5d5;
+    color: #204259;
+    box-shadow: 0 7px 22px rgb(35 72 104 / 13%);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #186a9f;
+    outline-offset: 4px;
+  }
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e8f4ff;
+  color: #1a6298;
+  font-size: 21px;
+}
+
+.module:nth-child(2) .icon {
+  background: #fff1d9;
+  color: #875712;
+}
+
+.text {
+  h2 {
+    margin: 4px 0 5px;
+    font-size: 23px;
+    font-weight: 650;
+    line-height: 1.4;
+  }
+
+  p {
+    margin: 0;
+    color: #4b6576;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+}
+
+.arrow {
+  margin-top: 13px;
+  color: #336d97;
+}
+
+@media (max-width: 630px) {
+  .modules {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 400px;
+    gap: 12px;
+  }
+
+  .module {
+    min-height: 102px;
+    padding: 17px 15px;
+    gap: 13px;
+  }
+
+  .text h2 {
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module { transition: none; }
+}

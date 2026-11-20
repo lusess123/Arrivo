@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "Arrivo - 让语言为你的世界降临",
+  "name": "Arrivo",
   "short_name": "Arrivo",
   "description": "语言复读与心智切换。逐句练习语言，随时恢复当前任务。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#071a22",
-  "theme_color": "#071a22",
+  "background_color": "#edf7fd",
+  "theme_color": "#edf7fd",
   "icons": [
     {
       "src": "/icons/pwa-192.png",

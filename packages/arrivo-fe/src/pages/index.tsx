@@ -279,7 +279,9 @@ export default function IndexPage() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <img src={logo} alt="Arrivo Logo" className={styles.logo} />
+        <a href="/" aria-label="返回 Arrivo 首页">
+          <img src={logo} alt="" className={styles.logo} />
+        </a>
         <div className={styles.headerActions}>
           <a className={styles.mindSwitchLink} href="/mind-switch">心智切换</a>
           <Button

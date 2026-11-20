@@ -127,7 +127,7 @@ export default function LoginPage() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1> Arrivo</h1>
+        <h1><a href="/" aria-label="返回 Arrivo 首页">Arrivo</a></h1>
         <p>突破语言的边界，就是打开世界的边界</p>
       </header>
 

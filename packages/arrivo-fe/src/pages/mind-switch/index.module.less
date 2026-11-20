@@ -1,19 +1,20 @@
 .shell {
-  --bg: #101718;
-  --nav: #131d1e;
-  --panel: #172425;
-  --raised: #1e2f2f;
-  --line: #304141;
-  --text: #e9f1ec;
-  --muted: #a2b4ae;
-  --accent: #b9efce;
-  --accent-ink: #10251a;
-  --danger: #ffc1b6;
+  --bg: #edf7fd;
+  --nav: #f8fcff;
+  --panel: #fff;
+  --raised: #eaf5fd;
+  --line: #d4e7f4;
+  --text: #214259;
+  --muted: #4f6b7e;
+  --accent: #165f95;
+  --primary: #176caa;
+  --accent-ink: #fff;
+  --danger: #9d332a;
   min-height: 100dvh;
-  background: var(--bg);
+  background: linear-gradient(165deg, #e2f4fe, #f8f9ff 82%);
   color: var(--text);
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  color-scheme: dark;
+  color-scheme: light;
   overflow-wrap: anywhere;
 
   h1, h2, h3, p { margin: 0; }
@@ -28,7 +29,7 @@
     min-height: 35px;
     padding: 6px 11px;
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 9px;
     color: inherit;
     background: var(--nav);
     font: inherit;
@@ -42,14 +43,14 @@
     outline-offset: 3px;
   }
   .primary {
-    background: var(--accent);
-    border-color: var(--accent);
+    background: var(--primary);
+    border-color: var(--primary);
     color: var(--accent-ink);
     white-space: nowrap;
   }
-  .primary:enabled:hover { background: #d5ffe3; border-color: #d5ffe3; }
-  .danger { color: #26110d; background: var(--danger); border-color: var(--danger); }
-  .danger:enabled:hover { background: #ffded7; }
+  .primary:enabled:hover { background: #115988; border-color: #115988; }
+  .danger { color: #fff; background: var(--danger); border-color: var(--danger); }
+  .danger:enabled:hover { background: #852a23; }
   .dangerText { color: var(--danger); }
 }
 
@@ -65,7 +66,8 @@
   padding: 8px clamp(12px, 2.15vw, 34px);
   padding-top: max(8px, env(safe-area-inset-top));
   border-bottom: 1px solid var(--line);
-  background: var(--bg);
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(8px);
 }
 
 .brand, .topActions, .buttons, .rowButtons, .focusMeta, .itemHeading {
@@ -97,7 +99,7 @@
   background: var(--muted);
   vertical-align: 1px;
 }
-.syncButton[data-sync="ready"] > span { background: #89d9ad; }
+.syncButton[data-sync="ready"] > span { background: #26835e; }
 .syncButton[data-sync="failed"] { color: var(--danger); }
 .syncButton[data-sync="failed"] > span { background: var(--danger); }
 
@@ -109,7 +111,7 @@
   min-height: calc(100dvh - 60px);
 }
 .sidebar {
-  background: var(--nav);
+  background: rgba(255, 255, 255, .73);
   border-right: 1px solid var(--line);
   padding: 19px 11px;
   min-width: 0;
@@ -164,7 +166,7 @@
 .shell .selectedTask { color: var(--accent); background: var(--raised); }
 .waiting { min-width: 0; padding: 26px 14px 12px; }
 .waiting h2 { margin-bottom: 8px; font-size: 14px; }
-.waiting h2 :global(.anticon) { margin-right: 4px; color: #edcc8d; }
+.waiting h2 :global(.anticon) { margin-right: 4px; color: #956413; }
 
 .main {
   width: 100%;
@@ -178,11 +180,13 @@
   padding: 15px;
   border: 1px solid var(--line);
   background: var(--panel);
-  border-radius: 8px;
+  border-radius: 13px;
+  box-shadow: 0 3px 14px rgb(38 75 106 / 5%);
 }
 .focusCard {
   padding: clamp(17px, 2.5vw, 31px);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid #569dcd;
+  background: linear-gradient(123deg, #fff 52%, #f0f9ff);
 }
 .focusMeta { color: var(--accent); font-size: 13px; }
 .focusCard h2 {
@@ -196,15 +200,15 @@
 .status, .currentBadge, .noteType {
   border-radius: 4px;
   padding: 2px 6px;
-  background: #253632;
+  background: #e7f2fb;
   color: var(--accent);
   font-size: 12px;
   font-weight: 560;
   white-space: nowrap;
 }
-.status[data-status="WAITING"] { color: #ffdfa5; background: #392f20; }
-.status[data-status="PAUSED"] { color: #c6d2e3; background: #2c3844; }
-.status[data-status="DONE"] { color: #c0d4c4; background: #2a3830; }
+.status[data-status="WAITING"] { color: #805315; background: #fff1d7; }
+.status[data-status="PAUSED"] { color: #4c5f7a; background: #edf1f8; }
+.status[data-status="DONE"] { color: #276245; background: #e7f4ed; }
 .context { margin-top: 11px; }
 .contextGrid {
   display: grid;
@@ -252,7 +256,7 @@
 .actionRow label { display: flex; gap: 8px; align-items: baseline; cursor: pointer; min-width: 0; }
 .actionRow label > span { min-width: 0; }
 .actionRow .rowButtons { flex: none; }
-.actionRow input { accent-color: #9de0b7; width: 16px; height: 16px; flex: none; }
+.actionRow input { accent-color: var(--primary); width: 16px; height: 16px; flex: none; }
 .actionRow time, .actionRow small { display: block; }
 .actionRow .completed .actionTitle { color: var(--muted); text-decoration: line-through; }
 .syncError, .notice, .errorNotice {
@@ -262,7 +266,7 @@
   border-radius: 5px;
 }
 .syncError { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.syncError, .errorNotice, .formError { color: var(--danger); background: #392724; }
+.syncError, .errorNotice, .formError { color: var(--danger); background: #fff0ed; }
 .notice { color: var(--accent); background: var(--raised); }
 
 .dialog {
@@ -272,11 +276,11 @@
   margin: auto;
   padding: 15px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 14px;
   color: var(--text);
   background: var(--panel);
 }
-.dialog::backdrop { background: rgb(2 9 8 / 76%); }
+.dialog::backdrop { background: rgb(29 60 88 / 35%); }
 .dialogHeader, .dialogFooter {
   display: flex;
   align-items: center;
@@ -294,7 +298,7 @@
   min-height: 39px;
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: var(--bg);
+  background: #fff;
   color: var(--text);
   font: inherit;
 }

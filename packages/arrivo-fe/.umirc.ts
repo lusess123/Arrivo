@@ -17,10 +17,10 @@ export default defineConfig({
     { rel: "manifest", href: "/manifest.webmanifest" },
   ],
   metas: [
-    { name: "theme-color", content: "#071a22" },
+    { name: "theme-color", content: "#edf7fd" },
     { name: "mobile-web-app-capable", content: "yes" },
     { name: "apple-mobile-web-app-capable", content: "yes" },
-    { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+    { name: "apple-mobile-web-app-status-bar-style", content: "default" },
   ],
   antd: {},
   define: {
@@ -44,7 +44,13 @@ export default defineConfig({
   routes: [
     {
       path: '/',
+      component: 'home',
+      title: 'Arrivo',
+    },
+    {
+      path: '/learn',
       component: 'index',
+      title: '语言复读 · Arrivo',
       wrappers: ['@/wrappers/auth'],
     },
     {
