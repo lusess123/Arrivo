@@ -1,11 +1,14 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AimOutlined,
-  ArrowLeftOutlined,
+  CalendarOutlined,
+  DownOutlined,
+  EditOutlined,
+  ReadOutlined,
   ArrowRightOutlined,
   BulbOutlined,
   CheckSquareOutlined,
-  ClockCircleOutlined,
+  SwapOutlined,
   PlusOutlined,
   SettingOutlined,
   UnorderedListOutlined,
@@ -33,7 +36,7 @@ const emptyActions: MindActionDto[] = [];
 export default function MindSwitchPage() {
   const { snapshot, sync, lastSynced, refresh, change, exportWorkspace } = useMindSwitch();
   const [section, setSection] = useState<Section>("focus");
-  const [editor, setEditor] = useState<{ edit: WorkspaceEdit; version: number } | null>(null);
+  const [editor, setEditor] = useState<{ edit: WorkspaceEdit; version: number; returnFocus: HTMLElement | null } | null>(null);
   const [editingTask, setEditingTask] = useState<MindTaskDto | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [pending, setPending] = useState(false);
@@ -59,10 +62,23 @@ export default function MindSwitchPage() {
   const contextTask = editingTask ?? current;
   const activeTasks = tasks?.filter((task) => !task.archivedAt) ?? [];
   const archivedTasks = tasks?.filter((task) => task.archivedAt) ?? [];
-  const waitingTasks = activeTasks.filter((task) => task.status === "WAITING" && task.id !== current?.id);
+  const otherTasks = activeTasks.filter((task) => task.id !== current?.id);
+  const waitingTasks = otherTasks.filter((task) => task.status === "WAITING");
   const inboxNotes = notes?.filter((note) => !note.setAside) ?? [];
   const setAsideNotes = notes?.filter((note) => note.setAside) ?? [];
-  const canSwitch = activeTasks.some((task) => task.id !== current?.id);
+  const canSwitch = otherTasks.length > 0;
+
+  useEffect(() => {
+    if (!snapshot || !window.location.hash.startsWith("#task=")) return;
+    const taskId = window.location.hash.slice("#task=".length);
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+    const target = taskById.get(taskId);
+    if (!target || target.archivedAt) {
+      setNotice({ text: "这项任务已归档或不可用。" });
+    } else if (target.id !== current?.id) {
+      setEditor({ edit: { kind: "focus", source: current, target }, version: 1, returnFocus: null });
+    }
+  }, [snapshot, taskById, current]);
 
   function moveTo(view: Section) {
     setSection(view);
@@ -89,7 +105,8 @@ export default function MindSwitchPage() {
   function open(edit: WorkspaceEdit) {
     if (acting.current) return;
     setNotice(null);
-    setEditor((currentEditor) => ({ edit, version: (currentEditor?.version ?? 0) + 1 }));
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setEditor((currentEditor) => ({ edit, version: (currentEditor?.version ?? 0) + 1, returnFocus }));
   }
 
   async function perform(operation: () => Promise<void>, success?: string) {
@@ -119,6 +136,10 @@ export default function MindSwitchPage() {
   }
 
   function changeFocus(target?: MindTaskDto | null) {
+    if (!current && target) {
+      void perform(() => save({ kind: "focus", taskId: target.id, fromTaskId: null }));
+      return;
+    }
     open({ kind: "focus", source: current, target });
   }
 
@@ -162,6 +183,7 @@ export default function MindSwitchPage() {
 
   function actionsFor(parent: ActionParent, canAdd = true) {
     const items = actionsByParent.get(`${parent.kind}:${parent.id}`) ?? emptyActions;
+    if (!items.length && !canAdd) return null;
     return <div className={styles.steps}>
       {actionRows(items)}
       {canAdd && <button className={styles.textButton} onClick={() => open({ kind: "action", parent })}>
@@ -176,27 +198,35 @@ export default function MindSwitchPage() {
         <TaskEditor task={editingTask} save={saveTask} cancel={() => setEditingTask(null)} />
       </article>;
     }
+    const isCurrent = current?.id === task.id;
     return <article className={styles.item} key={task.id}>
       <div className={styles.itemHeading}>
         <h2>{task.title}</h2>
         <Status status={task.status} />
-        {current?.id === task.id && <span className={styles.currentBadge}>当前焦点</span>}
+        {isCurrent && <span className={styles.currentBadge}><AimOutlined aria-hidden="true" /> 当前焦点</span>}
       </div>
       {task.nextAction && <p className={styles.itemSnippet}>下一步 · {task.nextAction}</p>}
       <div className={styles.rowButtons}>
-        {!task.archivedAt && current?.id !== task.id && <button
-          onClick={() => changeFocus(task)}
-          aria-label={`切换到 ${task.title}`}
-        >切换到此任务 <ArrowRightOutlined aria-hidden="true" /></button>}
-        <button aria-label={`编辑任务 ${task.title}`} onClick={() => startTaskForm(task)}>编辑</button>
-        <button
+        {!task.archivedAt && !isCurrent && <button
+          className={styles.textButton}
           disabled={pending}
-          onClick={() => void run({ kind: "archive-task", id: task.id, archived: !task.archivedAt })}
-        >{task.archivedAt ? "恢复" : "归档"}</button>
-        <button onClick={() => confirmDelete("删除任务", "任务及其行动会被删除，关联的独立记录会保留。", {
-          kind: "delete-task", id: task.id,
-        })}>删除</button>
+          onClick={() => changeFocus(task)}
+          aria-label={`${current ? "切换到此任务" : "开始专注"} · ${task.title}`}
+        >{current ? "切换到此任务" : "开始专注"} <ArrowRightOutlined aria-hidden="true" /></button>}
+        <button aria-label={`编辑任务 ${task.title}`} onClick={() => startTaskForm(task)}>编辑</button>
       </div>
+      <details className={styles.more}>
+        <summary>更多操作 <DownOutlined aria-hidden="true" /></summary>
+        <div className={styles.rowButtons}>
+          <button
+            disabled={pending}
+            onClick={() => void run({ kind: "archive-task", id: task.id, archived: !task.archivedAt })}
+          >{task.archivedAt ? "恢复" : "归档"}</button>
+          <button className={styles.dangerText} onClick={() => confirmDelete("删除任务", "任务及其行动会被删除，关联的独立记录会保留。", {
+            kind: "delete-task", id: task.id,
+          })}>删除</button>
+        </div>
+      </details>
       {actionsFor({ kind: "task", id: task.id }, !task.archivedAt)}
     </article>;
   }
@@ -212,45 +242,41 @@ export default function MindSwitchPage() {
       <p className={styles.noteBody}>{note.content}</p>
       <div className={styles.rowButtons}>
         <button onClick={() => open({ kind: "note", note })}>编辑</button>
-        <button onClick={() => open({ kind: "link", note })}>关联任务</button>
-        <button onClick={() => open({ kind: "convert", note })}>转为任务</button>
-        <button onClick={() => open({ kind: "action", note })}>转为行动</button>
         <button
           disabled={pending}
           onClick={() => void run({ kind: "edit-note", id: note.id, setAside: !note.setAside })}
         >{note.setAside ? "恢复到暂存箱" : "暂时放下"}</button>
-        <button onClick={() => confirmDelete("删除记录", "这条记录及其行动会被永久删除。", {
-          kind: "delete-note", id: note.id,
-        })}>删除</button>
       </div>
+      <details className={styles.more}>
+        <summary>更多操作 <DownOutlined aria-hidden="true" /></summary>
+        <div className={styles.rowButtons}>
+          <button onClick={() => open({ kind: "link", note })}>关联任务</button>
+          <button onClick={() => open({ kind: "convert", note })}>转为任务</button>
+          <button onClick={() => open({ kind: "action", note })}>转为行动</button>
+          <button className={styles.dangerText} onClick={() => confirmDelete("删除记录", "这条记录及其行动会被永久删除。", {
+            kind: "delete-note", id: note.id,
+          })}>删除</button>
+        </div>
+      </details>
       {actionsFor({ kind: "note", id: note.id }, false)}
     </article>;
-  }
-
-  function taskList(items: MindTaskDto[]) {
-    return <ul className={styles.miniList}>
-      {items.map((task) => <li key={task.id}>
-        <button
-          className={task.id === current?.id ? styles.selectedTask : undefined}
-          onClick={() => {
-            if (task.id === current?.id) moveTo("focus");
-            else changeFocus(task);
-          }}
-        >
-          <span>{task.title}</span>
-          {task.id === current?.id ? <AimOutlined aria-hidden="true" /> : <ArrowRightOutlined aria-hidden="true" />}
-        </button>
-      </li>)}
-    </ul>;
   }
 
   const syncLabel = sync === "ready" ? "已同步" : sync === "failed" ? "同步异常" : "正在同步";
   const currentSection = sections.find(({ id }) => id === section)!;
 
+  const today = new Date();
+  const currentActions = current ? actionsByParent.get(`task:${current.id}`) ?? emptyActions : emptyActions;
+  const switchList = current && waitingTasks.length ? waitingTasks : otherTasks;
+  const counts = {
+    focus: undefined, tasks: activeTasks.length, notes: inboxNotes.length,
+    plan: actions?.filter((action) => !action.done).length, settings: undefined,
+  };
+
   return <div className={styles.shell} lang="zh-CN">
     <header className={styles.topBar}>
       <div className={styles.brand}>
-        <a href="/" aria-label="返回 Arrivo 首页"><ArrowLeftOutlined aria-hidden="true" /> <span>Arrivo</span></a>
+        <a href="/" aria-label="返回 Arrivo 首页"><img src="/favicon.svg" alt="" width="30" height="30" /> Arrivo</a>
         <span className={styles.divider} aria-hidden="true" />
         <span className={styles.productName}>心智切换</span>
       </div>
@@ -265,20 +291,19 @@ export default function MindSwitchPage() {
     </header>
 
     <div className={styles.layout}>
-      <aside className={styles.sidebar}>
-        <nav className={styles.sections} aria-label="心智切换功能">
-          {sections.map(({ id, label, icon: Icon }) => <button
-            key={id}
-            aria-current={section === id ? "page" : undefined}
-            onClick={() => moveTo(id)}
-          ><Icon aria-hidden="true" /> {label}</button>)}
-        </nav>
-
-        {snapshot && <div className={styles.sideTasks}>
-          <h2>我的任务</h2>
-          {activeTasks.length ? taskList(activeTasks) : <p>还没有任务</p>}
-        </div>}
-      </aside>
+      <nav className={styles.sections} aria-label="心智切换功能">
+        {sections.map(({ id, label, icon: Icon }) => <button
+          key={id}
+          aria-label={label}
+          aria-current={section === id ? "page" : undefined}
+          onClick={() => {
+            moveTo(id);
+            window.scrollTo(0, 0);
+          }}
+        ><Icon aria-hidden="true" /><span>{label}</span>
+          {snapshot && Boolean(counts[id]) && <small aria-hidden="true">{counts[id]}</small>}
+        </button>)}
+      </nav>
 
       <main className={styles.main} aria-busy={sync === "loading"}>
         {sync === "failed" && <div className={styles.syncError} role="status">
@@ -290,7 +315,10 @@ export default function MindSwitchPage() {
         {notice && <p className={notice.error ? styles.errorNotice : styles.notice} role={notice.error ? "alert" : "status"}>{notice.text}</p>}
 
         {snapshot && <div className={styles.pageHeading}>
-          <h1>{section === "focus" ? "我现在正在做什么？" : currentSection.label}</h1>
+          <h1>{section === "focus" ? "专注工作台" : currentSection.label}</h1>
+          {section === "focus" && <span className={styles.date}><CalendarOutlined aria-hidden="true" />
+            {today.toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "long" })}
+          </span>}
           {section === "plan" && <button
             className={styles.primary}
             onClick={() => open({ kind: "action" })}
@@ -300,51 +328,81 @@ export default function MindSwitchPage() {
         {snapshot && editor && <WorkspaceEditor
           key={editor.version}
           edit={editor.edit}
+          returnFocus={editor.returnFocus}
           snapshot={snapshot}
           close={() => setEditor((currentEditor) => currentEditor === editor ? null : currentEditor)}
           save={save}
         />}
-        {snapshot && (section === "focus" || section === "tasks") && <TaskEditor save={saveTask} />}
-
-        {snapshot && section === "focus" && <>
-          <div className={styles.focusCard}>
-            <div className={styles.focusMeta}><AimOutlined aria-hidden="true" /> 当前焦点{current && <Status status={current.status} />}</div>
-            <h2>{current?.title ?? "此刻没有焦点"}</h2>
-            {!current && <p className={styles.emptyFocus}>
-              {canSwitch ? "选一件现在想做的事，也可以先休息。" : "先建一件想做的事，准备好时再开始。"}
-            </p>}
-            {(canSwitch || current) && <div className={styles.buttons}>
-              {canSwitch && <button className={styles.primary} onClick={() => changeFocus()}>
-                切换任务 <ArrowRightOutlined aria-hidden="true" />
-              </button>}
-              {current && <button onClick={() => changeFocus(null)}>暂时休息</button>}
-            </div>}
-          </div>
-          {contextTask && <div className={styles.context}>
-            <div className={styles.sideHeading}>
-              <h2>{editingTask ? "编辑任务" : "继续上次的进度"}</h2>
-              {!editingTask && <button className={styles.textButton} onClick={() => startTaskForm(contextTask)}>编辑上下文</button>}
+        {snapshot && <div
+          hidden={section !== "focus" && section !== "tasks"}
+          className={section === "focus" ? styles.focusGrid : styles.taskView}
+        >
+          {section === "focus" && <section className={styles.focusPanel} aria-label="当前焦点">
+            <div className={styles.focusCard}>
+              <div className={styles.focusMeta}>
+                <AimOutlined aria-hidden="true" /> 当前焦点{current && <Status status={current.status} />}
+              </div>
+              <h2>{current?.title ?? "此刻没有焦点"}</h2>
+              {!current && <p className={styles.emptyFocus}>
+                {canSwitch ? "选一件现在想做的事，接着上次的进度。" : "在「新建任务」写下第一件想做的事。"}
+              </p>}
+              {(canSwitch || current) && <div className={styles.buttons}>
+                {canSwitch && <button className={styles.primary} disabled={pending} onClick={() => changeFocus(!current && otherTasks.length === 1 ? otherTasks[0] : undefined)}>
+                  {current ? "切换任务" : "开始专注"} <ArrowRightOutlined aria-hidden="true" />
+                </button>}
+                {current && <button onClick={() => changeFocus(null)}>暂时休息</button>}
+              </div>}
             </div>
-            {editingTask
-              ? <TaskEditor task={editingTask} save={saveTask} cancel={() => setEditingTask(null)} />
-              : <div className={styles.contextGrid}>
-                  <div><h3>上次做到哪</h3><p>{contextTask.lastContext || "尚无备注"}</p></div>
-                  <div><h3>下一步做什么</h3><p>{contextTask.nextAction || "尚无下一步"}</p></div>
-                </div>}
-          </div>}
-          {current && <section className={styles.context}>
-            <h2>行动计划</h2>
+            {contextTask && <div className={styles.context}>
+              <div className={styles.sideHeading}>
+                <h2><ReadOutlined aria-hidden="true" /> {editingTask ? "编辑任务" : "继续上次的进度"}</h2>
+                {!editingTask && <button className={styles.textButton} onClick={() => startTaskForm(contextTask)}>
+                  <EditOutlined aria-hidden="true" /> 编辑上下文
+                </button>}
+              </div>
+              {editingTask
+                ? <TaskEditor task={editingTask} save={saveTask} cancel={() => setEditingTask(null)} />
+                : <div className={styles.contextGrid} key={contextTask.id}>
+                    <ContextValue label="上次做到哪" value={contextTask.lastContext || "尚无备注"} />
+                    <ContextValue label="下一步做什么" value={contextTask.nextAction || "尚无下一步"} />
+                  </div>}
+            </div>}
+          </section>}
+          <div className={styles.capture}>
+            <TaskEditor save={saveTask} />
+            {section === "focus" && switchList.length > 0 && <section className={styles.waiting}>
+              <div className={styles.sideHeading}>
+                <h2><SwapOutlined aria-hidden="true" /> {current && waitingTasks.length ? "后台等待" : "待切换任务"}</h2>
+                <span className={styles.count}>{switchList.length}</span>
+              </div>
+              <ul className={styles.miniList}>
+                {switchList.slice(0, 4).map((task) => <li key={task.id}>
+                  <button disabled={pending} onClick={() => changeFocus(task)}>
+                    <span>{task.title}</span><ArrowRightOutlined aria-hidden="true" />
+                  </button>
+                </li>)}
+              </ul>
+              {switchList.length > 4 && <button className={styles.textButton} onClick={() => moveTo("tasks")}>查看全部任务 <ArrowRightOutlined aria-hidden="true" /></button>}
+            </section>}
+          </div>
+          {section === "focus" && current && <section className={styles.actionPanel}>
+            <div className={styles.sideHeading}>
+              <h2><CheckSquareOutlined aria-hidden="true" /> 行动计划</h2>
+              {currentActions.length > 0 && <span className={styles.count}>
+                {currentActions.filter((action) => action.done).length} / {currentActions.length} 已完成
+              </span>}
+            </div>
             {actionsFor({ kind: "task", id: current.id })}
           </section>}
-        </>}
 
-        {snapshot && section === "tasks" && <>
-          <div className={styles.list}>{activeTasks.length ? activeTasks.map(taskCard) : <p className={styles.empty}>创建一条任务，随时切换回来。</p>}</div>
-          {archivedTasks.length > 0 && <details className={styles.fold}>
-            <summary>已归档 <span>{archivedTasks.length}</span></summary>
-            <div className={styles.list}>{archivedTasks.map(taskCard)}</div>
-          </details>}
-        </>}
+          {section === "tasks" && <>
+            <div className={styles.list}>{activeTasks.length ? activeTasks.map(taskCard) : <p className={styles.empty}>你的任务会出现在这里。</p>}</div>
+            {archivedTasks.length > 0 && <details className={styles.fold}>
+              <summary>已归档 <span>{archivedTasks.length}</span></summary>
+              <div className={styles.list}>{archivedTasks.map(taskCard)}</div>
+            </details>}
+          </>}
+        </div>}
 
         {snapshot && section === "notes" && <>
           <div className={styles.list}>{inboxNotes.length ? inboxNotes.map(noteCard) : <p className={styles.empty}>有想法、担忧或灵感，随时记下来。</p>}</div>
@@ -383,11 +441,39 @@ export default function MindSwitchPage() {
         </div>}
       </main>
 
-      {snapshot && section === "focus" && <aside className={styles.waiting}>
-        <h2><ClockCircleOutlined aria-hidden="true" /> 后台等待</h2>
-        {waitingTasks.length ? taskList(waitingTasks) : <p>没有等待中的任务</p>}
-      </aside>}
     </div>
+  </div>;
+}
+
+function ContextValue({ label, value }: { label: string; value: string }) {
+  const text = useRef<HTMLParagraphElement>(null);
+  const id = useId();
+  const [long, setLong] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = text.current;
+    if (!element) return;
+    const measure = () => {
+      const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
+      setLong(element.scrollHeight > 3 * lineHeight + 1);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [value]);
+
+  return <div>
+    <h3>{label}</h3>
+    <p ref={text} id={id} className={expanded ? undefined : styles.contextPreview}>{value}</p>
+    {long && <button
+      className={styles.expandContext}
+      aria-controls={id}
+      aria-expanded={expanded}
+      aria-label={`${expanded ? "收起" : "展开全文"} · ${label}`}
+      onClick={() => setExpanded(!expanded)}
+    >{expanded ? "收起" : "展开全文"} <DownOutlined aria-hidden="true" /></button>}
   </div>;
 }
 

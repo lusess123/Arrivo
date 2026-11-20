@@ -37,11 +37,13 @@ function trimmed(form: FormData, field: string) {
 export function WorkspaceEditor({
   edit,
   snapshot,
+  returnFocus,
   close,
   save,
 }: {
   edit: WorkspaceEdit;
   snapshot: MindSwitchSnapshot;
+  returnFocus: HTMLElement | null;
   close: () => void;
   save: (input: MindSwitchChange) => Promise<void>;
 }) {
@@ -54,6 +56,12 @@ export function WorkspaceEditor({
   const remainingTasks = edit.kind === "focus"
     ? activeTasks.filter((task) => task.id !== edit.source?.id)
     : [];
+  const [selectedTaskId, setSelectedTaskId] = useState(() => {
+    if (edit.kind !== "focus" || edit.target === null) return "";
+    return edit.target?.id ?? remainingTasks[0]?.id ?? "";
+  });
+  const destination = remainingTasks.find((task) => task.id === selectedTaskId);
+  const needsDestination = edit.kind === "focus" && edit.target !== null && !destination;
 
   useEffect(() => {
     const form = element.current;
@@ -70,6 +78,27 @@ export function WorkspaceEditor({
     return generatedId.current;
   }
 
+  function finish() {
+    const form = element.current;
+    const restore = form && (form.contains(document.activeElement) || document.activeElement === document.body);
+    close();
+    if (!restore) return;
+    requestAnimationFrame(() => {
+      // Another editor may already have taken focus while the save was in flight.
+      if (document.activeElement !== document.body) return;
+      if (returnFocus?.isConnected && returnFocus.getClientRects().length) {
+        returnFocus.focus();
+      }
+      if (document.activeElement === document.body) {
+        const heading = document.querySelector<HTMLElement>("main h1");
+        if (heading) {
+          heading.tabIndex = -1;
+          heading.focus();
+        }
+      }
+    });
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (writing.current) return;
@@ -82,7 +111,7 @@ export function WorkspaceEditor({
       setPending(true);
       setError(null);
       await save(change);
-      close();
+      finish();
     } catch (reason) {
       setError(mindSwitchError(reason));
       writing.current = false;
@@ -95,8 +124,8 @@ export function WorkspaceEditor({
     switch (edit.kind) {
       case "focus": {
         const { lastContext, nextAction } = readTaskContext(form);
-        const taskId = edit.target === null ? null : edit.target?.id ?? trimmed(form, "taskId");
-        if (taskId === "") throw new Error("请选择要切换的任务");
+        if (needsDestination) throw new Error("请选择可用的任务");
+        const taskId = edit.target === null ? null : selectedTaskId;
         const source = edit.source;
         return {
           kind: "focus",
@@ -145,26 +174,49 @@ export function WorkspaceEditor({
   let submitLabel = "保存";
 
   switch (edit.kind) {
-    case "focus":
-      heading = edit.target === null ? "暂时休息" : "切换任务";
-      submitLabel = edit.target === null ? "休息一下" : "切换";
+    case "focus": {
+      const preview = destination?.nextAction || destination?.lastContext;
+      if (edit.target === null) {
+        heading = "暂时休息";
+        submitLabel = "休息一下";
+      } else if (edit.source) {
+        heading = "切换任务";
+        submitLabel = "切换";
+      } else {
+        heading = "开始专注";
+        submitLabel = "开始专注";
+      }
       fields = <>
         {edit.target !== null && (
           edit.target
-            ? <p className={styles.editorTarget}>{edit.target.title}</p>
+            ? <p className={styles.editorTarget}>{destination?.title ?? "这项任务已不可用，请取消后重新选择。"}</p>
             : <label>切换到
-                <select aria-label="切换到" name="taskId" required data-initial-focus>
-                  {remainingTasks.length === 0 && <option value="">没有其他可切换的任务</option>}
+                <select
+                  aria-label="切换到"
+                  name="taskId"
+                  value={destination?.id ?? ""}
+                  onChange={(event) => setSelectedTaskId(event.target.value)}
+                  required
+                  data-initial-focus
+                >
+                  {!destination && <option value="" disabled>
+                    {remainingTasks.length ? "原任务已不可用，请重新选择" : "没有其他可切换的任务"}
+                  </option>}
                   {remainingTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
                 </select>
               </label>
         )}
+        {preview && <div className={styles.switchPreview} aria-live="polite">
+          <strong>{destination?.nextAction ? "回来先做" : "上次进度"}</strong>
+          <p>{preview}</p>
+        </div>}
         {edit.source && <>
           <p>离开「{edit.source.title}」前，可以留一点上下文。</p>
           <ContextFields task={edit.source} />
         </>}
       </>;
       break;
+    }
     case "note":
       heading = edit.note ? "编辑记录" : "快速记录";
       fields = <>
@@ -249,11 +301,11 @@ export function WorkspaceEditor({
         <div className={styles.fields}>{fields}</div>
         {error && <p role="alert" className={styles.formError}>{error}</p>}
         <div className={styles.buttons}>
-          <button type="button" onClick={close}>取消</button>
+          <button type="button" onClick={finish}>取消</button>
           {edit.kind === "focus" && edit.source && (
-            <button type="submit" value="skip">跳过备注</button>
+            <button type="submit" value="skip" disabled={needsDestination}>跳过备注</button>
           )}
-          <button type="submit" className={edit.kind === "confirm" ? styles.danger : styles.primary}>
+          <button type="submit" disabled={needsDestination} className={edit.kind === "confirm" ? styles.danger : styles.primary}>
             {pending ? "处理中…" : submitLabel}
           </button>
         </div>

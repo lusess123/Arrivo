@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { FormOutlined } from "@ant-design/icons";
 import type { FormEvent } from "react";
 import type { MindSwitchChange, MindTaskDto, MindTaskStatus } from "@arrivo/contracts";
 import { ExpandableTextField } from "@/components/expandable-text-field";
@@ -101,13 +102,14 @@ export function TaskEditor({
 
   if (!task) {
     return <form className={styles.taskComposer} aria-label="新建任务" aria-busy={pending} onSubmit={submit}>
-      <label htmlFor="mind-task-name">新建任务</label>
+      <label htmlFor="mind-task-name"><FormOutlined aria-hidden="true" /> 新建任务</label>
       <div className={styles.composerRow}>
         {titleField}
         <button className={styles.primary} type="submit" disabled={pending || !titleInput.trim()}>
           {pending ? "保存中…" : "添加任务"}
         </button>
       </div>
+      <p className={styles.shortcut}>回车换行 · {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"} + Enter 保存</p>
       {error && <p className={styles.formError} role="alert">{error}</p>}
     </form>;
   }

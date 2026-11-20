@@ -31,7 +31,11 @@ export default function AuthWrapper() {
 
   useEffect(() => {
     if (checking) return;
-    const path = `${location.pathname}${location.search}${location.hash}`;
+    // A task handoff is a one-time choice in this tab.
+    const hash = /^\/mind-switch\/?$/i.test(location.pathname) && location.hash.startsWith("#task=")
+      ? ""
+      : location.hash;
+    const path = `${location.pathname}${location.search}${hash}`;
     void auth.saveLastVisitedPage(path);
   }, [
     auth.saveLastVisitedPage,

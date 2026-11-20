@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ElementRef, FormEvent } from "react";
 import { useNavigate } from "@umijs/max";
-import { PlusOutlined } from "@ant-design/icons";
+import { ArrowRightOutlined, ArrowUpOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import axios from "axios";
 import type { ApiSuccess, AuthUserDto } from "@arrivo/contracts";
 import { ExpandableTextField } from "@/components/expandable-text-field";
@@ -126,7 +126,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
   return (
     <section className={styles.quickTask} aria-label="快速添加任务">
       <form onSubmit={submit} aria-busy={pending}>
-        <label htmlFor="home-task-name">{editing ? "编辑任务" : "新建任务"}</label>
+        <label className={editing ? styles.editLabel : styles.srOnly} htmlFor="home-task-name">{editing ? "编辑任务" : "新建任务"}</label>
         <div className={styles.quickInput}>
           <ExpandableTextField
             ref={input}
@@ -147,9 +147,11 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
               setError(null);
             }}
           />
-          <button type="submit" disabled={pending || !title.trim()}>
-            {!editing && <PlusOutlined aria-hidden="true" />} {pending ? "保存中…" : editing ? "保存" : "添加任务"}
-          </button>
+        </div>
+        <div className={styles.composerFooter}>
+          <p id="home-task-keys" className={styles.taskKeys}>
+            回车换行<span className={styles.shortcut}> · Ctrl / ⌘ + 回车保存</span>
+          </p>
           {editing && <button
             className={styles.taskTextButton}
             type="button"
@@ -160,18 +162,26 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
               setError(null);
             }}
           >取消</button>}
+          <button className={styles.submit} type="submit" disabled={pending || !title.trim()}>
+            {pending ? "保存中…" : editing ? "保存" : "添加任务"}
+            <ArrowUpOutlined aria-hidden="true" />
+          </button>
         </div>
-        <p id="home-task-keys" className={styles.taskKeys}>回车换行 · Ctrl / ⌘ + 回车保存</p>
       </form>
       {error && <p className={styles.taskError} role="alert">{error}</p>}
       {mostRecent && !editing && !title && (
         <div className={styles.taskSaved}>
-          <p role="status">已保存「{mostRecent.title}」</p>
-          <button type="button" className={styles.taskTextButton} onClick={() => {
-            setTitle(mostRecent.title);
-            setEditing(true);
-            input.current?.focus();
-          }}>编辑</button>
+          <CheckCircleOutlined aria-hidden="true" /><p role="status">已保存「{mostRecent.title}」</p>
+          <div className={styles.savedActions}>
+            <button type="button" className={styles.taskTextButton} onClick={() => {
+              setTitle(mostRecent.title);
+              setEditing(true);
+              input.current?.focus();
+            }}>编辑</button>
+            <a className={styles.focusLink} href={`/mind-switch#task=${encodeURIComponent(mostRecent.id)}`}>
+              去专注 <ArrowRightOutlined aria-hidden="true" />
+            </a>
+          </div>
         </div>
       )}
     </section>
