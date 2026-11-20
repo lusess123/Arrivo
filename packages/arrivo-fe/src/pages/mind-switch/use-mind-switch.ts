@@ -1,36 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import type {
-  ApiFailure,
   ApiSuccess,
   MindSwitchChange,
   MindSwitchSnapshot,
 } from "@arrivo/contracts";
 
-const route = "/api/mind-switch";
-const timeout = 12000;
+import {
+  mindSwitchErrorCode,
+  mindSwitchPath,
+  mindSwitchTimeout,
+  submitMindSwitchChange,
+} from "@/lib/mind-switch-api";
 
 type ReadResponse = { accountId: string; snapshot: MindSwitchSnapshot | null };
 
 function requestSnapshot(signal: AbortSignal, revision?: string) {
-  return axios.get<ApiSuccess<ReadResponse>>(route, {
+  return axios.get<ApiSuccess<ReadResponse>>(mindSwitchPath, {
     signal,
-    timeout,
+    timeout: mindSwitchTimeout,
     params: revision ? { revision } : undefined,
   }).then(({ data }) => data.data);
-}
-
-function errorCode(error: unknown) {
-  return axios.isAxiosError<ApiFailure>(error) ? error.response?.data?.code : undefined;
-}
-
-export function mindSwitchError(error: unknown): string {
-  if (axios.isAxiosError<ApiFailure>(error) && error.response) {
-    return error.response.data?.message || "操作未完成，请重试";
-  }
-  return error instanceof Error && !axios.isAxiosError(error)
-    ? error.message
-    : "连接失败，内容仍在此页面，请联网后重试";
 }
 
 export function useMindSwitch() {
@@ -107,9 +97,9 @@ export function useMindSwitch() {
     reading.current = null;
     let focusChanged = false;
     try {
-      await axios.post(route, { accountId: previous.accountId, change: input }, { timeout });
+      await submitMindSwitchChange(previous.accountId, input);
     } catch (error) {
-      const code = errorCode(error);
+      const code = mindSwitchErrorCode(error);
       focusChanged = code === "FOCUS_CHANGED";
       if (code === "ACCOUNT_CHANGED") accountChanged();
       if (!axios.isAxiosError(error) || !error.response || error.response.status >= 500) setSync("failed");

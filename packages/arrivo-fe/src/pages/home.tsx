@@ -1,12 +1,14 @@
 import { Navigate, useLocation } from "@umijs/max";
 import { AimOutlined, ArrowRightOutlined, AudioOutlined } from "@ant-design/icons";
 import logo from "@/assets/logo.png";
+import { HomeTaskForm } from "./home-task-form";
 import styles from "./home.module.less";
 
 export default function HomePage() {
   const { search, hash } = useLocation();
 
-  if (new URLSearchParams(search).has("tab")) {
+  const params = new URLSearchParams(search);
+  if (params.has("tab")) {
     return <Navigate to={{ pathname: "/learn", search, hash }} replace />;
   }
 
@@ -16,6 +18,7 @@ export default function HomePage() {
         <img src={logo} alt="Arrivo" width={160} height={106} />
         <h1>语言学习与专注</h1>
       </header>
+      <HomeTaskForm resume={params.get("addTask") === "1"} />
       <nav className={styles.modules} aria-label="Arrivo 功能">
         <a href="/learn" className={styles.module} aria-labelledby="learn-title" aria-describedby="learn-description">
           <span className={styles.icon}><AudioOutlined aria-hidden="true" /></span>

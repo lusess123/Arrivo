@@ -11,9 +11,11 @@ import {
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import type { MindActionDto, MindNoteDto, MindSwitchChange, MindTaskDto } from "@arrivo/contracts";
-import { Dialog, noteTypes, taskStatuses } from "./dialogs";
+import { mindSwitchError } from "@/lib/mind-switch-api";
+import { Dialog, noteTypes } from "./dialogs";
 import type { ActionParent, MindDialog } from "./dialogs";
-import { mindSwitchError, useMindSwitch } from "./use-mind-switch";
+import { TaskEditor, taskStatuses } from "./task-editor";
+import { useMindSwitch } from "./use-mind-switch";
 import styles from "./index.module.less";
 
 const sections = [
@@ -32,6 +34,7 @@ export default function MindSwitchPage() {
   const { snapshot, sync, lastSynced, refresh, change, exportWorkspace } = useMindSwitch();
   const [section, setSection] = useState<Section>("focus");
   const [dialog, setDialog] = useState<MindDialog | null>(null);
+  const [taskForm, setTaskForm] = useState<{ task?: MindTaskDto } | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [pending, setPending] = useState(false);
   const acting = useRef(false);
@@ -53,6 +56,7 @@ export default function MindSwitchPage() {
   }, [actions]);
 
   const current = snapshot?.currentTaskId ? taskById.get(snapshot.currentTaskId) : undefined;
+  const contextTask = taskForm?.task ?? current;
   const activeTasks = tasks?.filter((task) => !task.archivedAt) ?? [];
   const archivedTasks = tasks?.filter((task) => task.archivedAt) ?? [];
   const waitingTasks = activeTasks.filter((task) => task.status === "WAITING" && task.id !== current?.id);
@@ -62,7 +66,22 @@ export default function MindSwitchPage() {
 
   function moveTo(view: Section) {
     setSection(view);
+    setTaskForm(null);
     setNotice(null);
+  }
+
+  function startTaskForm(task?: MindTaskDto) {
+    if (acting.current) return;
+    if (!task) setSection("tasks");
+    setTaskForm({ task });
+    setNotice(null);
+  }
+
+  async function saveTask(input: MindSwitchChange) {
+    const submittedForm = taskForm;
+    await change(input);
+    setTaskForm((currentForm) => currentForm === submittedForm ? null : currentForm);
+    setNotice({ text: "任务已保存" });
   }
 
   function open(nextDialog: MindDialog) {
@@ -150,6 +169,11 @@ export default function MindSwitchPage() {
   }
 
   function taskCard(task: MindTaskDto) {
+    if (taskForm?.task?.id === task.id) {
+      return <article className={styles.item} key={task.id}>
+        <TaskEditor task={taskForm.task} save={saveTask} cancel={() => setTaskForm(null)} />
+      </article>;
+    }
     return <article className={styles.item} key={task.id}>
       <div className={styles.itemHeading}>
         <h2>{task.title}</h2>
@@ -162,7 +186,7 @@ export default function MindSwitchPage() {
           onClick={() => changeFocus(task)}
           aria-label={`切换到 ${task.title}`}
         >切换到此任务 <ArrowRightOutlined aria-hidden="true" /></button>}
-        <button aria-label={`编辑任务 ${task.title}`} onClick={() => open({ kind: "task", task })}>编辑</button>
+        <button aria-label={`编辑任务 ${task.title}`} onClick={() => startTaskForm(task)}>编辑</button>
         <button
           disabled={pending}
           onClick={() => void run({ kind: "archive-task", id: task.id, archived: !task.archivedAt })}
@@ -251,7 +275,7 @@ export default function MindSwitchPage() {
         {snapshot && <div className={styles.sideTasks}>
           <div className={styles.sideHeading}>
             <h2>我的任务</h2>
-            <button className={styles.iconButton} aria-label="新建任务" onClick={() => open({ kind: "task" })}><PlusOutlined aria-hidden="true" /></button>
+            <button className={styles.iconButton} aria-label="新建任务" onClick={() => startTaskForm()}><PlusOutlined aria-hidden="true" /></button>
           </div>
           {activeTasks.length ? taskList(activeTasks) : <p>还没有任务</p>}
         </div>}
@@ -278,33 +302,33 @@ export default function MindSwitchPage() {
               {canSwitch && <button className={styles.primary} onClick={() => changeFocus()}>
                 切换任务 <ArrowRightOutlined aria-hidden="true" />
               </button>}
-              {!canSwitch && <button className={styles.primary} onClick={() => open({ kind: "task" })}>
+              {!canSwitch && <button className={styles.primary} onClick={() => startTaskForm()}>
                 <PlusOutlined aria-hidden="true" /> 新建任务
               </button>}
               {current && <button onClick={() => changeFocus(null)}>暂时休息</button>}
             </div>
           </div>
-          {current && <>
-            <div className={styles.context}>
-              <div className={styles.sideHeading}>
-                <h2>继续上次的进度</h2>
-                <button className={styles.textButton} onClick={() => open({ kind: "task", task: current })}>编辑上下文</button>
-              </div>
-              <div className={styles.contextGrid}>
-                <div><h3>上次做到哪</h3><p>{current.lastContext || "尚无备注"}</p></div>
-                <div><h3>下一步做什么</h3><p>{current.nextAction || "尚无下一步"}</p></div>
-              </div>
+          {contextTask && <div className={styles.context}>
+            <div className={styles.sideHeading}>
+              <h2>{taskForm?.task ? "编辑任务" : "继续上次的进度"}</h2>
+              {!taskForm?.task && <button className={styles.textButton} onClick={() => startTaskForm(contextTask)}>编辑上下文</button>}
             </div>
-            <section className={styles.context}>
-              <h2>行动计划</h2>
-              {actionsFor({ kind: "task", id: current.id })}
-            </section>
-          </>}
+            {taskForm?.task
+              ? <TaskEditor task={taskForm.task} save={saveTask} cancel={() => setTaskForm(null)} />
+              : <div className={styles.contextGrid}>
+                  <div><h3>上次做到哪</h3><p>{contextTask.lastContext || "尚无备注"}</p></div>
+                  <div><h3>下一步做什么</h3><p>{contextTask.nextAction || "尚无下一步"}</p></div>
+                </div>}
+          </div>}
+          {current && <section className={styles.context}>
+            <h2>行动计划</h2>
+            {actionsFor({ kind: "task", id: current.id })}
+          </section>}
         </>}
 
         {snapshot && section !== "focus" && <div className={styles.pageHeading}>
           <h1>{currentSection.label}</h1>
-          {section === "tasks" && <button className={styles.primary} onClick={() => open({ kind: "task" })}><PlusOutlined aria-hidden="true" /> 新建任务</button>}
+          {section === "tasks" && <button className={styles.primary} onClick={() => startTaskForm()}><PlusOutlined aria-hidden="true" /> 新建任务</button>}
           {section === "plan" && <button
             className={styles.primary}
             onClick={() => open({ kind: "action" })}
@@ -313,6 +337,9 @@ export default function MindSwitchPage() {
         </div>}
 
         {snapshot && section === "tasks" && <>
+          {taskForm && !taskForm.task && <div className={styles.newTask}>
+            <TaskEditor save={saveTask} cancel={() => setTaskForm(null)} />
+          </div>}
           <div className={styles.list}>{activeTasks.length ? activeTasks.map(taskCard) : <p className={styles.empty}>创建一条任务，随时切换回来。</p>}</div>
           {archivedTasks.length > 0 && <details className={styles.fold}>
             <summary>已归档 <span>{archivedTasks.length}</span></summary>

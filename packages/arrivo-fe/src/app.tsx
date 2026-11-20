@@ -6,9 +6,12 @@ import { initializeClarity } from './lib/clarity';
 import { registerPwaServiceWorker } from './lib/pwa';
 
 configureHttpClient();
-// MindSwitch is opened in a separate navigation so private content stays outside session recordings.
-if (typeof window !== 'undefined' && !/^\/mind-switch(?:\/|$)/i.test(window.location.pathname)) {
-    initializeClarity(process.env.UMI_APP_CLARITY_PROJECT_ID);
+// Task text can be entered on the home page and in MindSwitch.
+if (typeof window !== 'undefined') {
+    const { pathname } = window.location;
+    if (pathname !== '/' && !/^\/mind-switch(?:\/|$)/i.test(pathname)) {
+        initializeClarity(process.env.UMI_APP_CLARITY_PROJECT_ID);
+    }
 }
 void registerPwaServiceWorker();
 

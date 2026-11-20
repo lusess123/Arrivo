@@ -288,7 +288,7 @@
   gap: 7px;
 }
 .dialogHeader h2 { font-size: 19px; }
-.dialog fieldset { min-width: 0; border: 0; padding: 0; }
+.dialog fieldset, .taskEditor fieldset { min-width: 0; border: 0; padding: 0; }
 .fields { display: grid; gap: 12px; margin-block: 12px; }
 .fields > label { display: grid; gap: 5px; }
 .fields :is(input, textarea, select) {
@@ -338,4 +338,12 @@
 @media (max-width: 370px) {
   .brand a span:not(:global(.anticon)) { display: none; }
   .sections button { padding-inline: 5px; }
+}
+
+.newTask {
+  margin-bottom: 10px;
+  padding: 8px 15px 15px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--panel);
 }

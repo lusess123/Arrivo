@@ -7,18 +7,11 @@ import type {
   MindSwitchChange,
   MindSwitchSnapshot,
   MindTaskDto,
-  MindTaskStatus,
 } from "@arrivo/contracts";
 import { CloseOutlined } from "@ant-design/icons";
-import { mindSwitchError } from "./use-mind-switch";
+import { mindSwitchError } from "@/lib/mind-switch-api";
+import { ContextFields, readTaskContext } from "./task-editor";
 import styles from "./index.module.less";
-
-export const taskStatuses = {
-  IN_PROGRESS: "进行中",
-  WAITING: "等待中",
-  PAUSED: "暂停",
-  DONE: "完成",
-} satisfies Record<MindTaskStatus, string>;
 
 export const noteTypes = {
   OTHER: "其他",
@@ -30,7 +23,6 @@ export const noteTypes = {
 export type ActionParent = { kind: "task" | "note"; id: string };
 
 export type MindDialog =
-  | { kind: "task"; task?: MindTaskDto }
   | { kind: "focus"; source: MindTaskDto | undefined; target?: MindTaskDto | null }
   | { kind: "note"; note?: MindNoteDto }
   | { kind: "link"; note: MindNoteDto }
@@ -97,22 +89,9 @@ export function Dialog({
 
   function buildChange(form: FormData, skip: boolean): MindSwitchChange {
     const title = trimmed(form, "title");
-    const contextText = String(form.get("lastContext") ?? "");
-    const actionText = String(form.get("nextAction") ?? "");
-    const lastContext = contextText.trim() ? contextText : null;
-    const nextAction = actionText.trim() ? actionText : null;
     switch (dialog.kind) {
-      case "task":
-        if (!dialog.task) return { kind: "create-task", id: createId(), title };
-        return {
-          kind: "edit-task",
-          id: dialog.task.id,
-          title: title === dialog.task.title ? undefined : title,
-          status: form.get("status") === dialog.task.status ? undefined : form.get("status") as MindTaskStatus,
-          lastContext: lastContext === dialog.task.lastContext ? undefined : lastContext,
-          nextAction: nextAction === dialog.task.nextAction ? undefined : nextAction,
-        };
       case "focus": {
+        const { lastContext, nextAction } = readTaskContext(form);
         const taskId = dialog.target === null ? null : dialog.target?.id ?? trimmed(form, "taskId");
         if (taskId === "") throw new Error("请选择要切换的任务");
         const source = dialog.source;
@@ -163,20 +142,6 @@ export function Dialog({
   let submitLabel = "保存";
 
   switch (dialog.kind) {
-    case "task":
-      heading = dialog.task ? "编辑任务" : "新建任务";
-      fields = <>
-        <TitleField label="任务名称" initial={dialog.task?.title} placeholder="例如：写完产品方案" />
-        {dialog.task && <>
-          <label>状态
-            <select aria-label="状态" name="status" defaultValue={dialog.task.status}>
-              {Object.entries(taskStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <ContextFields task={dialog.task} />
-        </>}
-      </>;
-      break;
     case "focus":
       heading = dialog.target === null ? "暂时休息" : "切换任务";
       submitLabel = dialog.target === null ? "休息一下" : "切换";
@@ -295,15 +260,4 @@ function TitleField({ label, initial, placeholder }: { label: string; initial?: 
   return <label>{label}
     <input name="title" maxLength={160} defaultValue={initial} placeholder={placeholder} required data-initial-focus />
   </label>;
-}
-
-function ContextFields({ task }: { task: MindTaskDto }) {
-  return <>
-    <label>上次做到哪（可选）
-      <textarea name="lastContext" rows={3} maxLength={12000} defaultValue={task.lastContext ?? ""} />
-    </label>
-    <label>下一步做什么（可选）
-      <textarea name="nextAction" rows={2} maxLength={4000} defaultValue={task.nextAction ?? ""} />
-    </label>
-  </>;
 }
