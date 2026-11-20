@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { ElementRef, FormEvent } from "react";
 import { useNavigate } from "@umijs/max";
 import { PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
 import type { ApiSuccess, AuthUserDto } from "@arrivo/contracts";
+import { TaskTitleField } from "@/components/task-title-field";
 import { buildLoginUrl, isAuthenticatedUser } from "@/lib/auth-redirect";
 import { mindSwitchError, mindSwitchTimeout, submitMindSwitchChange } from "@/lib/mind-switch-api";
 import styles from "./home.module.less";
@@ -43,7 +44,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
   const draft = useRef(initialDraft);
   const writing = useRef(false);
   const resumed = useRef(false);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<ElementRef<typeof TaskTitleField>>(null);
 
   const createTask = useCallback(async (task: Draft, afterLogin = false) => {
     if (writing.current) return;
@@ -127,13 +128,13 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
       <form onSubmit={submit} aria-busy={pending}>
         <label htmlFor="home-task-name">{editing ? "编辑任务" : "新建任务"}</label>
         <div className={styles.quickInput}>
-          <input
+          <TaskTitleField
             ref={input}
             id="home-task-name"
             name="task"
             placeholder="输入任务名称"
             value={title}
-            maxLength={160}
+            aria-describedby="home-task-keys"
             required
             readOnly={pending}
             onChange={(event) => {
@@ -160,6 +161,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
             }}
           >取消</button>}
         </div>
+        <p id="home-task-keys" className={styles.taskKeys}>回车换行 · Ctrl / ⌘ + 回车保存</p>
       </form>
       {error && <p className={styles.taskError} role="alert">{error}</p>}
       {mostRecent && !editing && !title && (

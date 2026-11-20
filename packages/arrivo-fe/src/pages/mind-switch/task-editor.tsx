@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { MindSwitchChange, MindTaskDto, MindTaskStatus } from "@arrivo/contracts";
+import { TaskTitleField } from "@/components/task-title-field";
 import { mindSwitchError } from "@/lib/mind-switch-api";
 import styles from "./index.module.less";
 
@@ -86,7 +87,7 @@ export function TaskEditor({
     <fieldset disabled={pending}>
       <div className={styles.fields}>
         <label>任务名称
-          <input name="title" required maxLength={160} placeholder="输入任务名称" defaultValue={task?.title} autoFocus />
+          <TaskTitleField name="title" required placeholder="输入任务名称" defaultValue={task?.title} autoFocus />
         </label>
         {task && <>
           <label>状态

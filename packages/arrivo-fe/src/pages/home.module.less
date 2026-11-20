@@ -145,7 +145,7 @@
     font-weight: 650;
   }
 
-  :is(input, button):focus-visible {
+  :is(textarea, button):focus-visible {
     outline: 2px solid #186a9f;
     outline-offset: 2px;
   }
@@ -162,9 +162,10 @@
 
 .quickInput {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
 
-  input {
+  textarea {
     flex: 1;
     min-width: 0;
     padding: 8px 11px;
@@ -173,6 +174,7 @@
     border-radius: 9px;
     color: #204259;
     font-size: 16px;
+    line-height: 25px;
   }
 
   button[type="submit"] {
@@ -197,7 +199,13 @@
   gap: 8px;
   margin-top: 7px;
 
-  p { margin: 0; overflow-wrap: anywhere; }
+  p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+}
+
+.taskKeys {
+  margin: 6px 0 0;
+  color: #526c80;
+  font-size: 12px;
 }
 
 .taskError {
