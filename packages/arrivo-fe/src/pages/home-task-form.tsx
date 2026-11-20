@@ -4,7 +4,7 @@ import { useNavigate } from "@umijs/max";
 import { PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
 import type { ApiSuccess, AuthUserDto } from "@arrivo/contracts";
-import { TaskTitleField } from "@/components/task-title-field";
+import { ExpandableTextField } from "@/components/expandable-text-field";
 import { buildLoginUrl, isAuthenticatedUser } from "@/lib/auth-redirect";
 import { mindSwitchError, mindSwitchTimeout, submitMindSwitchChange } from "@/lib/mind-switch-api";
 import styles from "./home.module.less";
@@ -44,7 +44,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
   const draft = useRef(initialDraft);
   const writing = useRef(false);
   const resumed = useRef(false);
-  const input = useRef<ElementRef<typeof TaskTitleField>>(null);
+  const input = useRef<ElementRef<typeof ExpandableTextField>>(null);
 
   const createTask = useCallback(async (task: Draft, afterLogin = false) => {
     if (writing.current) return;
@@ -128,7 +128,7 @@ export function HomeTaskForm({ resume }: { resume: boolean }) {
       <form onSubmit={submit} aria-busy={pending}>
         <label htmlFor="home-task-name">{editing ? "编辑任务" : "新建任务"}</label>
         <div className={styles.quickInput}>
-          <TaskTitleField
+          <ExpandableTextField
             ref={input}
             id="home-task-name"
             name="task"

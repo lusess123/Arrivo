@@ -4,14 +4,14 @@ import type { TextAreaProps, TextAreaRef } from "antd/es/input/TextArea";
 
 const autoSize = { minRows: 1, maxRows: 6 };
 
-export const TaskTitleField = forwardRef<TextAreaRef, TextAreaProps>(
-  function TaskTitleField(props, ref) {
+export const ExpandableTextField = forwardRef<TextAreaRef, TextAreaProps>(
+  function ExpandableTextField({ maxLength = 160, ...props }, ref) {
     return <Input.TextArea
       {...props}
       ref={ref}
       rows={1}
       autoSize={autoSize}
-      maxLength={160}
+      maxLength={maxLength}
       onKeyDown={(event) => {
         if (
           event.key === "Enter" &&

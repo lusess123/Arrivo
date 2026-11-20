@@ -8,7 +8,7 @@ import type {
   MindSwitchSnapshot,
   MindTaskDto,
 } from "@arrivo/contracts";
-import { CloseOutlined } from "@ant-design/icons";
+import { ExpandableTextField } from "@/components/expandable-text-field";
 import { mindSwitchError } from "@/lib/mind-switch-api";
 import { ContextFields, readTaskContext } from "./task-editor";
 import styles from "./index.module.less";
@@ -22,7 +22,7 @@ export const noteTypes = {
 
 export type ActionParent = { kind: "task" | "note"; id: string };
 
-export type MindDialog =
+export type WorkspaceEdit =
   | { kind: "focus"; source: MindTaskDto | undefined; target?: MindTaskDto | null }
   | { kind: "note"; note?: MindNoteDto }
   | { kind: "link"; note: MindNoteDto }
@@ -34,32 +34,35 @@ function trimmed(form: FormData, field: string) {
   return String(form.get(field) ?? "").trim();
 }
 
-export function Dialog({
-  dialog,
+export function WorkspaceEditor({
+  edit,
   snapshot,
   close,
   save,
 }: {
-  dialog: MindDialog;
+  edit: WorkspaceEdit;
   snapshot: MindSwitchSnapshot;
   close: () => void;
   save: (input: MindSwitchChange) => Promise<void>;
 }) {
-  const element = useRef<HTMLDialogElement>(null);
+  const element = useRef<HTMLFormElement>(null);
   const writing = useRef(false);
   const generatedId = useRef<string>();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const activeTasks = snapshot.tasks.filter((task) => !task.archivedAt);
-  const remainingTasks = dialog.kind === "focus"
-    ? activeTasks.filter((task) => task.id !== dialog.source?.id)
+  const remainingTasks = edit.kind === "focus"
+    ? activeTasks.filter((task) => task.id !== edit.source?.id)
     : [];
 
   useEffect(() => {
-    const current = element.current;
-    current?.showModal();
-    current?.querySelector<HTMLElement>("[data-initial-focus]")?.focus();
-    return () => current?.close();
+    const form = element.current;
+    if (!form) return;
+    const field = form.querySelector<HTMLElement>("[data-initial-focus]")
+      ?? form.querySelector<HTMLElement>("input, select, textarea")
+      ?? form;
+    field.focus({ preventScroll: true });
+    form.scrollIntoView({ block: "nearest" });
   }, []);
 
   function createId() {
@@ -89,12 +92,12 @@ export function Dialog({
 
   function buildChange(form: FormData, skip: boolean): MindSwitchChange {
     const title = trimmed(form, "title");
-    switch (dialog.kind) {
+    switch (edit.kind) {
       case "focus": {
         const { lastContext, nextAction } = readTaskContext(form);
-        const taskId = dialog.target === null ? null : dialog.target?.id ?? trimmed(form, "taskId");
+        const taskId = edit.target === null ? null : edit.target?.id ?? trimmed(form, "taskId");
         if (taskId === "") throw new Error("请选择要切换的任务");
-        const source = dialog.source;
+        const source = edit.source;
         return {
           kind: "focus",
           taskId,
@@ -106,34 +109,34 @@ export function Dialog({
       case "note": {
         const content = String(form.get("content") ?? "");
         const type = form.get("type") as MindNoteType;
-        return dialog.note
+        return edit.note
           ? {
-              kind: "edit-note", id: dialog.note.id,
-              content: content !== dialog.note.content ? content : undefined,
-              type: type !== dialog.note.type ? type : undefined,
+              kind: "edit-note", id: edit.note.id,
+              content: content !== edit.note.content ? content : undefined,
+              type: type !== edit.note.type ? type : undefined,
             }
           : { kind: "create-note", id: createId(), content, type };
       }
       case "link":
-        return { kind: "edit-note", id: dialog.note.id, taskId: trimmed(form, "taskId") || null };
+        return { kind: "edit-note", id: edit.note.id, taskId: trimmed(form, "taskId") || null };
       case "convert":
-        return { kind: "note-to-task", noteId: dialog.note.id, taskId: createId(), title };
+        return { kind: "note-to-task", noteId: edit.note.id, taskId: createId(), title };
       case "action": {
         const dueOn = trimmed(form, "dueOn") || null;
-        if (dialog.action) return {
+        if (edit.action) return {
           kind: "edit-action",
-          id: dialog.action.id,
-          title: title === dialog.action.title ? undefined : title,
-          dueOn: dueOn === dialog.action.dueOn ? undefined : dueOn,
+          id: edit.action.id,
+          title: title === edit.action.title ? undefined : title,
+          dueOn: dueOn === edit.action.dueOn ? undefined : dueOn,
         };
         const [kind, id] = trimmed(form, "parent").split(":");
-        const parent = dialog.note
-          ? { kind: "note" as const, id: dialog.note.id }
-          : dialog.parent ?? { kind: kind as ActionParent["kind"], id };
+        const parent = edit.note
+          ? { kind: "note" as const, id: edit.note.id }
+          : edit.parent ?? { kind: kind as ActionParent["kind"], id };
         return { kind: "create-action", id: createId(), title, dueOn, parent };
       }
       case "confirm":
-        return dialog.change;
+        return edit.change;
     }
   }
 
@@ -141,14 +144,14 @@ export function Dialog({
   let fields: React.ReactNode;
   let submitLabel = "保存";
 
-  switch (dialog.kind) {
+  switch (edit.kind) {
     case "focus":
-      heading = dialog.target === null ? "暂时休息" : "切换任务";
-      submitLabel = dialog.target === null ? "休息一下" : "切换";
+      heading = edit.target === null ? "暂时休息" : "切换任务";
+      submitLabel = edit.target === null ? "休息一下" : "切换";
       fields = <>
-        {dialog.target !== null && (
-          dialog.target
-            ? <p className={styles.dialogTarget}>{dialog.target.title}</p>
+        {edit.target !== null && (
+          edit.target
+            ? <p className={styles.editorTarget}>{edit.target.title}</p>
             : <label>切换到
                 <select aria-label="切换到" name="taskId" required data-initial-focus>
                   {remainingTasks.length === 0 && <option value="">没有其他可切换的任务</option>}
@@ -156,20 +159,20 @@ export function Dialog({
                 </select>
               </label>
         )}
-        {dialog.source && <>
-          <p>离开「{dialog.source.title}」前，可以留一点上下文。</p>
-          <ContextFields task={dialog.source} />
+        {edit.source && <>
+          <p>离开「{edit.source.title}」前，可以留一点上下文。</p>
+          <ContextFields task={edit.source} />
         </>}
       </>;
       break;
     case "note":
-      heading = dialog.note ? "编辑记录" : "快速记录";
+      heading = edit.note ? "编辑记录" : "快速记录";
       fields = <>
         <label>此刻想到什么？
-          <textarea name="content" rows={4} maxLength={12000} defaultValue={dialog.note?.content} required data-initial-focus />
+          <ExpandableTextField name="content" maxLength={12000} defaultValue={edit.note?.content} required data-initial-focus />
         </label>
         <label>类型（可选）
-          <select aria-label="记录类型" name="type" defaultValue={dialog.note?.type ?? "OTHER"}>
+          <select aria-label="记录类型" name="type" defaultValue={edit.note?.type ?? "OTHER"}>
             {Object.entries(noteTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
@@ -178,10 +181,10 @@ export function Dialog({
     case "link":
       heading = "关联任务";
       fields = <label>任务
-        <select aria-label="任务" name="taskId" defaultValue={dialog.note.taskId ?? ""} data-initial-focus>
+        <select aria-label="任务" name="taskId" defaultValue={edit.note.taskId ?? ""} data-initial-focus>
           <option value="">独立记录</option>
           {activeTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
-          {snapshot.tasks.filter((task) => task.archivedAt && task.id === dialog.note.taskId).map((task) => (
+          {snapshot.tasks.filter((task) => task.archivedAt && task.id === edit.note.taskId).map((task) => (
             <option key={task.id} value={task.id} disabled>{task.title}（已归档）</option>
           ))}
         </select>
@@ -191,14 +194,16 @@ export function Dialog({
       heading = "转为新任务";
       submitLabel = "创建任务";
       fields = <>
-        <TitleField label="任务名称" initial={dialog.note.content.trim().split(/\r?\n/)[0].slice(0, 160)} />
+        <label>任务名称
+          <ExpandableTextField name="title" defaultValue={edit.note.content.trim().slice(0, 160)} required data-initial-focus />
+        </label>
         <p>原始记录会保留，并关联到新任务。</p>
       </>;
       break;
     case "action":
-      heading = dialog.action ? "编辑行动" : dialog.note ? "转为行动" : "添加行动";
+      heading = edit.action ? "编辑行动" : edit.note ? "转为行动" : "添加行动";
       fields = <>
-        {!dialog.action && !dialog.parent && !dialog.note && <label>所属任务或记录
+        {!edit.action && !edit.parent && !edit.note && <label>所属任务或记录
           <select aria-label="所属任务或记录" name="parent" required defaultValue="">
             <option value="" disabled>请选择</option>
             <optgroup label="任务">
@@ -209,55 +214,50 @@ export function Dialog({
             </optgroup>
           </select>
         </label>}
-        <TitleField label="下一小步" initial={dialog.action?.title ?? dialog.note?.content.trim().split(/\r?\n/)[0].slice(0, 160)} />
+        <label>下一小步
+          <input
+            name="title"
+            maxLength={160}
+            defaultValue={edit.action?.title ?? edit.note?.content.trim().split(/\r?\n/)[0].slice(0, 160)}
+            required
+            data-initial-focus
+          />
+        </label>
         <label>计划日期（可选）
-          <input name="dueOn" type="date" min="0001-01-01" max="9999-12-31" defaultValue={dialog.action?.dueOn ?? undefined} />
+          <input name="dueOn" type="date" min="0001-01-01" max="9999-12-31" defaultValue={edit.action?.dueOn ?? undefined} />
         </label>
       </>;
       break;
     case "confirm":
-      heading = dialog.title;
-      fields = <p>{dialog.description}</p>;
+      heading = edit.title;
+      fields = <p>{edit.description}</p>;
       submitLabel = "确认删除";
       break;
   }
 
   return (
-    <dialog
+    <form
       ref={element}
-      className={styles.dialog}
-      aria-labelledby="mind-dialog-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!writing.current) close();
-      }}
+      className={styles.workspaceEditor}
+      aria-labelledby="mind-editor-title"
+      aria-busy={pending}
+      tabIndex={-1}
+      onSubmit={submit}
     >
-      <header className={styles.dialogHeader}>
-        <h2 id="mind-dialog-title">{heading}</h2>
-        <button type="button" className={styles.iconButton} aria-label="关闭" onClick={close} disabled={pending}>
-          <CloseOutlined aria-hidden="true" />
-        </button>
-      </header>
-      <form onSubmit={submit}>
-        <fieldset disabled={pending}>
-          <div className={styles.fields}>{fields}</div>
-          {error && <p role="alert" className={styles.formError}>{error}</p>}
-          <footer className={styles.dialogFooter}>
-            {dialog.kind === "focus" && dialog.source && (
-              <button type="submit" value="skip">跳过备注</button>
-            )}
-            <button type="submit" className={dialog.kind === "confirm" ? styles.danger : styles.primary}>
-              {pending ? "处理中…" : submitLabel}
-            </button>
-          </footer>
-        </fieldset>
-      </form>
-    </dialog>
+      <h2 id="mind-editor-title">{heading}</h2>
+      <fieldset disabled={pending}>
+        <div className={styles.fields}>{fields}</div>
+        {error && <p role="alert" className={styles.formError}>{error}</p>}
+        <div className={styles.buttons}>
+          <button type="button" onClick={close}>取消</button>
+          {edit.kind === "focus" && edit.source && (
+            <button type="submit" value="skip">跳过备注</button>
+          )}
+          <button type="submit" className={edit.kind === "confirm" ? styles.danger : styles.primary}>
+            {pending ? "处理中…" : submitLabel}
+          </button>
+        </div>
+      </fieldset>
+    </form>
   );
-}
-
-function TitleField({ label, initial, placeholder }: { label: string; initial?: string; placeholder?: string }) {
-  return <label>{label}
-    <input name="title" maxLength={160} defaultValue={initial} placeholder={placeholder} required data-initial-focus />
-  </label>;
 }
